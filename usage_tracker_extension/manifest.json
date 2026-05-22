@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Usage Tracker",
+  "version": "1.0",
+  "description": "Captures claude.ai weekly usage data and sends to local server.",
+  "permissions": ["alarms", "tabs", "windows", "storage"],
+  "host_permissions": [
+    "https://claude.ai/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/settings/usage*"],
+      "js": ["intercept.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://claude.ai/settings/usage*"],
+      "js": ["bridge.js"],
+      "world": "ISOLATED",
+      "run_at": "document_start"
+    }
+  ]
+}

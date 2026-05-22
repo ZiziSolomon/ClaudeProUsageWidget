@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Claude Usage</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1c1c1e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #f5f5f0;
+    gap: 16px;
+  }
+
+  .icon-wrap {
+    position: relative;
+    width: 144px;
+    height: 91px;
+  }
+
+  .icon-ghost,
+  .icon-filled {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .icon-filled {
+    clip-path: inset(var(--clip-top, 100%) 0 0 0);
+    transition: clip-path 0.5s ease;
+  }
+
+  .pct-label {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .reset-label {
+    font-size: 0.72rem;
+    color: #666;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="icon-wrap">
+
+  <!-- Ghost (outline) -->
+  <svg class="icon-ghost" viewBox="0 0 121 76" xmlns="http://www.w3.org/2000/svg">
+    <path opacity="0.18" fill="#CC6644"
+      d="M 29,13 L 28,36 L 17,36 L 17,47 L 29,48 L 29,58 L 35,59 L 35,70 L 40,70
+         L 41,58 L 47,59 L 47,70 L 52,70 L 53,58 L 77,59 L 77,70 L 82,70 L 83,58
+         L 89,59 L 89,70 L 94,70 L 95,58 L 100,58 L 101,47 L 112,47 L 112,36
+         L 100,35 L 100,13 Z"/>
+  </svg>
+
+  <!-- Filled version, revealed bottom-up -->
+  <svg class="icon-filled" viewBox="0 0 121 76" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#CC6644"
+      d="M 29,13 L 28,36 L 17,36 L 17,47 L 29,48 L 29,58 L 35,59 L 35,70 L 40,70
+         L 41,58 L 47,59 L 47,70 L 52,70 L 53,58 L 77,59 L 77,70 L 82,70 L 83,58
+         L 89,59 L 89,70 L 94,70 L 95,58 L 100,58 L 101,47 L 112,47 L 112,36
+         L 100,35 L 100,13 Z"/>
+  </svg>
+
+</div>
+
+<div class="pct-label" id="pct">—%</div>
+<div class="reset-label" id="reset">session</div>
+
+<script>
+  const filledEl = document.querySelector('.icon-filled');
+  const pctEl    = document.getElementById('pct');
+  const resetEl  = document.getElementById('reset');
+
+  function setPct(pct) {
+    filledEl.style.setProperty('--clip-top', (100 - pct) + '%');
+    pctEl.textContent = Math.round(pct) + '%';
+  }
+
+  function fmtReset(iso) {
+    if (!iso) return 'session';
+    const mins = Math.round((new Date(iso) - Date.now()) / 60000);
+    if (mins <= 0)  return 'resetting…';
+    if (mins < 60)  return `resets in ${mins}m`;
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return `resets in ${h}h ${m}m`;
+  }
+
+  async function refresh() {
+    try {
+      const s = await fetch('/state?t=' + Date.now()).then(r => r.json());
+      setPct(s.session_pct ?? 0);
+      resetEl.textContent = fmtReset(s.session_end);
+    } catch { /* server not up yet */ }
+  }
+
+  refresh();
+  setInterval(refresh, 4000);
+</script>
+</body>
+</html>

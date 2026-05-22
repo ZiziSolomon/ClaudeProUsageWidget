@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""
+Widget updater — watches ~/.claude/projects/ for JSONL changes, maintains
+widget_state.json with current session token counts, and calibrates the
+token-to-utilisation relationship by calling the Claude.ai API on startup
+and on the first two file-change events each session.
+
+Run once; leave it in the background.
+"""
+
+import json
+import threading
+import time
+from datetime import datetime, timedelta, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+import browser_cookie3
+from curl_cffi import requests as cffi_requests
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+WIDGET_HTML = Path(__file__).parent / "widget.html"
+SERVER_PORT = 7433
+
+PROJECTS_DIR     = Path.home() / ".claude" / "projects"
+STATE_FILE       = Path(__file__).parent / "usage_data" / "widget_state.json"
+CALIBRATION_FILE = Path(__file__).parent / "usage_data" / "calibration.jsonl"
+
+USAGE_URL     = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
+SESSION_HOURS = 5
+# Call API on startup + this many subsequent file-change events per session.
+CALIBRATION_CALLS_PER_SESSION = 2
+
+
+# ---------------------------------------------------------------------------
+# API helpers
+# ---------------------------------------------------------------------------
+
+def _fetch_usage() -> dict | None:
+    try:
+        cookies = browser_cookie3.firefox(domain_name=".claude.ai")
+        cookie_dict = {c.name: c.value for c in cookies}
+        r = cffi_requests.get(
+            USAGE_URL, cookies=cookie_dict,
+            impersonate="firefox", headers={"Referer": "https://claude.ai/"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        print(f"  API error: {e}")
+        return None
+
+
+def _parse_session(raw: dict) -> tuple[datetime | None, datetime | None, float | None]:
+    """Returns (session_start, session_end, utilisation_pct) or (None, None, None)."""
+    five_hour = (raw or {}).get("five_hour") or {}
+    resets_at_str = five_hour.get("resets_at")
+    pct = five_hour.get("utilization")
+    if not resets_at_str or pct is None:
+        return None, None, None
+    session_end   = datetime.fromisoformat(resets_at_str)
+    session_start = session_end - timedelta(hours=SESSION_HOURS)
+    return session_start, session_end, pct
+
+
+# ---------------------------------------------------------------------------
+# State persistence
+# ---------------------------------------------------------------------------
+
+def _load_state() -> dict:
+    try:
+        s = json.loads(STATE_FILE.read_text())
+        s["seen_ids"] = set(s.get("seen_ids", []))
+        return s
+    except Exception:
+        return _empty_state()
+
+
+def _empty_state(session_start: datetime | None = None) -> dict:
+    return {
+        "seen_ids": set(),
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "by_model": {},
+        "session_start": session_start.isoformat() if session_start else None,
+        "calibration_calls_remaining": CALIBRATION_CALLS_PER_SESSION,
+    }
+
+
+def _save_state(state: dict, session_pct: float | None = None,
+                session_end: datetime | None = None) -> None:
+    out = {
+        **state,
+        "seen_ids": list(state["seen_ids"]),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if session_pct is not None:
+        out["session_pct"] = session_pct
+    if session_end is not None:
+        out["session_end"] = session_end.isoformat()
+    STATE_FILE.write_text(json.dumps(out, indent=2))
+
+
+def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
+    total_io = state["input_tokens"] + state["output_tokens"]
+    implied  = round(total_io / (pct / 100)) if pct > 0 else None
+    record   = {
+        "scraped_at":              scraped_at.isoformat(),
+        "session_pct":             pct,
+        "session_start":           state.get("session_start"),
+        "transcript_input_tokens": state["input_tokens"],
+        "transcript_output_tokens":state["output_tokens"],
+        "transcript_io_total":     total_io,
+        "implied_session_budget":  implied,
+        "by_model":                state["by_model"],
+        "source":                  "widget",
+    }
+    CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with CALIBRATION_FILE.open("a") as f:
+        f.write(json.dumps(record) + "\n")
+    print(f"  calibration: {pct}% = {total_io} tokens => budget ~{implied}")
+
+
+# ---------------------------------------------------------------------------
+# Token counting
+# ---------------------------------------------------------------------------
+
+def process_file(path: Path, state: dict, session_start: datetime, session_end: datetime) -> bool:
+    changed = False
+    try:
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            obj = json.loads(line)
+            if obj.get("type") != "assistant":
+                continue
+            msg   = obj.get("message", {})
+            usage = msg.get("usage")
+            mid   = msg.get("id")
+            if not usage or not mid or mid in state["seen_ids"]:
+                continue
+            ts = datetime.fromisoformat(obj["timestamp"].replace("Z", "+00:00"))
+            if not (session_start <= ts <= session_end):
+                continue
+            state["seen_ids"].add(mid)
+            model = msg.get("model", "unknown")
+            entry = state["by_model"].setdefault(model, {"input": 0, "output": 0})
+            entry["input"]          += usage.get("input_tokens", 0)
+            entry["output"]         += usage.get("output_tokens", 0)
+            state["input_tokens"]   += usage.get("input_tokens", 0)
+            state["output_tokens"]  += usage.get("output_tokens", 0)
+            changed = True
+    except Exception:
+        pass
+    return changed
+
+
+def full_scan(state: dict, session_start: datetime, session_end: datetime) -> None:
+    for f in PROJECTS_DIR.rglob("*.jsonl"):
+        mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
+        if mtime >= session_start:
+            process_file(f, state, session_start, session_end)
+
+
+# ---------------------------------------------------------------------------
+# Watcher
+# ---------------------------------------------------------------------------
+
+class TranscriptHandler(FileSystemEventHandler):
+    def __init__(self):
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.state         = _load_state()
+        self.session_start = None
+        self.session_end   = None
+        self.session_pct   = None
+        self._startup()
+
+    def _startup(self):
+        print("Fetching usage from API...")
+        raw = _fetch_usage()
+        session_start, session_end, pct = _parse_session(raw)
+
+        if session_start is None:
+            print("  No active session (utilisation=0 or API unavailable).")
+            return
+
+        stored_start = self.state.get("session_start")
+        if stored_start != session_start.isoformat():
+            print(f"  New session detected, resetting state.")
+            self.state = _empty_state(session_start)
+            full_scan(self.state, session_start, session_end)
+
+        self.session_start = session_start
+        self.session_end   = session_end
+        self.session_pct   = pct
+
+        _append_calibration(self.state, pct, datetime.now(timezone.utc))
+        _save_state(self.state, pct, session_end)
+        print(f"  Session {pct}% | tokens in+out: "
+              f"{self.state['input_tokens'] + self.state['output_tokens']}")
+
+    def _maybe_calibrate(self) -> None:
+        if self.state.get("calibration_calls_remaining", 0) <= 0:
+            return
+        print("Fetching usage from API (calibration)...")
+        raw = _fetch_usage()
+        _, _, pct = _parse_session(raw)
+        if pct is None:
+            return
+        self.session_pct = pct
+        _append_calibration(self.state, pct, datetime.now(timezone.utc))
+        self.state["calibration_calls_remaining"] -= 1
+
+    def on_modified(self, event):
+        if event.is_directory or not event.src_path.endswith(".jsonl"):
+            return
+        if self.session_start is None:
+            self._startup()
+            return
+
+        changed = process_file(
+            Path(event.src_path), self.state,
+            self.session_start, datetime.now(timezone.utc),
+        )
+        if changed:
+            self._maybe_calibrate()
+            _save_state(self.state, self.session_pct, self.session_end)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+                  f"in={self.state['input_tokens']} "
+                  f"out={self.state['output_tokens']} "
+                  f"pct={self.session_pct}")
+
+    on_created = on_modified
+
+
+class _WidgetHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path.startswith("/state"):
+            body = STATE_FILE.read_bytes() if STATE_FILE.exists() else b"{}"
+            self._respond(body, "application/json")
+        else:
+            body = WIDGET_HTML.read_bytes() if WIDGET_HTML.exists() else b"<h1>widget.html not found</h1>"
+            self._respond(body, "text/html")
+
+    def _respond(self, body: bytes, ctype: str):
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_):
+        pass
+
+
+def main():
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    server = HTTPServer(("127.0.0.1", SERVER_PORT), _WidgetHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    print(f"Widget at http://127.0.0.1:{SERVER_PORT}/")
+
+    handler  = TranscriptHandler()
+    observer = Observer()
+    observer.schedule(handler, str(PROJECTS_DIR), recursive=True)
+    observer.start()
+    print(f"Watching {PROJECTS_DIR}")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+
+
+if __name__ == "__main__":
+    main()
