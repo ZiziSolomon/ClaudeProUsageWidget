@@ -57,20 +57,26 @@
 
   <!-- Ghost (outline) -->
   <svg class="icon-ghost" viewBox="0 0 121 76" xmlns="http://www.w3.org/2000/svg">
-    <path opacity="0.18" fill="#CC6644"
-      d="M 29,13 L 28,36 L 17,36 L 17,47 L 29,48 L 29,58 L 35,59 L 35,70 L 40,70
-         L 41,58 L 47,59 L 47,70 L 52,70 L 53,58 L 77,59 L 77,70 L 82,70 L 83,58
-         L 89,59 L 89,70 L 94,70 L 95,58 L 100,58 L 101,47 L 112,47 L 112,36
-         L 100,35 L 100,13 Z"/>
+    <path fill="#363635"
+      fill-rule="evenodd"
+      d="M 17,36 L 17,48 L 29,48 L 29,59 L 35,59 L 35,71 L 41,71 L 41,59 L 47,59
+         L 47,71 L 53,71 L 53,59 L 77,59 L 77,71 L 83,71 L 83,59 L 89,59 L 89,71
+         L 95,71 L 95,59 L 101,59 L 101,48 L 113,48 L 113,36 L 101,36 L 101,13
+         L 29,13 L 29,36 Z
+         M 41,25 L 41,36 L 47,36 L 47,25 Z
+         M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
   </svg>
 
   <!-- Filled version, revealed bottom-up -->
   <svg class="icon-filled" viewBox="0 0 121 76" xmlns="http://www.w3.org/2000/svg">
-    <path fill="#CC6644"
-      d="M 29,13 L 28,36 L 17,36 L 17,47 L 29,48 L 29,58 L 35,59 L 35,70 L 40,70
-         L 41,58 L 47,59 L 47,70 L 52,70 L 53,58 L 77,59 L 77,70 L 82,70 L 83,58
-         L 89,59 L 89,70 L 94,70 L 95,58 L 100,58 L 101,47 L 112,47 L 112,36
-         L 100,35 L 100,13 Z"/>
+    <path fill="#2A78D6"
+      fill-rule="evenodd"
+      d="M 17,36 L 17,48 L 29,48 L 29,59 L 35,59 L 35,71 L 41,71 L 41,59 L 47,59
+         L 47,71 L 53,71 L 53,59 L 77,59 L 77,71 L 83,71 L 83,59 L 89,59 L 89,71
+         L 95,71 L 95,59 L 101,59 L 101,48 L 113,48 L 113,36 L 101,36 L 101,13
+         L 29,13 L 29,36 Z
+         M 41,25 L 41,36 L 47,36 L 47,25 Z
+         M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
   </svg>
 
 </div>
@@ -100,7 +106,8 @@
   async function refresh() {
     try {
       const s = await fetch('/state?t=' + Date.now()).then(r => r.json());
-      setPct(s.session_pct ?? 0);
+      const expired = s.session_end && new Date(s.session_end) < Date.now();
+      setPct(expired ? 0 : (s.session_pct ?? 0));
       resetEl.textContent = fmtReset(s.session_end);
     } catch { /* server not up yet */ }
   }

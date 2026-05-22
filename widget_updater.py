@@ -31,6 +31,8 @@ USAGE_URL     = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
 SESSION_HOURS = 5
 # Call API on startup + this many subsequent file-change events per session.
 CALIBRATION_CALLS_PER_SESSION = 2
+# Re-calibrate if this many seconds have passed since the last API call.
+CALIBRATION_MAX_AGE_SECS = 3600
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +171,11 @@ def full_scan(state: dict, session_start: datetime, session_end: datetime) -> No
 class TranscriptHandler(FileSystemEventHandler):
     def __init__(self):
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        self.state         = _load_state()
-        self.session_start = None
-        self.session_end   = None
-        self.session_pct   = None
+        self.state            = _load_state()
+        self.session_start    = None
+        self.session_end      = None
+        self.session_pct      = None
+        self.last_calibrated  = None
         self._startup()
 
     def _startup(self):
@@ -194,13 +197,17 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_end   = session_end
         self.session_pct   = pct
 
-        _append_calibration(self.state, pct, datetime.now(timezone.utc))
+        self.last_calibrated = datetime.now(timezone.utc)
+        _append_calibration(self.state, pct, self.last_calibrated)
         _save_state(self.state, pct, session_end)
         print(f"  Session {pct}% | tokens in+out: "
               f"{self.state['input_tokens'] + self.state['output_tokens']}")
 
     def _maybe_calibrate(self) -> None:
-        if self.state.get("calibration_calls_remaining", 0) <= 0:
+        now = datetime.now(timezone.utc)
+        calls_left = self.state.get("calibration_calls_remaining", 0)
+        age = (now - self.last_calibrated).total_seconds() if self.last_calibrated else float("inf")
+        if calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
             return
         print("Fetching usage from API (calibration)...")
         raw = _fetch_usage()
@@ -208,13 +215,16 @@ class TranscriptHandler(FileSystemEventHandler):
         if pct is None:
             return
         self.session_pct = pct
-        _append_calibration(self.state, pct, datetime.now(timezone.utc))
-        self.state["calibration_calls_remaining"] -= 1
+        self.last_calibrated = now
+        _append_calibration(self.state, pct, now)
+        if calls_left > 0:
+            self.state["calibration_calls_remaining"] -= 1
 
     def on_modified(self, event):
         if event.is_directory or not event.src_path.endswith(".jsonl"):
             return
-        if self.session_start is None:
+        now = datetime.now(timezone.utc)
+        if self.session_start is None or (self.session_end and now > self.session_end):
             self._startup()
             return
 
