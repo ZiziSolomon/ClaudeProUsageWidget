@@ -354,7 +354,14 @@ class TranscriptHandler(FileSystemEventHandler):
 
         if session_start is None:
             print("  No active session (utilisation=0 or API unavailable).")
-            _save_state(self.state, weekly_pct=self.weekly_pct, weekly_end=self.weekly_end)
+            # Clear stale session state so the tray drops to a neutral timer
+            # ("--") and zero usage instead of lingering on the expired
+            # window's last reading.
+            self.session_start = None
+            self.session_end   = None
+            self.session_pct   = 0
+            _save_state(self.state, self.session_pct, self.session_end,
+                        self.weekly_pct, self.weekly_end)
             self._notify()
             return
 

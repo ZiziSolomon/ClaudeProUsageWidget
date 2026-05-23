@@ -6,7 +6,7 @@ Up to four tray icons, each independently toggleable via any icon's
 right-click menu:
   - session ghost: shape from widget.html, filled bottom-up by session %,
     blue fill (red at >=90%). On by default.
-  - weekly ghost:  same shape, orange fill (red at >=90%), driven by weekly %.
+  - weekly ghost:  same shape, orange fill, driven by weekly %.
   - session %:     text-only icon in white, taskbar font.
   - weekly  %:     text-only icon in orange, taskbar font.
 
@@ -191,9 +191,9 @@ EYE_LEFT  = [(41, 25), (41, 36), (47, 36), (47, 25)]
 EYE_RIGHT = [(83, 25), (83, 36), (89, 36), (89, 25)]
 
 GHOST_COLOR  = (54, 54, 53, 255)
-FILL_COLOR   = (42, 120, 214, 255)
-ALERT_COLOR  = (214, 78, 42, 255)
-WEEKLY_COLOR = (245, 166, 35, 255)   # orange
+FILL_COLOR          = (42, 120, 214, 255)
+ALERT_COLOR         = (214, 78, 42, 255)
+WEEKLY_COLOR        = (245, 166, 35, 255)   # orange
 
 
 def _scale(points, size):
@@ -212,7 +212,8 @@ def _body_mask(size: int) -> Image.Image:
     return mask
 
 
-def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR) -> Image.Image:
+def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR,
+                 alert_fill=ALERT_COLOR) -> Image.Image:
     pct = max(0.0, min(100.0, float(pct or 0)))
     mask = _body_mask(size)
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -220,9 +221,7 @@ def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR) -> Image.Imag
     ghost = Image.new("RGBA", (size, size), GHOST_COLOR)
     img.paste(ghost, mask=mask)
 
-    # Alert red overrides whatever base colour was passed in - it's a
-    # threshold warning, not a per-metric style.
-    fill_color = ALERT_COLOR if pct >= 90 else base_fill
+    fill_color = alert_fill if pct >= 90 else base_fill
     fill_layer = Image.new("RGBA", (size, size), fill_color)
     cut_top = int(round(size * (1 - pct / 100)))
     if cut_top < size:
@@ -316,7 +315,7 @@ def render_reset_arc_icon(session_start, session_end,
     # an empty track + a dash so the user knows the icon is alive but idle.
     if not session_start or not session_end:
         d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
-        _draw_centered_text(d, "-", size, (200, 200, 200, 255))
+        _draw_centered_text(d, "--", size, (200, 200, 200, 255))
         return img
 
     if isinstance(session_start, str):
@@ -325,6 +324,14 @@ def render_reset_arc_icon(session_start, session_end,
         session_end = datetime.fromisoformat(session_end)
 
     now   = datetime.now(timezone.utc)
+    # Once the window has elapsed there's no live session to count down, so
+    # fall back to the same neutral empty-track + dash as the no-data case
+    # rather than a misleading full arc reading "0".
+    if now >= session_end:
+        d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
+        _draw_centered_text(d, "--", size, (200, 200, 200, 255))
+        return img
+
     total = (session_end - session_start).total_seconds()
     used  = (now - session_start).total_seconds()
     remaining = max(0.0, total - used)
@@ -539,7 +546,8 @@ class TrayApp:
         if pref_key == "show_session_ghost":
             return render_ghost(s_pct, ICON_SIZE, base_fill=FILL_COLOR)
         if pref_key == "show_weekly_ghost":
-            return render_ghost(w_pct, ICON_SIZE, base_fill=WEEKLY_COLOR)
+            return render_ghost(w_pct, ICON_SIZE, base_fill=WEEKLY_COLOR,
+                                alert_fill=WEEKLY_COLOR)
         if pref_key == "show_session_pct":
             return render_text_icon(_fmt_pct(self._state["session_pct"]),
                                     (255, 255, 255, 255), TEXT_ICON_SIZE)
