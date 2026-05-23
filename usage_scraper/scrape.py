@@ -9,6 +9,7 @@ Usage: python scrape.py
 """
 
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -22,7 +23,20 @@ REPO_ROOT = SCRIPT_DIR.parent
 OUTPUT_FILE = REPO_ROOT / "usage_data" / "latest.json"
 CALIBRATION_FILE = REPO_ROOT / "usage_data" / "calibration.jsonl"
 
-USAGE_URL = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
+def _load_org_id() -> str:
+    env = os.environ.get("CLAUDE_ORG_ID")
+    if env:
+        return env
+    cfg = REPO_ROOT / "config.json"
+    if cfg.exists():
+        return json.loads(cfg.read_text(encoding="utf-8"))["org_id"]
+    raise SystemExit(
+        "Claude organization ID not configured. Set CLAUDE_ORG_ID or create "
+        "config.json at the repo root (see config.example.json)."
+    )
+
+
+USAGE_URL = f"https://claude.ai/api/organizations/{_load_org_id()}/usage"
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
 SESSION_DURATION_HOURS = 5
 

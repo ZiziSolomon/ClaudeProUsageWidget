@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 usage_data/
+config.json
+_scrub.py

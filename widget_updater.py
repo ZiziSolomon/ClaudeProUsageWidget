@@ -9,6 +9,7 @@ Run once; leave it in the background.
 """
 
 import json
+import os
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -39,7 +40,20 @@ LARGE_DISCREPANCY_PP = 10.0
 # transient.
 DISCONNECT_FAIL_THRESHOLD = 2
 
-USAGE_URL     = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
+def _load_org_id() -> str:
+    env = os.environ.get("CLAUDE_ORG_ID")
+    if env:
+        return env
+    cfg = Path(__file__).parent / "config.json"
+    if cfg.exists():
+        return json.loads(cfg.read_text(encoding="utf-8"))["org_id"]
+    raise SystemExit(
+        "Claude organization ID not configured. Set CLAUDE_ORG_ID or create "
+        "config.json next to this script (see config.example.json)."
+    )
+
+
+USAGE_URL     = f"https://claude.ai/api/organizations/{_load_org_id()}/usage"
 SESSION_HOURS = 5
 # Call API on startup + this many subsequent file-change events per session.
 CALIBRATION_CALLS_PER_SESSION = 2
