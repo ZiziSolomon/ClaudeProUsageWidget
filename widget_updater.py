@@ -31,6 +31,13 @@ DISCREPANCY_FILE  = Path(__file__).parent / "usage_data" / "discrepancies.jsonl"
 # reading before we consider it worth logging. Set tight (>1pp) so we
 # capture drift bugs early; the log is silent so noise has no UX cost.
 DISCREPANCY_THRESHOLD_PP = 1.0
+# When the API confirms our display is off by this much, we don't just log
+# it - we assume the running widget is stuck and offer the user a restart.
+LARGE_DISCREPANCY_PP = 10.0
+# After this many consecutive API failures, treat the widget as
+# disconnected and offer a restart. Two in a row means it's not a one-off
+# transient.
+DISCONNECT_FAIL_THRESHOLD = 2
 
 USAGE_URL     = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
 SESSION_HOURS = 5
@@ -232,7 +239,7 @@ def full_scan(state: dict, session_start: datetime, session_end: datetime) -> No
 # ---------------------------------------------------------------------------
 
 class TranscriptHandler(FileSystemEventHandler):
-    def __init__(self, on_state_change=None):
+    def __init__(self, on_state_change=None, on_disconnect=None):
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.state            = _load_state()
         self.session_start    = None
@@ -241,12 +248,21 @@ class TranscriptHandler(FileSystemEventHandler):
         self.weekly_pct       = None
         self.weekly_end       = None
         self.last_calibrated  = None
+        # Consecutive API failures since the last success. Reset to 0 on
+        # any successful fetch.
+        self._api_failures    = 0
         # Callback invoked after any state update. Receives a dict so we can
         # add fields without breaking callers; today we send session + weekly.
         self.on_state_change  = on_state_change
+        # Callback invoked when we suspect the widget is out of sync with
+        # reality (repeated API failures, or a confirmed large discrepancy).
+        # Receives a short reason string for the toast.
+        self.on_disconnect    = on_disconnect
         # Seed from previously-saved state so the tray has data immediately
         # on startup, before the first API call returns.
         self.session_pct = self.state.get("session_pct")
+        if self.state.get("session_start"):
+            self.session_start = datetime.fromisoformat(self.state["session_start"])
         if self.state.get("session_end"):
             self.session_end = datetime.fromisoformat(self.state["session_end"])
         self.weekly_pct = self.state.get("weekly_pct")
@@ -254,31 +270,70 @@ class TranscriptHandler(FileSystemEventHandler):
             self.weekly_end = datetime.fromisoformat(self.state["weekly_end"])
         self._startup()
 
+    def _fetch_with_tracking(self) -> dict | None:
+        """Wraps _fetch_usage to track consecutive failures. Fires the
+        disconnect callback when failures hit DISCONNECT_FAIL_THRESHOLD and
+        we haven't successfully calibrated in over an hour - the joint
+        condition keeps a brief connectivity blip from spamming toasts."""
+        raw = _fetch_usage()
+        if raw is None:
+            self._api_failures += 1
+            stale = (
+                self.last_calibrated is None
+                or (datetime.now(timezone.utc) - self.last_calibrated).total_seconds()
+                   > CALIBRATION_MAX_AGE_SECS
+            )
+            if self._api_failures >= DISCONNECT_FAIL_THRESHOLD and stale and self.on_disconnect:
+                try:
+                    self.on_disconnect(
+                        f"Lost contact with claude.ai ({self._api_failures} fetches failed)."
+                    )
+                except Exception as e:
+                    print(f"  on_disconnect callback error: {e}")
+        else:
+            self._api_failures = 0
+        return raw
+
+    def _check_and_maybe_disconnect(self, kind: str, stored: float | None,
+                                    api: float | None,
+                                    scraped_at: datetime) -> None:
+        """Log a discrepancy (always >1pp) and, if it's large enough, also
+        fire the disconnect callback so the tray can prompt a restart."""
+        _check_discrepancy(kind, stored, api, self.last_calibrated, self.state, scraped_at)
+        if (stored is not None and api is not None
+                and abs(api - stored) >= LARGE_DISCREPANCY_PP
+                and self.on_disconnect):
+            try:
+                self.on_disconnect(
+                    f"Widget {kind} was {round(stored)}%, API says {round(api)}% - likely stuck."
+                )
+            except Exception as e:
+                print(f"  on_disconnect callback error: {e}")
+
     def _notify(self):
         if self.on_state_change:
             try:
                 self.on_state_change({
-                    "session_pct": self.session_pct,
-                    "session_end": self.session_end,
-                    "weekly_pct":  self.weekly_pct,
-                    "weekly_end":  self.weekly_end,
+                    "session_start": self.session_start,
+                    "session_pct":   self.session_pct,
+                    "session_end":   self.session_end,
+                    "weekly_pct":    self.weekly_pct,
+                    "weekly_end":    self.weekly_end,
                 })
             except Exception as e:
                 print(f"  tray notify error: {e}")
 
     def _startup(self):
         print("Fetching usage from API...")
-        raw = _fetch_usage()
+        raw = self._fetch_with_tracking()
         session_start, session_end, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
         # Compare against what we'd been displaying (loaded from disk in
         # __init__) - catches the case where the widget restarts and the
         # saved state was stale.
         scraped_at = datetime.now(timezone.utc)
-        _check_discrepancy("session", self.session_pct, pct,
-                           self.last_calibrated, self.state, scraped_at)
-        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
-                           self.last_calibrated, self.state, scraped_at)
+        self._check_and_maybe_disconnect("session", self.session_pct, pct, scraped_at)
+        self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, scraped_at)
         if wk_pct is not None:
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end
@@ -313,13 +368,11 @@ class TranscriptHandler(FileSystemEventHandler):
         if calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
             return
         print("Fetching usage from API (calibration)...")
-        raw = _fetch_usage()
+        raw = self._fetch_with_tracking()
         _, _, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
-        _check_discrepancy("session", self.session_pct, pct,
-                           self.last_calibrated, self.state, now)
-        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
-                           self.last_calibrated, self.state, now)
+        self._check_and_maybe_disconnect("session", self.session_pct, pct, now)
+        self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
         if wk_pct is not None:
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end
@@ -363,16 +416,14 @@ class TranscriptHandler(FileSystemEventHandler):
         menu item so they can re-verify on demand.
         """
         print("Fetching usage from API (forced)...")
-        raw = _fetch_usage()
+        raw = self._fetch_with_tracking()
         if raw is None:
             return False
         session_start, session_end, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
         scraped_at = datetime.now(timezone.utc)
-        _check_discrepancy("session", self.session_pct, pct,
-                           self.last_calibrated, self.state, scraped_at)
-        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
-                           self.last_calibrated, self.state, scraped_at)
+        self._check_and_maybe_disconnect("session", self.session_pct, pct, scraped_at)
+        self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, scraped_at)
         if wk_pct is not None:
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end

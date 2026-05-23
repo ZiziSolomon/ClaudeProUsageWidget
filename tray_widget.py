@@ -19,12 +19,14 @@ is just one bitmap, so each value gets its own slot. See DECISION.md.
 
 import ctypes
 import json
+import os
+import subprocess
 import sys
 import threading
 import time
 import webbrowser
 from ctypes import wintypes
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer
 from pathlib import Path
 
@@ -269,6 +271,105 @@ def render_text_icon(text: str, color, size: int = 64) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
+# Session-reset icon: text label over an arc that fills clockwise as the
+# 5h session window elapses. At session start the arc is empty; just before
+# reset it's almost a full circle.
+# ---------------------------------------------------------------------------
+
+ARC_COLOR        = (42, 120, 214, 255)   # same blue as the session ghost
+ARC_TRACK_COLOR  = (54, 54, 53, 110)     # dim grey "unfilled" track
+ARC_ALERT_COLOR  = (214, 78, 42, 255)    # red when <10% of session remains
+
+
+def _fmt_remaining_label(remaining_secs: float | None) -> str:
+    """Short label for the icon face. Keep it 1-3 chars where possible."""
+    if remaining_secs is None or remaining_secs <= 0:
+        return "0"
+    mins = remaining_secs / 60
+    if mins < 1:
+        return "<1m"
+    if mins < 60:
+        return f"{int(round(mins))}m"
+    hrs = mins / 60
+    # Under 10h we can fit "2h" comfortably. Above that (weekly windows etc.)
+    # we still use h, just bigger numbers.
+    return f"{int(hrs)}h"
+
+
+def render_reset_arc_icon(session_start, session_end,
+                          size: int = 64) -> Image.Image:
+    """Pie-arc background + remaining-time label.
+
+    The arc represents *elapsed* time: it starts empty and fills clockwise
+    until the session resets. So a glance at the icon tells you how close
+    you are to a fresh window.
+    """
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d   = ImageDraw.Draw(img)
+
+    # Geometry: a full-bleed circle with a tiny margin so the edges don't
+    # clip against the tray slot's bounds.
+    margin = max(1, size // 32)
+    box = (margin, margin, size - 1 - margin, size - 1 - margin)
+
+    # Compute progress and remaining seconds. When data is missing, render
+    # an empty track + a dash so the user knows the icon is alive but idle.
+    if not session_start or not session_end:
+        d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
+        _draw_centered_text(d, "-", size, (200, 200, 200, 255))
+        return img
+
+    if isinstance(session_start, str):
+        session_start = datetime.fromisoformat(session_start)
+    if isinstance(session_end, str):
+        session_end = datetime.fromisoformat(session_end)
+
+    now   = datetime.now(timezone.utc)
+    total = (session_end - session_start).total_seconds()
+    used  = (now - session_start).total_seconds()
+    remaining = max(0.0, total - used)
+    progress  = 0.0 if total <= 0 else max(0.0, min(1.0, used / total))
+
+    # Track first (the "empty" part), then the pie slice for elapsed time.
+    # pieslice angle 0 = east, so -90 puts the start at 12 o'clock.
+    d.ellipse(box, fill=ARC_TRACK_COLOR)
+    if progress > 0:
+        alert = (remaining / total) <= 0.10 if total > 0 else False
+        d.pieslice(
+            box,
+            start=-90,
+            end=-90 + 360 * progress,
+            fill=ARC_ALERT_COLOR if alert else ARC_COLOR,
+        )
+
+    # Label on top. White looks crisp on both the blue arc and the dim track.
+    _draw_centered_text(d, _fmt_remaining_label(remaining), size,
+                        (255, 255, 255, 255))
+    return img
+
+
+def _draw_centered_text(d: ImageDraw.ImageDraw, text: str, size: int, color):
+    """Shared centered-text routine. Smaller fit-fraction than the % icon
+    because here the digits sit on top of a filled arc, so we want clear
+    breathing room around them."""
+    max_w = size * 0.62
+    max_h = size * 0.62
+    font_size = size
+    font = pick_taskbar_font(font_size)
+    while font_size > 6:
+        bbox = d.textbbox((0, 0), text, font=font)
+        if (bbox[2] - bbox[0]) <= max_w and (bbox[3] - bbox[1]) <= max_h:
+            break
+        font_size -= 2
+        font = pick_taskbar_font(font_size)
+    bbox = d.textbbox((0, 0), text, font=font)
+    w = bbox[2] - bbox[0]; h = bbox[3] - bbox[1]
+    x = (size - w) / 2 - bbox[0]
+    y = (size - h) / 2 - bbox[1]
+    d.text((x, y), text, font=font, fill=color)
+
+
+# ---------------------------------------------------------------------------
 # Reset-time tooltip helpers.
 # ---------------------------------------------------------------------------
 
@@ -302,6 +403,10 @@ DEFAULT_PREFS = {
     "show_weekly_ghost":  False,
     "show_session_pct":   False,
     "show_weekly_pct":    False,
+    "show_session_reset": False,
+    # ISO timestamp until which we suppress "widget out of sync" prompts.
+    # Stored as a string (or null). Picked up by _restart_prompts_snoozed().
+    "restart_prompt_snoozed_until": None,
 }
 
 
@@ -333,12 +438,14 @@ ICON_SPECS = [
     ("show_weekly_ghost",  "claude-usage-weekly-ghost",  "Show weekly ghost"),
     ("show_session_pct",   "claude-usage-session-pct",   "Show session %"),
     ("show_weekly_pct",    "claude-usage-weekly-pct",    "Show weekly %"),
+    ("show_session_reset", "claude-usage-session-reset", "Show time till session reset"),
 ]
 
 
 class TrayApp:
     def __init__(self):
         self._state = {
+            "session_start": None,
             "session_pct": None, "session_end": None,
             "weekly_pct":  None, "weekly_end":  None,
         }
@@ -382,6 +489,12 @@ class TrayApp:
         items += [
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Confirm usage %", self._confirm_usage),
+            pystray.MenuItem("Restart widget", self._restart),
+            pystray.MenuItem(
+                "Don't prompt to restart again today",
+                self._toggle_snooze,
+                checked=lambda _i: self._restart_prompts_snoozed(),
+            ),
             pystray.MenuItem("Open dashboard", self._open_dashboard, default=True),
             pystray.MenuItem("Quit", self._quit),
         ]
@@ -433,6 +546,12 @@ class TrayApp:
         if pref_key == "show_weekly_pct":
             return render_text_icon(_fmt_pct(self._state["weekly_pct"]),
                                     WEEKLY_COLOR, TEXT_ICON_SIZE)
+        if pref_key == "show_session_reset":
+            return render_reset_arc_icon(
+                self._state.get("session_start"),
+                self._state.get("session_end"),
+                ICON_SIZE,
+            )
         raise KeyError(pref_key)
 
     def _title_for(self, pref_key: str) -> str:
@@ -446,6 +565,8 @@ class TrayApp:
         if pref_key == "show_weekly_pct":
             return (f"Weekly {_fmt_pct(self._state['weekly_pct'])} "
                     f"{_fmt_short(self._state['weekly_end'])}").strip()
+        if pref_key == "show_session_reset":
+            return f"Session resets {_fmt_short(self._state['session_end'])}".strip()
         return ""
 
     # ------ state updates ----------------------------------------------
@@ -480,6 +601,77 @@ class TrayApp:
         w_when = _fmt_short(self._state["weekly_end"])
         # Two-line tooltip - Windows renders this in the system font.
         return f"Session: {s} {s_when}\nWeekly: {w} {w_when}".strip()
+
+    # ------ restart prompt + snooze ------------------------------------
+
+    def _restart_prompts_snoozed(self) -> bool:
+        until = self._prefs.get("restart_prompt_snoozed_until")
+        if not until:
+            return False
+        try:
+            return datetime.fromisoformat(until) > datetime.now(timezone.utc)
+        except Exception:
+            return False
+
+    def _toggle_snooze(self, _icon, _item):
+        # Toggle: if currently snoozed, clear it; otherwise snooze until
+        # local midnight tonight. Using local time so "today" matches the
+        # user's expectation rather than UTC drift.
+        if self._restart_prompts_snoozed():
+            self._prefs["restart_prompt_snoozed_until"] = None
+        else:
+            now_local = datetime.now()
+            tomorrow_local = (now_local + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0)
+            # Store as UTC ISO so comparison in _restart_prompts_snoozed
+            # is unambiguous across DST etc.
+            snooze_until_utc = tomorrow_local.astimezone(timezone.utc)
+            self._prefs["restart_prompt_snoozed_until"] = snooze_until_utc.isoformat()
+        _save_prefs(self._prefs)
+
+    def on_disconnect(self, reason: str):
+        """Called by the updater when it suspects we're out of sync.
+        Surfaces a tray toast unless the user snoozed prompts for today."""
+        if self._restart_prompts_snoozed() or self._stopping:
+            return
+        # Pick whichever icon is visible to host the toast - pystray attaches
+        # the balloon to a specific Icon object.
+        host = next(
+            (i for k, i in self.icons.items() if self._prefs[k]),
+            next(iter(self.icons.values())),
+        )
+        try:
+            host.notify(
+                f"{reason}\nRight-click the tray icon to Restart.",
+                "Claude Usage",
+            )
+        except Exception as e:
+            print(f"  notify error: {e}")
+
+    def _restart(self, _icon, _item):
+        """Spawn a fresh copy of ourselves, then quit. Uses sys.executable
+        which on a PyInstaller --onedir build resolves to ClaudeUsage.exe,
+        and to python.exe when running the script directly - both produce
+        a new tray instance with current code."""
+        try:
+            # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP so the child
+            # outlives us cleanly; close_fds avoids inheriting tray handles.
+            DETACHED = 0x00000008
+            NEW_GROUP = 0x00000200
+            argv = [sys.executable]
+            # If we're running as a python script (not frozen), pass our
+            # script path so the new interpreter knows what to run.
+            if not getattr(sys, "frozen", False):
+                argv.append(os.path.abspath(__file__))
+            subprocess.Popen(
+                argv,
+                close_fds=True,
+                creationflags=DETACHED | NEW_GROUP,
+            )
+        except Exception as e:
+            print(f"  restart spawn error: {e}")
+            return
+        self._quit(_icon, _item)
 
     # ------ misc --------------------------------------------------------
 
@@ -537,7 +729,10 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     print(f"Widget HTTP at http://127.0.0.1:{SERVER_PORT}/")
 
-    handler = TranscriptHandler(on_state_change=tray.on_state_change)
+    handler = TranscriptHandler(
+        on_state_change=tray.on_state_change,
+        on_disconnect=tray.on_disconnect,
+    )
     tray.refresh_callback = handler.force_refresh
     tray.on_state_change({
         "session_pct": handler.session_pct,
