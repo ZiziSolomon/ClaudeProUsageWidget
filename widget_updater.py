@@ -24,8 +24,13 @@ WIDGET_HTML = Path(__file__).parent / "widget.html"
 SERVER_PORT = 7433
 
 PROJECTS_DIR     = Path.home() / ".claude" / "projects"
-STATE_FILE       = Path(__file__).parent / "usage_data" / "widget_state.json"
-CALIBRATION_FILE = Path(__file__).parent / "usage_data" / "calibration.jsonl"
+STATE_FILE        = Path(__file__).parent / "usage_data" / "widget_state.json"
+CALIBRATION_FILE  = Path(__file__).parent / "usage_data" / "calibration.jsonl"
+DISCREPANCY_FILE  = Path(__file__).parent / "usage_data" / "discrepancies.jsonl"
+# Min absolute pp difference between widget's displayed pct and a fresh API
+# reading before we consider it worth logging. Set tight (>1pp) so we
+# capture drift bugs early; the log is silent so noise has no UX cost.
+DISCREPANCY_THRESHOLD_PP = 1.0
 
 USAGE_URL     = "https://claude.ai/api/organizations/<YOUR_ORG_ID>/usage"
 SESSION_HOURS = 5
@@ -67,6 +72,17 @@ def _parse_session(raw: dict) -> tuple[datetime | None, datetime | None, float |
     return session_start, session_end, pct
 
 
+def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
+    """Returns (weekly_pct, weekly_reset) from the seven_day bucket."""
+    seven = (raw or {}).get("seven_day") or {}
+    pct = seven.get("utilization")
+    resets_at = seven.get("resets_at")
+    if pct is None:
+        return None, None
+    end = datetime.fromisoformat(resets_at) if resets_at else None
+    return pct, end
+
+
 # ---------------------------------------------------------------------------
 # State persistence
 # ---------------------------------------------------------------------------
@@ -92,7 +108,9 @@ def _empty_state(session_start: datetime | None = None) -> dict:
 
 
 def _save_state(state: dict, session_pct: float | None = None,
-                session_end: datetime | None = None) -> None:
+                session_end: datetime | None = None,
+                weekly_pct: float | None = None,
+                weekly_end: datetime | None = None) -> None:
     out = {
         **state,
         "seen_ids": list(state["seen_ids"]),
@@ -102,7 +120,52 @@ def _save_state(state: dict, session_pct: float | None = None,
         out["session_pct"] = session_pct
     if session_end is not None:
         out["session_end"] = session_end.isoformat()
+    if weekly_pct is not None:
+        out["weekly_pct"] = weekly_pct
+    if weekly_end is not None:
+        out["weekly_end"] = weekly_end.isoformat()
     STATE_FILE.write_text(json.dumps(out, indent=2))
+
+
+def _log_discrepancy(kind: str, stored: float | None, api: float,
+                     last_calibrated: datetime | None, state: dict,
+                     scraped_at: datetime) -> None:
+    """Quietly record a stored-vs-API mismatch for later inspection.
+
+    `kind` is "session" or "weekly". `stored` is what the widget was about to
+    display (None if we had no prior reading). The threshold check is done
+    by the caller - this function unconditionally writes.
+    """
+    age = ((scraped_at - last_calibrated).total_seconds()
+           if last_calibrated else None)
+    record = {
+        "scraped_at":              scraped_at.isoformat(),
+        "kind":                    kind,
+        "stored_pct":              stored,
+        "api_pct":                 api,
+        "diff_pp":                 None if stored is None else round(api - stored, 2),
+        "seconds_since_calibration": age,
+        "session_start":           state.get("session_start"),
+        "transcript_io_total":     state.get("input_tokens", 0)
+                                   + state.get("output_tokens", 0),
+    }
+    DISCREPANCY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with DISCREPANCY_FILE.open("a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def _check_discrepancy(kind: str, stored: float | None, api: float | None,
+                       last_calibrated: datetime | None, state: dict,
+                       scraped_at: datetime) -> None:
+    """Log if the freshly-fetched API value differs from what we were showing.
+
+    Skips when we have no prior value to compare against (first-ever fetch)
+    or when the API didn't return a number.
+    """
+    if api is None or stored is None:
+        return
+    if abs(api - stored) > DISCREPANCY_THRESHOLD_PP:
+        _log_discrepancy(kind, stored, api, last_calibrated, state, scraped_at)
 
 
 def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
@@ -169,22 +232,61 @@ def full_scan(state: dict, session_start: datetime, session_end: datetime) -> No
 # ---------------------------------------------------------------------------
 
 class TranscriptHandler(FileSystemEventHandler):
-    def __init__(self):
+    def __init__(self, on_state_change=None):
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.state            = _load_state()
         self.session_start    = None
         self.session_end      = None
         self.session_pct      = None
+        self.weekly_pct       = None
+        self.weekly_end       = None
         self.last_calibrated  = None
+        # Callback invoked after any state update. Receives a dict so we can
+        # add fields without breaking callers; today we send session + weekly.
+        self.on_state_change  = on_state_change
+        # Seed from previously-saved state so the tray has data immediately
+        # on startup, before the first API call returns.
+        self.session_pct = self.state.get("session_pct")
+        if self.state.get("session_end"):
+            self.session_end = datetime.fromisoformat(self.state["session_end"])
+        self.weekly_pct = self.state.get("weekly_pct")
+        if self.state.get("weekly_end"):
+            self.weekly_end = datetime.fromisoformat(self.state["weekly_end"])
         self._startup()
+
+    def _notify(self):
+        if self.on_state_change:
+            try:
+                self.on_state_change({
+                    "session_pct": self.session_pct,
+                    "session_end": self.session_end,
+                    "weekly_pct":  self.weekly_pct,
+                    "weekly_end":  self.weekly_end,
+                })
+            except Exception as e:
+                print(f"  tray notify error: {e}")
 
     def _startup(self):
         print("Fetching usage from API...")
         raw = _fetch_usage()
         session_start, session_end, pct = _parse_session(raw)
+        wk_pct, wk_end = _parse_weekly(raw)
+        # Compare against what we'd been displaying (loaded from disk in
+        # __init__) - catches the case where the widget restarts and the
+        # saved state was stale.
+        scraped_at = datetime.now(timezone.utc)
+        _check_discrepancy("session", self.session_pct, pct,
+                           self.last_calibrated, self.state, scraped_at)
+        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
+                           self.last_calibrated, self.state, scraped_at)
+        if wk_pct is not None:
+            self.weekly_pct = wk_pct
+            self.weekly_end = wk_end
 
         if session_start is None:
             print("  No active session (utilisation=0 or API unavailable).")
+            _save_state(self.state, weekly_pct=self.weekly_pct, weekly_end=self.weekly_end)
+            self._notify()
             return
 
         stored_start = self.state.get("session_start")
@@ -199,9 +301,10 @@ class TranscriptHandler(FileSystemEventHandler):
 
         self.last_calibrated = datetime.now(timezone.utc)
         _append_calibration(self.state, pct, self.last_calibrated)
-        _save_state(self.state, pct, session_end)
-        print(f"  Session {pct}% | tokens in+out: "
+        _save_state(self.state, pct, session_end, self.weekly_pct, self.weekly_end)
+        print(f"  Session {pct}% | weekly {self.weekly_pct}% | tokens in+out: "
               f"{self.state['input_tokens'] + self.state['output_tokens']}")
+        self._notify()
 
     def _maybe_calibrate(self) -> None:
         now = datetime.now(timezone.utc)
@@ -212,6 +315,14 @@ class TranscriptHandler(FileSystemEventHandler):
         print("Fetching usage from API (calibration)...")
         raw = _fetch_usage()
         _, _, pct = _parse_session(raw)
+        wk_pct, wk_end = _parse_weekly(raw)
+        _check_discrepancy("session", self.session_pct, pct,
+                           self.last_calibrated, self.state, now)
+        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
+                           self.last_calibrated, self.state, now)
+        if wk_pct is not None:
+            self.weekly_pct = wk_pct
+            self.weekly_end = wk_end
         if pct is None:
             return
         self.session_pct = pct
@@ -234,13 +345,53 @@ class TranscriptHandler(FileSystemEventHandler):
         )
         if changed:
             self._maybe_calibrate()
-            _save_state(self.state, self.session_pct, self.session_end)
+            _save_state(self.state, self.session_pct, self.session_end,
+                        self.weekly_pct, self.weekly_end)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] "
                   f"in={self.state['input_tokens']} "
                   f"out={self.state['output_tokens']} "
                   f"pct={self.session_pct}")
+            self._notify()
 
     on_created = on_modified
+
+    def force_refresh(self) -> bool:
+        """Hit the API immediately and update state. Returns True on success.
+
+        Used by (a) the tray's hourly ticker so utilisation stays current
+        while the user is idle, and (b) the right-click "Confirm usage %"
+        menu item so they can re-verify on demand.
+        """
+        print("Fetching usage from API (forced)...")
+        raw = _fetch_usage()
+        if raw is None:
+            return False
+        session_start, session_end, pct = _parse_session(raw)
+        wk_pct, wk_end = _parse_weekly(raw)
+        scraped_at = datetime.now(timezone.utc)
+        _check_discrepancy("session", self.session_pct, pct,
+                           self.last_calibrated, self.state, scraped_at)
+        _check_discrepancy("weekly",  self.weekly_pct, wk_pct,
+                           self.last_calibrated, self.state, scraped_at)
+        if wk_pct is not None:
+            self.weekly_pct = wk_pct
+            self.weekly_end = wk_end
+        if pct is not None:
+            self.session_pct = pct
+        if session_start is not None:
+            stored_start = self.state.get("session_start")
+            if stored_start != session_start.isoformat():
+                self.state = _empty_state(session_start)
+                full_scan(self.state, session_start, session_end)
+            self.session_start = session_start
+            self.session_end = session_end
+        self.last_calibrated = datetime.now(timezone.utc)
+        if pct is not None:
+            _append_calibration(self.state, pct, self.last_calibrated)
+        _save_state(self.state, self.session_pct, self.session_end,
+                    self.weekly_pct, self.weekly_end)
+        self._notify()
+        return True
 
 
 class _WidgetHandler(BaseHTTPRequestHandler):
