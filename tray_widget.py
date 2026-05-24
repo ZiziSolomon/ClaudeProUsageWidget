@@ -223,11 +223,20 @@ def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR,
 
     fill_color = alert_fill if pct >= 90 else base_fill
     fill_layer = Image.new("RGBA", (size, size), fill_color)
-    cut_top = int(round(size * (1 - pct / 100)))
-    if cut_top < size:
-        bottom_mask = Image.new("L", (size, size), 0)
-        bottom_mask.paste(mask.crop((0, cut_top, size, size)), (0, cut_top))
-        img.paste(fill_layer, mask=bottom_mask)
+    # Measure the fill against the ghost's actual vertical extent, not the
+    # full icon height: _scale() centres the body, leaving empty margins
+    # above the head and below the feet. Using `size` here painted low
+    # percentages into the dead band beneath the feet, so anything under
+    # ~23% showed no blue at all. getbbox() gives the true top/bottom.
+    bbox = mask.getbbox()
+    if bbox:
+        top, bottom = bbox[1], bbox[3]
+        cut_top = int(round(bottom - (bottom - top) * (pct / 100)))
+        cut_top = max(top, min(bottom, cut_top))
+        if cut_top < bottom:
+            bottom_mask = Image.new("L", (size, size), 0)
+            bottom_mask.paste(mask.crop((0, cut_top, size, size)), (0, cut_top))
+            img.paste(fill_layer, mask=bottom_mask)
     return img
 
 

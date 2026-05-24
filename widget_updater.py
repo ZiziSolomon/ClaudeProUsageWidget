@@ -25,9 +25,46 @@ WIDGET_HTML = Path(__file__).parent / "widget.html"
 SERVER_PORT = 7433
 
 PROJECTS_DIR     = Path.home() / ".claude" / "projects"
-STATE_FILE        = Path(__file__).parent / "usage_data" / "widget_state.json"
-CALIBRATION_FILE  = Path(__file__).parent / "usage_data" / "calibration.jsonl"
-DISCREPANCY_FILE  = Path(__file__).parent / "usage_data" / "discrepancies.jsonl"
+
+
+def _data_dir() -> Path:
+    """Stable per-user location for runtime state (widget_state, calibration,
+    discrepancies, tray_prefs).
+
+    Deliberately *not* relative to __file__: in a PyInstaller bundle that
+    resolves to dist\\ClaudeUsage\\_internal\\, which COLLECT wipes on every
+    rebuild - so history was being destroyed on each build, and source vs.
+    frozen runs kept separate stores. Anchoring to %LOCALAPPDATA% fixes both:
+    one shared store that survives rebuilds. Override with CLAUDE_USAGE_DATA_DIR.
+    """
+    env = os.environ.get("CLAUDE_USAGE_DATA_DIR")
+    if env:
+        d = Path(env)
+    else:
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+        d = Path(base) / "ClaudeUsage" / "usage_data"
+    d.mkdir(parents=True, exist_ok=True)
+    # One-time migration: seed from the legacy bundle-relative location so an
+    # existing install keeps its calibration history. Copy only when the
+    # destination file is absent, so we never clobber the live store.
+    legacy = Path(__file__).parent / "usage_data"
+    try:
+        if legacy.exists() and legacy.resolve() != d.resolve():
+            for name in ("widget_state.json", "calibration.jsonl",
+                         "discrepancies.jsonl", "tray_prefs.json",
+                         "session_history.jsonl"):
+                src, dst = legacy / name, d / name
+                if src.exists() and not dst.exists():
+                    dst.write_bytes(src.read_bytes())
+    except Exception:
+        pass
+    return d
+
+
+DATA_DIR          = _data_dir()
+STATE_FILE        = DATA_DIR / "widget_state.json"
+CALIBRATION_FILE  = DATA_DIR / "calibration.jsonl"
+DISCREPANCY_FILE  = DATA_DIR / "discrepancies.jsonl"
 # Min absolute pp difference between widget's displayed pct and a fresh API
 # reading before we consider it worth logging. Set tight (>1pp) so we
 # capture drift bugs early; the log is silent so noise has no UX cost.

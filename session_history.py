@@ -41,8 +41,23 @@ from pathlib import Path
 from statistics import median
 
 PROJECTS_DIR     = Path.home() / ".claude" / "projects"
-CALIBRATION_FILE = Path(__file__).parent / "usage_data" / "calibration.jsonl"
-OUTPUT_FILE      = Path(__file__).parent / "usage_data" / "session_history.jsonl"
+
+
+def _data_dir() -> Path:
+    """Mirror of widget_updater._data_dir (kept standalone so this analysis
+    tool doesn't import the widget's API/cookie stack). Read-only here - the
+    widget owns migration. Override with CLAUDE_USAGE_DATA_DIR."""
+    import os
+    env = os.environ.get("CLAUDE_USAGE_DATA_DIR")
+    if env:
+        return Path(env)
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(base) / "ClaudeUsage" / "usage_data"
+
+
+DATA_DIR         = _data_dir()
+CALIBRATION_FILE = DATA_DIR / "calibration.jsonl"
+OUTPUT_FILE      = DATA_DIR / "session_history.jsonl"
 SESSION_HOURS    = 5
 # Robust outlier threshold: flag budgets more than this many MADs from the
 # median. 3.5 is the conventional modified-z cutoff.
