@@ -5,10 +5,13 @@ a = Analysis(
     ['tray_widget.py'],
     pathex=[],
     binaries=[],
-    # Bundle config.json (holds org_id) from the project root so a rebuild
-    # always repopulates it into the dist bundle. Without this, COLLECT's
-    # "Removing dir dist\ClaudeUsage" wipes the only copy. The frozen exe
-    # resolves it via Path(__file__).parent / "config.json" -> _internal/.
+    # Bundle config.json (holds org_id) as a FALLBACK only. The widget now
+    # resolves config from %LOCALAPPDATA%\ClaudeUsage\config.json FIRST and
+    # writes any auto-discovered org_id there, so it survives COLLECT's
+    # "Removing dir dist\ClaudeUsage" wipe on rebuild. The bundled copy is
+    # still read if the per-user one is absent (see _read_config in
+    # widget_updater). Most users won't need config.json at all now: missing
+    # org_id is auto-discovered from /api/organizations on first run.
     datas=[('config.json', '.')],
     hiddenimports=[],
     hookspath=[],
