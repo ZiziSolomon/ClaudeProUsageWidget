@@ -34,6 +34,71 @@ import pystray
 from PIL import Image, ImageDraw, ImageFont
 from watchdog.observers import Observer
 
+# ---------------------------------------------------------------------------
+# Startup-folder path and helpers for "Start at login".
+# ---------------------------------------------------------------------------
+_STARTUP_FOLDER = Path(os.environ.get("APPDATA", "")) / r"Microsoft\Windows\Start Menu\Programs\Startup"
+_STARTUP_LNK    = _STARTUP_FOLDER / "Claude Usage.lnk"
+
+
+def _startup_enabled() -> bool:
+    """True if our startup shortcut is present in the Startup folder."""
+    return _STARTUP_LNK.exists()
+
+
+def _set_startup(enabled: bool) -> None:
+    """Create or remove the Startup-folder shortcut."""
+    if enabled:
+        # Determine the exe / script target (same logic as install_start_menu.ps1).
+        if getattr(sys, "frozen", False):
+            target = sys.executable  # PyInstaller: ClaudeUsage.exe
+        else:
+            target = sys.executable  # python.exe ...
+            # We'll pass the script as an argument via Arguments field.
+        script = os.path.abspath(__file__)
+
+        _STARTUP_FOLDER.mkdir(parents=True, exist_ok=True)
+        wsh_script = f"""
+import os, sys
+import win32com.client
+wsh = win32com.client.Dispatch('WScript.Shell')
+lnk = wsh.CreateShortcut(r'{_STARTUP_LNK}')
+lnk.TargetPath = r'{target}'
+lnk.Arguments  = '' if {getattr(sys, 'frozen', False)} else r'"{script}"'
+lnk.WorkingDirectory = r'{os.path.dirname(script)}'
+lnk.WindowStyle = 7
+lnk.Description = 'Claude session usage tray widget'
+lnk.Save()
+"""
+        # Use subprocess + powershell WScript.Shell so we don't need win32com.
+        frozen = getattr(sys, "frozen", False)
+        if frozen:
+            args_field = ""
+        else:
+            script_path = os.path.abspath(__file__)
+            args_field = f'"{script_path}"'
+        working_dir = os.path.dirname(os.path.abspath(__file__))
+
+        ps = (
+            f"$wsh = New-Object -ComObject WScript.Shell; "
+            f"$lnk = $wsh.CreateShortcut('{_STARTUP_LNK}'); "
+            f"$lnk.TargetPath = '{target}'; "
+            f"$lnk.Arguments = '{args_field}'; "
+            f"$lnk.WorkingDirectory = '{working_dir}'; "
+            f"$lnk.WindowStyle = 7; "
+            f"$lnk.Description = 'Claude session usage tray widget'; "
+            f"$lnk.Save()"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True,
+        )
+    else:
+        try:
+            _STARTUP_LNK.unlink()
+        except FileNotFoundError:
+            pass
+
 from widget_updater import (
     PROJECTS_DIR,
     SERVER_PORT,
@@ -112,6 +177,15 @@ _FONT_FILE_CANDIDATES = {
     "Segoe UI": ["segoeui.ttf"],
 }
 
+# Bold variants used for the reset-time number on the icon face.
+_FONT_BOLD_CANDIDATES = {
+    "Segoe UI Variable": [
+        "SegUIVar.ttf",          # VF file supports bold via weight axis
+        "SegoeUIVF.ttf",
+    ],
+    "Segoe UI": ["segoeuib.ttf"],  # segoeuib = Segoe UI Bold
+}
+
 
 def _query_system_status_font() -> str:
     """Ask Win32 what font it considers canonical for status-bar UI."""
@@ -149,12 +223,25 @@ def _resolve_font_path(face: str) -> str | None:
     return None
 
 
-def pick_taskbar_font(size: int) -> ImageFont.ImageFont:
-    """Best-effort match for the Win11 taskbar typeface, sized for the tray."""
+def _resolve_bold_font_path(face: str) -> str | None:
+    """Map a face name to a bold TTF path under C:\\Windows\\Fonts."""
+    fonts_dir = Path(r"C:\Windows\Fonts")
+    for candidate in _FONT_BOLD_CANDIDATES.get(face, []):
+        p = fonts_dir / candidate
+        if p.exists():
+            return str(p)
+    return _resolve_font_path(face)  # fall back to regular
+
+
+def pick_taskbar_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
+    """Best-effort match for the Win11 taskbar typeface, sized for the tray.
+
+    Pass bold=True for the reset-time number so it's legible at small sizes.
+    """
     # Win11 taskbar specifically uses Segoe UI Variable Small; the legacy
     # SystemParametersInfo API can't see that, so override on Win11.
     if _is_windows_11():
-        path = _resolve_font_path("Segoe UI Variable")
+        path = (_resolve_bold_font_path if bold else _resolve_font_path)("Segoe UI Variable")
         if path:
             try:
                 return ImageFont.truetype(path, size)
@@ -163,7 +250,7 @@ def pick_taskbar_font(size: int) -> ImageFont.ImageFont:
 
     # Whatever the OS says is the status-bar font (usually Segoe UI).
     face = _query_system_status_font()
-    path = _resolve_font_path(face)
+    path = (_resolve_bold_font_path if bold else _resolve_font_path)(face)
     if path:
         try:
             return ImageFont.truetype(path, size)
@@ -194,6 +281,47 @@ GHOST_COLOR  = (54, 54, 53, 255)
 FILL_COLOR          = (42, 120, 214, 255)
 ALERT_COLOR         = (214, 78, 42, 255)
 WEEKLY_COLOR        = (245, 166, 35, 255)   # orange
+
+# Desaturated grey used for disconnected/error ghost icons.
+ERROR_GHOST_COLOR = (110, 110, 110, 200)
+
+# Human-readable tooltips for each status value.
+_STATUS_TOOLTIPS = {
+    "no_cookie":      "Not logged in to claude.ai",
+    "no_login":       "Not logged in to claude.ai",
+    "fetch_error":    "claude.ai unreachable",
+    "config_missing": "Org ID not configured",
+}
+
+
+def render_ghost_error(size: int = 64) -> Image.Image:
+    """Desaturated ghost with a small warning exclamation mark overlay,
+    used whenever status != 'ok'."""
+    mask = _body_mask(size)
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+    ghost = Image.new("RGBA", (size, size), ERROR_GHOST_COLOR)
+    img.paste(ghost, mask=mask)
+
+    # Small warning marker: yellow "!" in the lower-right quadrant.
+    d = ImageDraw.Draw(img)
+    marker_r = max(6, size // 5)
+    cx = size - marker_r - 2
+    cy = size - marker_r - 2
+    d.ellipse(
+        (cx - marker_r, cy - marker_r, cx + marker_r, cy + marker_r),
+        fill=(255, 200, 0, 230),
+    )
+    # "!" text centred in the circle.
+    font_size = max(6, marker_r)
+    font = pick_taskbar_font(font_size, bold=True)
+    bbox = d.textbbox((0, 0), "!", font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    tx = cx - tw / 2 - bbox[0]
+    ty = cy - th / 2 - bbox[1]
+    d.text((tx, ty), "!", font=font, fill=(0, 0, 0, 255))
+    return img
 
 
 def _scale(points, size):
@@ -290,18 +418,21 @@ ARC_ALERT_COLOR  = (214, 78, 42, 255)    # red when <10% of session remains
 
 
 def _fmt_remaining_label(remaining_secs: float | None) -> str:
-    """Short label for the icon face. Keep it 1-3 chars where possible."""
+    """Short label for the icon face. Keep it 1-3 chars where possible.
+
+    - Under 1 hour: show minutes as a plain number (e.g. "34").
+    - 1 hour or more: show hours rounded to nearest (e.g. 2h41m -> "3h").
+    """
     if remaining_secs is None or remaining_secs <= 0:
         return "0"
     mins = remaining_secs / 60
     if mins < 1:
-        return "<1m"
+        return "1"  # less than a minute -- show 1 rather than "<1m"
     if mins < 60:
-        return f"{int(round(mins))}m"
-    hrs = mins / 60
-    # Under 10h we can fit "2h" comfortably. Above that (weekly windows etc.)
-    # we still use h, just bigger numbers.
-    return f"{int(hrs)}h"
+        return f"{int(round(mins))}"
+    # Round to nearest hour (standard rounding, not floor).
+    hrs = int(round(mins / 60))
+    return f"{hrs}h"
 
 
 def render_reset_arc_icon(session_start, session_end,
@@ -359,25 +490,31 @@ def render_reset_arc_icon(session_start, session_end,
         )
 
     # Label on top. White looks crisp on both the blue arc and the dim track.
+    # Bold so the number is legible at small tray-icon sizes.
     _draw_centered_text(d, _fmt_remaining_label(remaining), size,
-                        (255, 255, 255, 255))
+                        (255, 255, 255, 255), bold=True)
     return img
 
 
-def _draw_centered_text(d: ImageDraw.ImageDraw, text: str, size: int, color):
+def _draw_centered_text(d: ImageDraw.ImageDraw, text: str, size: int, color,
+                        bold: bool = False):
     """Shared centered-text routine. Smaller fit-fraction than the % icon
     because here the digits sit on top of a filled arc, so we want clear
-    breathing room around them."""
+    breathing room around them.
+
+    bold=True uses the bold variant of the taskbar font for legibility at
+    small tray-icon sizes (used for the reset-time number).
+    """
     max_w = size * 0.62
     max_h = size * 0.62
     font_size = size
-    font = pick_taskbar_font(font_size)
+    font = pick_taskbar_font(font_size, bold=bold)
     while font_size > 6:
         bbox = d.textbbox((0, 0), text, font=font)
         if (bbox[2] - bbox[0]) <= max_w and (bbox[3] - bbox[1]) <= max_h:
             break
         font_size -= 2
-        font = pick_taskbar_font(font_size)
+        font = pick_taskbar_font(font_size, bold=bold)
     bbox = d.textbbox((0, 0), text, font=font)
     w = bbox[2] - bbox[0]; h = bbox[3] - bbox[1]
     x = (size - w) / 2 - bbox[0]
@@ -390,6 +527,12 @@ def _draw_centered_text(d: ImageDraw.ImageDraw, text: str, size: int, color):
 # ---------------------------------------------------------------------------
 
 def _fmt_short(end) -> str:
+    """Format time remaining for tooltip display.
+
+    - Under 1 hour: "in 34m"
+    - 1 hour+: rounds to nearest hour (e.g. 2h41m -> "in 3h")
+    - 2+ days: "in Nd Nh"
+    """
     if not end:
         return ""
     if isinstance(end, str):
@@ -400,10 +543,15 @@ def _fmt_short(end) -> str:
         return "resetting"
     if mins < 60:
         return f"in {mins}m"
-    hrs = mins / 60
-    if hrs < 48:
-        return f"in {int(hrs)}h {mins % 60}m"
-    return f"in {int(hrs / 24)}d {int(hrs) % 24}h"
+    # Round to nearest hour for cleaner tooltips.
+    hrs_rounded = int(round(mins / 60))
+    if hrs_rounded < 48:
+        return f"in {hrs_rounded}h"
+    days = round(hrs_rounded / 24)
+    leftover_h = hrs_rounded % 24
+    if leftover_h:
+        return f"in {days}d {leftover_h}h"
+    return f"in {days}d"
 
 
 def _fmt_pct(pct):
@@ -464,6 +612,9 @@ class TrayApp:
             "session_start": None,
             "session_pct": None, "session_end": None,
             "weekly_pct":  None, "weekly_end":  None,
+            # status may be absent from older widget_updater builds; treat
+            # absence as "ok" (backward compatible).
+            "status": "ok",
         }
         self._prefs = _load_prefs()
         self._stopping = False
@@ -484,6 +635,17 @@ class TrayApp:
                 # pystray on Windows lets us set visibility before the icon
                 # is shown; the run loop will honour it.
             )
+
+    # ------ status helpers -----------------------------------------------
+
+    def _status_ok(self) -> bool:
+        """True when the updater reports a clean connection."""
+        return self._state.get("status", "ok") == "ok"
+
+    def _status_tooltip(self) -> str:
+        """Short human-readable reason for non-ok status."""
+        status = self._state.get("status", "ok")
+        return _STATUS_TOOLTIPS.get(status, f"Error ({status})")
 
     # ------ menu --------------------------------------------------------
 
@@ -510,6 +672,14 @@ class TrayApp:
                 "Don't prompt to restart again today",
                 self._toggle_snooze,
                 checked=lambda _i: self._restart_prompts_snoozed(),
+            ),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem(
+                "Start at login",
+                self._toggle_startup,
+                # State is the presence of the shortcut file — checked on
+                # every menu render so it reflects external changes too.
+                checked=lambda _i: _startup_enabled(),
             ),
             pystray.MenuItem("Open dashboard", self._open_dashboard, default=True),
             pystray.MenuItem("Quit", self._quit),
@@ -550,6 +720,19 @@ class TrayApp:
     # ------ rendering ---------------------------------------------------
 
     def _render_icon_for(self, pref_key: str) -> Image.Image:
+        # When status is not ok, all ghost icons show the error variant and
+        # text icons show "--" in a dimmed colour so the user notices
+        # something is wrong without needing to hover.
+        if not self._status_ok():
+            if pref_key in ("show_session_ghost", "show_weekly_ghost"):
+                return render_ghost_error(ICON_SIZE)
+            if pref_key == "show_session_pct":
+                return render_text_icon("--", (160, 160, 160, 255), TEXT_ICON_SIZE)
+            if pref_key == "show_weekly_pct":
+                return render_text_icon("--", (160, 140, 80, 255), TEXT_ICON_SIZE)
+            if pref_key == "show_session_reset":
+                return render_reset_arc_icon(None, None, ICON_SIZE)
+
         s_pct = self._state["session_pct"] or 0
         w_pct = self._state["weekly_pct"]  or 0
         if pref_key == "show_session_ghost":
@@ -572,6 +755,9 @@ class TrayApp:
         raise KeyError(pref_key)
 
     def _title_for(self, pref_key: str) -> str:
+        if not self._status_ok():
+            # All icons show the same explanatory message when disconnected.
+            return f"Claude Usage: {self._status_tooltip()}"
         if pref_key in ("show_session_ghost", "show_weekly_ghost"):
             # Both ghosts get the full two-line tooltip so the user can read
             # either window's status from whichever ghost they hover.
@@ -589,6 +775,10 @@ class TrayApp:
     # ------ state updates ----------------------------------------------
 
     def on_state_change(self, payload: dict):
+        # Defensive: if the payload has no "status" key (older widget_updater),
+        # preserve the existing status rather than overwriting with None.
+        if "status" not in payload:
+            payload = {**payload, "status": self._state.get("status", "ok")}
         self._state.update(payload)
         self._refresh_all()
 
@@ -689,6 +879,10 @@ class TrayApp:
             print(f"  restart spawn error: {e}")
             return
         self._quit(_icon, _item)
+
+    def _toggle_startup(self, _icon, _item):
+        """Toggle "Start at login" by creating or removing the Startup shortcut."""
+        _set_startup(not _startup_enabled())
 
     # ------ misc --------------------------------------------------------
 
