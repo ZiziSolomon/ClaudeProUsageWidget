@@ -35,11 +35,21 @@ fresh budget.
   checkable menu item (shortcut in shell:startup); disconnected/error icon +
   tooltip driven by a `status` field. Sample renders in
   %TEMP%\claude_icon_test\.
-- **Lane A** (agent aa11b638..., widget_updater.py) — was RUNNING at pause.
-  Scope: cross-browser cookies (C1), kill-silent-failures + startup sanity
-  check + `status` field (C2a/G1), 10-min liveness heartbeat separate from
-  calibration budget, auto-discover org_id (D1), first-run prompt (D2), config
-  → %LOCALAPPDATA% (G2). Check `git branch` for `lane-a-auth` and its worktree.
+- **lane-a-auth** (`c2e0c78`) — DONE, and the agent fast-forwarded `main` into
+  its worktree first, so its merge-base is `7a08ced` (NOT the stale bf972a6).
+  It touches only widget_updater.py / ClaudeUsage.spec / config.example.json,
+  none of which main changed after 7a08ced → **merges CLEAN, no conflict**.
+  MERGE THIS ONE FIRST. Delivered: cross-browser cookies auto-try Chrome→Edge→
+  Firefox (C1), `_fetch_usage_status()` + `startup_sanity_check()` emitting the
+  status contract + loud logs (C2a/G1), `LIVENESS_INTERVAL_SECS=600` heartbeat
+  separate from calibration budget, lazy org_id/USAGE_URL resolution so import
+  no longer hard-fails, `_discover_org_id()` via /api/organizations preferring
+  Pro/Max (D1), tkinter/console first-run prompt (D2), config resolves from
+  %LOCALAPPDATA%\ClaudeUsage\config.json first then repo (G2). Back-compat
+  verified: usage_check.py + tray import names intact.
+  NOTE: lane-a-auth's base predates main's usage_check.py + HANDOFF.md commits,
+  but it doesn't touch them, so a 3-way merge keeps them (don't be alarmed by
+  `git diff main lane-a-auth` showing them as "deleted").
 - **docs-packaging** — DONE. Single root requirements.txt + requirements-dev.txt
   (B1), README rewrite (top warning, usage_check headline, "device"
   limitations, autostart/unhide tray, platform table), .github/workflows/ci.yml
