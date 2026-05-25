@@ -534,6 +534,11 @@ def _check_discrepancy(kind: str, stored: float | None, api: float | None,
 def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
     total_io = state["input_tokens"] + state["output_tokens"]
     implied  = round(total_io / (pct / 100)) if pct > 0 else None
+    # Persist the implied budget so the local estimate can extrapolate the
+    # displayed % from the rising token count BETWEEN API calibrations,
+    # instead of freezing at the last fetched value.
+    if implied:
+        state["implied_session_budget"] = implied
     record   = {
         "scraped_at":              scraped_at.isoformat(),
         "session_pct":             pct,
@@ -554,6 +559,19 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
 # ---------------------------------------------------------------------------
 # Token counting
 # ---------------------------------------------------------------------------
+
+def _estimate_session_pct(state: dict) -> float | None:
+    """Session % extrapolated from the local token count and the budget
+    implied by the last API calibration. None until a budget exists.
+
+    Module-level (not just a handler method) so the freeze-regression test can
+    exercise it without standing up a network-touching TranscriptHandler."""
+    budget = state.get("implied_session_budget")
+    if not budget:
+        return None
+    io_total = state["input_tokens"] + state["output_tokens"]
+    return round(100 * io_total / budget)
+
 
 def process_file(path: Path, state: dict, session_start: datetime, session_end: datetime) -> bool:
     changed = False
@@ -780,12 +798,22 @@ class TranscriptHandler(FileSystemEventHandler):
               f"{self.state['input_tokens'] + self.state['output_tokens']}")
         self._notify()
 
-    def _maybe_calibrate(self) -> None:
+    def _local_estimate(self) -> float | None:
+        """Extrapolate the session % from the local token count using the
+        budget implied by the last API calibration. Returns None until we've
+        calibrated at least once (no budget to divide by). This is what keeps
+        the display moving between API hits instead of freezing."""
+        return _estimate_session_pct(self.state)
+
+    def _maybe_calibrate(self) -> bool:
+        """Hit the API for a fresh session % if the per-session budget or the
+        max-age window allows. Returns True if it adopted an API value, so the
+        caller knows whether to fall back to the local estimate instead."""
         now = datetime.now(timezone.utc)
         calls_left = self.state.get("calibration_calls_remaining", 0)
         age = (now - self.last_calibrated).total_seconds() if self.last_calibrated else float("inf")
         if calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
-            return
+            return False
         print("Fetching usage from API (calibration)...")
         raw = self._fetch_with_tracking()
         _, _, pct = _parse_session(raw)
@@ -796,12 +824,13 @@ class TranscriptHandler(FileSystemEventHandler):
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end
         if pct is None:
-            return
+            return False
         self.session_pct = pct
         self.last_calibrated = now
         _append_calibration(self.state, pct, now)
         if calls_left > 0:
             self.state["calibration_calls_remaining"] -= 1
+        return True
 
     def _maybe_liveness(self) -> None:
         """Lightweight link check on a ~LIVENESS_INTERVAL_SECS cadence, kept
@@ -852,7 +881,15 @@ class TranscriptHandler(FileSystemEventHandler):
             self.session_start, datetime.now(timezone.utc),
         )
         if changed:
-            self._maybe_calibrate()
+            calibrated = self._maybe_calibrate()
+            # If we didn't just adopt a fresh API value, advance the displayed
+            # % from the local token count so it tracks usage instead of
+            # freezing at the last calibration. The API still wins whenever it
+            # is consulted (calibration/liveness/Confirm).
+            if not calibrated:
+                est = self._local_estimate()
+                if est is not None:
+                    self.session_pct = est
             _save_state(self.state, self.session_pct, self.session_end,
                         self.weekly_pct, self.weekly_end, status=self.status)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] "

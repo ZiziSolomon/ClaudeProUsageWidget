@@ -15,7 +15,9 @@ the org ID at all.
 
 import os
 import sys
+import json
 import importlib
+from datetime import datetime, timedelta, timezone
 import pytest
 
 # Set the env var BEFORE the import so _load_org_id() succeeds at module load.
@@ -148,3 +150,116 @@ class TestParseWeekly:
         raw = _make_raw(seven_pct=0.0)
         pct, end = widget_updater._parse_weekly(raw)
         assert pct == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Local estimate between API calibrations
+#
+# These guard the bug where session_pct was only ever written by an API fetch,
+# so the displayed % froze at the last calibration while local token usage kept
+# climbing (it sat "stuck around 40" when the truth was ~58). The contract:
+#   1. a calibration records implied_session_budget,
+#   2. the estimate extrapolates pct from the live token count + that budget,
+#   3. feeding more tokens through on_modified RAISES session_pct without an
+#      API call.
+# ---------------------------------------------------------------------------
+
+def _assistant_line(msg_id: str, inp: int, out: int, ts: datetime) -> str:
+    return json.dumps({
+        "type": "assistant",
+        "timestamp": ts.isoformat(),
+        "message": {
+            "id": msg_id,
+            "model": "claude-opus-4-7",
+            "usage": {"input_tokens": inp, "output_tokens": out},
+        },
+    })
+
+
+class TestCalibrationRecordsBudget:
+    def test_append_calibration_stores_implied_budget(self):
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 40000
+        state["output_tokens"] = 60000  # 100k io total
+        # 100k tokens reported as 50% => implied budget 200k.
+        widget_updater._append_calibration(state, 50.0, datetime.now(timezone.utc))
+        assert state["implied_session_budget"] == 200000
+
+    def test_zero_pct_does_not_set_budget(self):
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 0
+        state["output_tokens"] = 0
+        widget_updater._append_calibration(state, 0.0, datetime.now(timezone.utc))
+        # No divide-by-zero, and no bogus budget recorded.
+        assert not state.get("implied_session_budget")
+
+
+class TestLocalEstimate:
+    def test_none_without_budget(self):
+        state = {"input_tokens": 5000, "output_tokens": 5000}
+        assert widget_updater._estimate_session_pct(state) is None
+
+    def test_extrapolates_from_tokens(self):
+        state = {"input_tokens": 30000, "output_tokens": 30000,
+                 "implied_session_budget": 200000}  # 60k / 200k = 30%
+        assert widget_updater._estimate_session_pct(state) == 30
+
+    def test_rises_as_tokens_grow(self):
+        state = {"input_tokens": 50000, "output_tokens": 50000,
+                 "implied_session_budget": 200000}
+        before = widget_updater._estimate_session_pct(state)  # 50%
+        state["output_tokens"] += 40000                       # +40k => 70%
+        after = widget_updater._estimate_session_pct(state)
+        assert before == 50
+        assert after == 70
+        assert after > before
+
+
+class TestOnModifiedAdvancesPct:
+    """Integration guard: on_modified must move session_pct from local token
+    growth when no calibration fires. This is the exact path that froze."""
+
+    def _make_handler(self, monkeypatch):
+        # __init__ calls _startup() (network); neuter it. Also stub _save_state
+        # so the test never writes to the real %LOCALAPPDATA% store.
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state",
+                            lambda *a, **k: None)
+        return widget_updater.TranscriptHandler()
+
+    def test_pct_advances_without_api_call(self, monkeypatch, tmp_path):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        # Live session window, calibrated already, budget known, budget spent so
+        # _maybe_calibrate won't fire; liveness recently done so it won't ping.
+        h.session_start = now - timedelta(hours=1)
+        h.session_end = now + timedelta(hours=4)
+        h.last_calibrated = now
+        h.last_liveness = now
+        h.state["calibration_calls_remaining"] = 0
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"] = 40000
+        h.state["output_tokens"] = 60000   # 100k => 50%
+        h.session_pct = 50.0
+
+        # Fail loudly if any network fetch is attempted on this path.
+        monkeypatch.setattr(widget_updater, "_fetch_usage_status",
+                            lambda: pytest.fail("on_modified hit the API"))
+
+        jsonl = tmp_path / "session.jsonl"
+        jsonl.write_text(
+            _assistant_line("msg_new", 20000, 20000, now) + "\n",
+            encoding="utf-8")
+
+        class _Evt:
+            is_directory = False
+            src_path = str(jsonl)
+
+        h.on_modified(_Evt())
+
+        # 100k + 40k = 140k / 200k = 70%. Must have RISEN, not frozen at 50.
+        assert h.session_pct == 70
+
