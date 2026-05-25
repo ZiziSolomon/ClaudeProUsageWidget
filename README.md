@@ -42,7 +42,7 @@ python usage_check.py --json     # machine-readable JSON (works with both)
 ```
 
 `--live` hits the same endpoint Claude Code uses when it reports "X% of your session used", so the numbers match exactly.
-This works on any OS where Python and a supported browser (Firefox or Chrome) are installed — no tray required.
+This works on any OS where Python and Firefox are installed — no tray required.
 
 ---
 
@@ -68,9 +68,10 @@ Those are picked up in the next re-anchor (configurable, defaults to once every 
 
 1. Download the latest `ClaudeUsage-win64.zip` from the [Releases page](../../releases).
 2. Unzip anywhere.
-3. Double-click `ClaudeUsage.exe`.
+3. Make sure you're logged in to [claude.ai](https://claude.ai) in **Firefox** (see [Browser support](#browser-support) below).
+4. Double-click `ClaudeUsage.exe`.
 
-The org ID is auto-detected from your logged-in browser session — no configuration needed in most cases.
+The org ID and session cookie are auto-detected from your Firefox session — no configuration needed in most cases.
 
 ### Option B — from source
 
@@ -80,6 +81,8 @@ cd ClaudeUsageWidget
 pip install -r requirements.txt
 python tray_widget.py
 ```
+
+Make sure you're logged in to [claude.ai](https://claude.ai) in **Firefox** before running.
 
 ### Finding your org ID (fallback only)
 
@@ -116,6 +119,22 @@ Windows hides new tray icons under the `^` overflow by default. To keep it visib
 
 ---
 
+## Browser support
+
+The widget reads your session cookie directly from your browser's local cookie store.
+
+| Browser | Support |
+|---------|---------|
+| Firefox | ✅ Works |
+| Chrome  | ❌ Broken — see below |
+| Edge    | ❌ Broken — see below |
+
+**Why Chrome and Edge don't work:** Since Chrome 127 (July 2024), Chromium-based browsers use App-Bound Encryption to protect cookies. The decryption key is bound to the signed browser binary via a SYSTEM-privilege helper service, so external processes (like this widget) can't access it. This is a deliberate security feature, not a bug we can work around without invasive techniques we're not willing to ship. Firefox uses a different mechanism (NSS) that remains accessible.
+
+**Fix:** log in to [claude.ai](https://claude.ai) in Firefox. You don't need to use Firefox as your default browser — just being logged in there is enough.
+
+---
+
 ## Platform support
 
 | Platform | Tray widget | `usage_check.py` |
@@ -124,7 +143,7 @@ Windows hides new tray icons under the `^` overflow by default. To keep it visib
 | macOS    | Not packaged yet | Yes (Python + browser) |
 | Linux    | Not packaged yet | Yes (Python + browser) |
 
-On macOS/Linux, `python usage_check.py --live` works anywhere Python and a supported browser are installed.
+On macOS/Linux, `python usage_check.py --live` works anywhere Python and Firefox are installed.
 The tray and packaging haven't been shipped for non-Windows platforms yet, but the core is cross-platform.
 
 ---
