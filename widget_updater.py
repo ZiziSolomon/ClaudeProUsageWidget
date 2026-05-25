@@ -180,7 +180,7 @@ CALIBRATION_PCT_FLOOR = 5
 # (locked too small early, or skewed by off-laptop usage) -- spend one API call
 # to re-anchor rather than trust the runaway local number. Gated by a cooldown
 # so a session stuck at the clamp can't fetch on every file event.
-FORCE_RECAL_GAP_PP        = 25
+FORCE_RECAL_GAP_PP        = 3
 FORCE_RECAL_COOLDOWN_SECS = 300
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between

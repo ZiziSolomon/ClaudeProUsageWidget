@@ -276,10 +276,10 @@ class TestEmergencyRecal:
         h = self._make_handler(monkeypatch)
         now = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 200000
-        h.state["input_tokens"] = 20000
-        h.state["output_tokens"] = 20000   # 20%
-        h.last_api_pct = 10                # 10pp gap < 25, not clamped
-        assert h._estimate_is_suspect(20, now) is False
+        h.state["input_tokens"] = 12000
+        h.state["output_tokens"] = 12000   # 12%
+        h.last_api_pct = 10                # 2pp gap < FORCE_RECAL_GAP_PP, not clamped
+        assert h._estimate_is_suspect(12, now) is False
 
     def test_cooldown_suppresses(self, monkeypatch):
         h = self._make_handler(monkeypatch)
