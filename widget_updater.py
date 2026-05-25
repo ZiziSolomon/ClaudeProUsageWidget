@@ -175,6 +175,13 @@ CALIBRATION_MAX_AGE_SECS = 3600
 # drives the estimate past 100%. Below the floor we hold no budget and show
 # pending ("--") rather than a wild guess. (Full fix: CALIBRATION-PLAN.md.)
 CALIBRATION_PCT_FLOOR = 5
+# Emergency re-anchor: if the local estimate pegs at the 100% clamp or sprints
+# this many points past the last API-confirmed pct, the budget is suspect
+# (locked too small early, or skewed by off-laptop usage) -- spend one API call
+# to re-anchor rather than trust the runaway local number. Gated by a cooldown
+# so a session stuck at the clamp can't fetch on every file event.
+FORCE_RECAL_GAP_PP        = 25
+FORCE_RECAL_COOLDOWN_SECS = 300
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -664,6 +671,12 @@ class TranscriptHandler(FileSystemEventHandler):
         self.weekly_pct       = None
         self.weekly_end       = None
         self.last_calibrated  = None
+        # Last pct we adopted straight from the API (calibration/liveness/force),
+        # used to measure how far the local estimate has drifted ahead of truth.
+        self.last_api_pct     = None
+        # Cooldown stamp for emergency re-anchoring (see _estimate_is_suspect),
+        # so a session pegged at the 100% clamp can't fetch on every file event.
+        self.last_forced_recal = None
         # Last successful/attempted liveness ping (distinct from calibration).
         self.last_liveness    = None
         # Most recent status contract value (see STATUS_* constants). Seeded
@@ -851,14 +864,18 @@ class TranscriptHandler(FileSystemEventHandler):
         the display moving between API hits instead of freezing."""
         return _estimate_session_pct(self.state)
 
-    def _maybe_calibrate(self) -> bool:
+    def _maybe_calibrate(self, force: bool = False) -> bool:
         """Hit the API for a fresh session % if the per-session budget or the
         max-age window allows. Returns True if it adopted an API value, so the
-        caller knows whether to fall back to the local estimate instead."""
+        caller knows whether to fall back to the local estimate instead.
+
+        force=True bypasses the per-session budget / max-age gate for an
+        emergency re-anchor (see _estimate_is_suspect); the caller is
+        responsible for the cooldown that keeps it from hammering the link."""
         now = datetime.now(timezone.utc)
         calls_left = self.state.get("calibration_calls_remaining", 0)
         age = (now - self.last_calibrated).total_seconds() if self.last_calibrated else float("inf")
-        if calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
+        if not force and calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
             return False
         print("Fetching usage from API (calibration)...")
         raw = self._fetch_with_tracking()
@@ -872,11 +889,29 @@ class TranscriptHandler(FileSystemEventHandler):
         if pct is None:
             return False
         self.session_pct = pct
+        self.last_api_pct = pct
         self.last_calibrated = now
         _append_calibration(self.state, pct, now)
         if calls_left > 0:
             self.state["calibration_calls_remaining"] -= 1
         return True
+
+    def _estimate_is_suspect(self, est: int, now: datetime) -> bool:
+        """True when the local estimate has gone somewhere that means the budget
+        is wrong and we should re-anchor against the API: it pegged at the 100%
+        clamp, or it sprinted FORCE_RECAL_GAP_PP past the last API-confirmed pct.
+        Cooldown-gated so a session stuck at the clamp can't fetch every event."""
+        if (self.last_forced_recal is not None and
+                (now - self.last_forced_recal).total_seconds() < FORCE_RECAL_COOLDOWN_SECS):
+            return False
+        budget = self.state.get("implied_session_budget")
+        if not budget:
+            return False
+        io_total = self.state["input_tokens"] + self.state["output_tokens"]
+        clamp_hit = 100 * io_total / budget >= 100          # unclamped >= 100
+        big_gap   = (self.last_api_pct is not None and
+                     est - self.last_api_pct >= FORCE_RECAL_GAP_PP)
+        return clamp_hit or big_gap
 
     def _maybe_liveness(self) -> None:
         """Lightweight link check on a ~LIVENESS_INTERVAL_SECS cadence, kept
@@ -901,6 +936,7 @@ class TranscriptHandler(FileSystemEventHandler):
             self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
             if pct is not None:
                 self.session_pct = pct
+                self.last_api_pct = pct
             if wk_pct is not None:
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
@@ -968,6 +1004,13 @@ class TranscriptHandler(FileSystemEventHandler):
                 est = self._local_estimate()
                 if est is not None:
                     self.session_pct = est
+                    # Self-heal: a pegged-at-100 or runaway estimate means the
+                    # budget is wrong -- spend one (cooldown-gated) API call to
+                    # re-anchor instead of trusting it. _maybe_calibrate adopts
+                    # the API pct into session_pct on success.
+                    if self._estimate_is_suspect(est, now):
+                        self.last_forced_recal = now
+                        self._maybe_calibrate(force=True)
             _save_state(self.state, self.session_pct, self.session_end,
                         self.weekly_pct, self.weekly_end, status=self.status)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] "
@@ -999,6 +1042,7 @@ class TranscriptHandler(FileSystemEventHandler):
             self.weekly_end = wk_end
         if pct is not None:
             self.session_pct = pct
+            self.last_api_pct = pct
         if session_start is not None:
             stored_start = self.state.get("session_start")
             if stored_start != session_start.isoformat():

@@ -243,6 +243,90 @@ class TestLocalEstimate:
         assert widget_updater._estimate_session_pct(state) == 100
 
 
+class TestEmergencyRecal:
+    """When the local estimate goes somewhere that proves the budget is wrong
+    (pegged at the 100% clamp, or sprinted FORCE_RECAL_GAP_PP past the last API
+    truth), on_modified spends one cooldown-gated API call to re-anchor."""
+
+    def _make_handler(self, monkeypatch):
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        return widget_updater.TranscriptHandler()
+
+    def test_clamp_hit_is_suspect(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.state["implied_session_budget"] = 100000
+        h.state["input_tokens"] = 80000
+        h.state["output_tokens"] = 40000   # 120k/100k = 120% unclamped
+        h.last_api_pct = 40
+        assert h._estimate_is_suspect(100, now) is True
+
+    def test_big_gap_is_suspect(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"] = 40000
+        h.state["output_tokens"] = 30000   # 35%, not clamped
+        h.last_api_pct = 5                 # 30pp ahead of truth >= 25
+        assert h._estimate_is_suspect(35, now) is True
+
+    def test_small_gap_not_suspect(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"] = 20000
+        h.state["output_tokens"] = 20000   # 20%
+        h.last_api_pct = 10                # 10pp gap < 25, not clamped
+        assert h._estimate_is_suspect(20, now) is False
+
+    def test_cooldown_suppresses(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.state["implied_session_budget"] = 100000
+        h.state["input_tokens"] = 120000
+        h.state["output_tokens"] = 0       # clamped
+        h.last_api_pct = 40
+        h.last_forced_recal = now - timedelta(seconds=10)  # inside cooldown
+        assert h._estimate_is_suspect(100, now) is False
+
+    def test_no_budget_not_suspect(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.state.pop("implied_session_budget", None)
+        assert h._estimate_is_suspect(100, now) is False
+
+    def test_on_modified_forces_recal_when_clamped(self, monkeypatch, tmp_path):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.session_start = now - timedelta(hours=1)
+        h.session_end   = now + timedelta(hours=4)
+        h.last_calibrated = now            # normal calibrate won't fire
+        h.last_liveness   = now            # liveness ping won't fire
+        h.state["calibration_calls_remaining"] = 0
+        h.state["implied_session_budget"] = 50000   # tiny => overshoot
+        h.state["input_tokens"]  = 30000
+        h.state["output_tokens"] = 20000
+        h.last_api_pct = 40
+
+        calls = []
+        monkeypatch.setattr(h, "_maybe_calibrate",
+                            lambda force=False: calls.append(force) or False)
+
+        jsonl = tmp_path / "s.jsonl"
+        jsonl.write_text(_assistant_line("m1", 10000, 10000, now) + "\n",
+                         encoding="utf-8")
+
+        class _Evt:
+            is_directory = False
+            src_path = str(jsonl)
+
+        h.on_modified(_Evt())
+        # 70k/50k clamps to 100 => suspect => a forced recal was attempted.
+        assert True in calls
+
+
 class TestOnModifiedAdvancesPct:
     """Integration guard: on_modified must move session_pct from local token
     growth when no calibration fires. This is the exact path that froze."""
