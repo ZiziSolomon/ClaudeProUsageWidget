@@ -263,3 +263,106 @@ class TestOnModifiedAdvancesPct:
         # 100k + 40k = 140k / 200k = 70%. Must have RISEN, not frozen at 50.
         assert h.session_pct == 70
 
+
+class TestSessionRollover:
+    """Time-based session expiry must reset local state WITHOUT a file event or
+    an API call, so a window that ends while the widget is idle or closed can't
+    keep showing the dead session's % (or fire a false 'stuck' discrepancy
+    against it when the API next reports the fresh window at 0%).
+
+    Contract: caught live (within ROLLOVER_GRACE_SECS of the boundary) => fresh
+    0%; noticed late => pending '--' (None) until the API/transcript confirms.
+    """
+
+    def _make_handler(self, monkeypatch):
+        # __init__ calls _startup() (network) and _save_state (writes to the
+        # real store); neuter both.
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        return widget_updater.TranscriptHandler()
+
+    def _expired_handler(self, monkeypatch, end):
+        """Handler holding a non-trivial reading for a window ending at `end`."""
+        h = self._make_handler(monkeypatch)
+        h.session_start = end - timedelta(hours=widget_updater.SESSION_HOURS)
+        h.session_end = end
+        h.session_pct = 74
+        h.last_calibrated = datetime.now(timezone.utc)
+        h.state["implied_session_budget"] = 100000
+        h.state["input_tokens"] = 60000
+        h.state["output_tokens"] = 80000
+        h.state["seen_ids"] = {"msg_old"}
+        return h
+
+    def test_no_rollover_before_expiry(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        h = self._expired_handler(monkeypatch, now + timedelta(hours=1))
+        assert h._roll_over_if_expired(now) is False
+        assert h.session_pct == 74          # untouched
+        assert h.session_end is not None
+
+    def test_caught_live_snaps_to_zero(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        # Boundary 5s ago — inside the grace window => we were watching.
+        h = self._expired_handler(monkeypatch, now - timedelta(seconds=5))
+        assert h._roll_over_if_expired(now) is True
+        assert h.session_pct == 0
+        assert h.session_start is None and h.session_end is None
+        # stale tally + budget cleared so the estimator can't extrapolate the
+        # dead window
+        assert h.state["input_tokens"] == 0 and h.state["output_tokens"] == 0
+        assert h.state["seen_ids"] == set()
+        assert not h.state.get("implied_session_budget")
+        # calibration anchor dropped so the next calibrate re-anchors at once
+        assert h.last_calibrated is None
+
+    def test_noticed_late_blanks_to_pending(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        # Boundary an hour ago — well past grace => widget wasn't watching.
+        h = self._expired_handler(monkeypatch, now - timedelta(hours=1))
+        assert h._roll_over_if_expired(now) is True
+        assert h.session_pct is None        # '--', not a fabricated 0
+        assert h.session_start is None
+
+    def test_grace_boundary_is_inclusive(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        end = now - timedelta(seconds=widget_updater.ROLLOVER_GRACE_SECS)
+        h = self._expired_handler(monkeypatch, end)   # exactly at the grace edge
+        assert h._roll_over_if_expired(now) is True
+        assert h.session_pct == 0           # still counts as live
+
+
+@pytest.mark.skipif(not _IMPORT_OK, reason=f"import failed: {_IMPORT_ERROR}")
+class TestLivenessInterval:
+    """The poll interval is user-settable (env > config > default) and floored
+    so a misconfiguration can't hammer claude.ai."""
+
+    def test_default_is_20_min(self, monkeypatch):
+        monkeypatch.delenv("CLAUDE_POLL_INTERVAL_MINUTES", raising=False)
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._liveness_interval_secs() == 1200
+
+    def test_config_override(self, monkeypatch):
+        monkeypatch.delenv("CLAUDE_POLL_INTERVAL_MINUTES", raising=False)
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"poll_interval_minutes": 5})
+        assert widget_updater._liveness_interval_secs() == 300
+
+    def test_env_beats_config(self, monkeypatch):
+        monkeypatch.setenv("CLAUDE_POLL_INTERVAL_MINUTES", "30")
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"poll_interval_minutes": 5})
+        assert widget_updater._liveness_interval_secs() == 1800
+
+    def test_floored_at_minimum(self, monkeypatch):
+        # A too-aggressive value is clamped up to the floor, not honoured.
+        monkeypatch.setenv("CLAUDE_POLL_INTERVAL_MINUTES", "0.1")  # 6s
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._liveness_interval_secs() == widget_updater.LIVENESS_MIN_SECS
+
+    def test_garbage_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("CLAUDE_POLL_INTERVAL_MINUTES", "soon")
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._liveness_interval_secs() == 1200
+

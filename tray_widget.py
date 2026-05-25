@@ -1025,15 +1025,38 @@ def main():
             return
         tray.on_tracker_recovered()
 
-    # 30-second ticker: watcher-health probe, then refresh the tooltip
-    # countdown / zero the icon if the session window expired while idle.
+    # 30-second ticker: watcher-health probe, authoritative session rollover,
+    # then refresh the tooltip countdown / icon.
+    TICK_SECS = 30
+
+    def _next_tick_sleep() -> float:
+        """Normally TICK_SECS, but if the session window ends within the next
+        interval, shorten THIS sleep to land ~1s after the boundary. That way
+        the rollover below fires right at the reset (a ~1s delta, comfortably
+        inside ROLLOVER_GRACE_SECS) and snaps cleanly to a fresh 0% instead of
+        drifting up to a full tick late."""
+        now = datetime.now(timezone.utc)
+        end = handler.session_end
+        if end and now < end <= now + timedelta(seconds=TICK_SECS):
+            return max(1.0, (end - now).total_seconds() + 1.0)
+        return TICK_SECS
+
     def _ticker():
         while True:
-            time.sleep(30)
+            time.sleep(_next_tick_sleep())
             try:
                 _check_tracker()
             except Exception as e:
                 print(f"  tracker check error: {e}")
+            try:
+                # Network-free, event-free session rollover the instant the
+                # window ends. On a live catch, immediately re-anchor against
+                # the API so the new window's % + countdown populate fast
+                # instead of waiting for the hourly tick.
+                if handler._roll_over_if_expired():
+                    handler.force_refresh()
+            except Exception as e:
+                print(f"  rollover check error: {e}")
             tray.tick()
     threading.Thread(target=_ticker, daemon=True).start()
 

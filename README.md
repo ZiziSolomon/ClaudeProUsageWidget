@@ -1,15 +1,33 @@
-> **UNOFFICIAL — NOT affiliated with Anthropic.**
-> This tool works by replaying your logged-in browser session cookie against an **undocumented** `claude.ai` endpoint.
-> Anthropic's deliberate vagueness about per-session token limits may be intentional; they may not welcome a tool
-> that surfaces it. **Use at your own risk, including the risk of account action.** Decide for yourself whether
-> that tradeoff is worth it. If you want a second opinion, you can always ask Claude directly about the risks.
-
----
-
 # Claude Usage Widget
 
-A Windows system-tray widget that shows your Claude.ai session and weekly usage in real time.
-Ghost icon fills up as your quota is consumed; turns red at 90%.
+A lightweight Python alternative to the other Claude usage widgets — with
+**live updates** and a **CLI mode**.
+
+> **⚠️ Beta (v0.1.0).** This is a newly published, early release and may be
+> buggy. Please [report any bugs](../../issues) and I'll fix things promptly.
+
+Shows your Claude.ai session and weekly usage, along with your remaining time in
+session, as system tray icons — so you can see at a glance what you'd get from
+opening the usage page.
+
+The reading updates **continuously as you work**: the number moves as soon as
+your Claude Code transcript files are updated, not on a refresh timer. It counts
+tokens from your local transcripts in real time, and quietly re-anchors against
+`claude.ai/settings/usage` in the background (every 20 minutes by default,
+configurable).
+
+> The underlying usage calculator and CLI (`usage_check.py`) are cross-platform,
+> but only thoroughly tested on Windows so far (this will change soon!). The tray
+> icons are currently Windows-only; macOS and Linux are planned — see
+> [Platform support](#platform-support).
+
+## Features
+
+- **Continuously updating** — the live number moves as you send messages, driven by local Claude Code token counts, not by a slow refresh timer.
+- **Time left in your session** — tooltip shows the countdown to your next reset (`resets in 2h 50m`).
+- **Session *and* weekly usage** — both Pro/Max windows, not just one.
+- **CLI mode** — `usage_check.py --json` for scripts and Claude Code to query mid-task.
+- **Tray-native** — customisable widgets that display the data clearly, right in your system tray.
 
 ---
 
@@ -32,15 +50,15 @@ This works on any OS where Python and a supported browser (Firefox or Chrome) ar
 
 The widget combines two sources:
 
-- **Web check (~every 10 minutes):** polls `claude.ai` for your actual Pro/Max utilisation percentage.
-- **Live estimate (between web checks):** counts tokens from Claude Code conversations on **this device** to keep the reading current between polls.
+- **Live estimate (the headline number):** counts tokens from Claude Code conversations on **this device** in real time, so the reading moves as you work.
+- **Background re-anchor (every ~20 minutes, configurable):** polls `claude.ai` for your actual Pro/Max utilisation percentage and corrects any drift. Set `poll_interval_minutes` in `config.json` (or the `CLAUDE_POLL_INTERVAL_MINUTES` env var) to change the cadence.
 
 **It does NOT see:**
 - Usage from other devices
 - Claude.ai web chat usage
 - Claude Code usage on other devices
 
-All of those will be picked up on the next web check (~10 minutes), but the live estimate between checks only reflects this device's Claude Code activity.
+Those are picked up in the next re-anchor (configurable, defaults to once every 20 min), but the live estimate in between only reflects this device's Claude Code activity.
 
 ---
 
@@ -108,6 +126,31 @@ Windows hides new tray icons under the `^` overflow by default. To keep it visib
 
 On macOS/Linux, `python usage_check.py --live` works anywhere Python and a supported browser are installed.
 The tray and packaging haven't been shipped for non-Windows platforms yet, but the core is cross-platform.
+
+---
+
+## Coming features
+
+Planned, not yet shipped:
+
+- **macOS & Linux packaging** — the core already runs cross-platform (see above); only the tray packaging is Windows-only today.
+- **Configurable widgets** — custom icons, per-widget colours, per-threshold colour changes, and a settings window.
+- **Extra usage** — surface pay-as-you-go / overage usage beyond your plan's included limits, alongside the session and weekly readings.
+
+---
+
+## Risks — read before using
+
+**UNOFFICIAL — NOT affiliated with Anthropic.** This tool works by replaying
+your logged-in browser session cookie against an **undocumented** `claude.ai`
+endpoint. Anthropic's vagueness about per-session token limits may be
+intentional, and they may not welcome a tool that surfaces it. **Use at your
+own risk, including the risk of account action.** Decide for yourself whether
+that tradeoff is worth it.
+
+(For what it's worth, the background re-anchor only runs every 20 minutes by
+default, so the widget makes few requests — but treat that as a property of the
+design, not a safety guarantee.)
 
 ---
 

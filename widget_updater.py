@@ -169,17 +169,47 @@ CALIBRATION_CALLS_PER_SESSION = 2
 # Calibration CORRECTS the token->utilisation estimate; it is intentionally
 # infrequent (the live number drifts slowly within a session).
 CALIBRATION_MAX_AGE_SECS = 3600
-# Liveness heartbeat: how often we ping the link to confirm it's still alive
-# and refresh `status`, INDEPENDENT of the calibration budget. The cached
-# estimate is known to lag the live number (observed 32% cached vs 41% live),
-# so a tight heartbeat both detects a dead link within ~10 min and keeps the
-# displayed figure honest.
-LIVENESS_INTERVAL_SECS = 600
+# Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
+# adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
+# polls the live number keeps moving on its own by counting tokens from local
+# Claude Code transcripts, so the poll only needs to be frequent enough to catch
+# a dead/disconnected link and re-anchor the estimate. Default 20 min;
+# user-settable via the `poll_interval_minutes` config key or the
+# CLAUDE_POLL_INTERVAL_MINUTES env var. Floored at LIVENESS_MIN_SECS so a
+# misconfiguration can't hammer the endpoint.
+LIVENESS_INTERVAL_SECS = 1200
+LIVENESS_MIN_SECS = 120
+
+
+def _liveness_interval_secs() -> int:
+    """Resolve the heartbeat poll interval in seconds. Priority: env var >
+    config key > LIVENESS_INTERVAL_SECS default. Clamped to LIVENESS_MIN_SECS."""
+    raw = os.environ.get("CLAUDE_POLL_INTERVAL_MINUTES")
+    if raw is None:
+        raw = _read_config().get("poll_interval_minutes")
+    if raw is None:
+        return LIVENESS_INTERVAL_SECS
+    try:
+        return max(LIVENESS_MIN_SECS, int(float(raw) * 60))
+    except (TypeError, ValueError):
+        print(f"  ignoring invalid poll_interval_minutes={raw!r}")
+        return LIVENESS_INTERVAL_SECS
 
 # A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
 # reassociating). Rather than toast immediately, we retry once after this delay
 # and only declare a disconnect if the retry ALSO fails. See _fetch_with_tracking.
 FETCH_RETRY_DELAY_SECS = 30
+
+# A session window ends at a wall-clock instant we already know (session_end).
+# Once it passes, the old window's token tally and % are meaningless. We reset
+# locally WITHOUT waiting for a file event or an API round-trip (see
+# _roll_over_if_expired). Whether the reset shows a fresh 0% or a "pending"
+# blank depends on whether we caught the boundary live: a rollover running
+# within ROLLOVER_GRACE_SECS of session_end means we were watching in real time
+# and the new window genuinely just started at 0; noticing it long after (woke
+# from sleep, or relaunched after a logout) means we can't know the new window's
+# usage yet, so we blank to "--" until the API or a transcript confirms it.
+ROLLOVER_GRACE_SECS = 90
 
 
 # Lazily-resolved org_id and the resulting usage URL. Deliberately NOT computed
@@ -652,6 +682,10 @@ class TranscriptHandler(FileSystemEventHandler):
         self.weekly_pct = self.state.get("weekly_pct")
         if self.state.get("weekly_end"):
             self.weekly_end = datetime.fromisoformat(self.state["weekly_end"])
+        # If the saved window already ended (widget was closed across a session
+        # boundary), roll it over before _startup so its stale pct can't seed a
+        # false "stuck" discrepancy against the fresh API value.
+        self._roll_over_if_expired()
         self._startup()
 
     def _fetch_with_tracking(self) -> dict | None:
@@ -844,7 +878,7 @@ class TranscriptHandler(FileSystemEventHandler):
         now = datetime.now(timezone.utc)
         age = ((now - self.last_liveness).total_seconds()
                if self.last_liveness else float("inf"))
-        if age < LIVENESS_INTERVAL_SECS:
+        if age < _liveness_interval_secs():
             return
         prev_status = self.status
         raw = self._fetch_with_tracking()  # updates self.status + last_liveness
@@ -863,11 +897,43 @@ class TranscriptHandler(FileSystemEventHandler):
                         self.weekly_pct, self.weekly_end, status=self.status)
             self._notify()
 
+    def _roll_over_if_expired(self, now: datetime | None = None) -> bool:
+        """Reset local state the instant the session window ends. Network-free,
+        so it works while idle or with the API leg down, and event-free, so it
+        doesn't depend on a transcript file changing. Returns True if it rolled
+        over.
+
+        Caught live (within ROLLOVER_GRACE_SECS of the boundary) => show a fresh
+        0%; noticed late (woke from sleep / relaunched after a logout) => blank
+        to pending (None / "--") until the API or a transcript confirms the new
+        window. Either way the stale token tally, budget and pct are cleared so
+        the display can't linger on the dead window AND the discrepancy check
+        can't fire a bogus "stuck" alert against it when the API next reports
+        the new window at 0%."""
+        now = now or datetime.now(timezone.utc)
+        if self.session_end is None or now < self.session_end:
+            return False
+        caught_live = now <= self.session_end + timedelta(seconds=ROLLOVER_GRACE_SECS)
+        self.state = _empty_state(None)
+        self.session_start = None
+        self.session_end   = None
+        self.session_pct   = 0 if caught_live else None
+        # Drop the calibration anchor so the next _maybe_calibrate re-anchors the
+        # new window immediately instead of waiting out CALIBRATION_MAX_AGE_SECS.
+        self.last_calibrated = None
+        _save_state(self.state, self.session_pct, self.session_end,
+                    self.weekly_pct, self.weekly_end, status=self.status)
+        self._notify()
+        return True
+
     def on_modified(self, event):
         if event.is_directory or not event.src_path.endswith(".jsonl"):
             return
         now = datetime.now(timezone.utc)
-        if self.session_start is None or (self.session_end and now > self.session_end):
+        # Time-based rollover first: clears the dead window's token tally + pct
+        # so _startup's discrepancy check can't fire a false "stuck" alert.
+        self._roll_over_if_expired(now)
+        if self.session_start is None:
             self._startup()
             return
 

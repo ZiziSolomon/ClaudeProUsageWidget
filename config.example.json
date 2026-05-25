@@ -1,4 +1,5 @@
 {
   "org_id": "00000000-0000-0000-0000-000000000000",
-  "browser": "chrome"
+  "browser": "chrome",
+  "poll_interval_minutes": 20
 }
