@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    name: "Test (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      # Smoke test A: import the core modules (no network, no config needed).
+      # usage_check and session_history have no import-time side-effects.
+      # widget_updater calls _load_org_id() at module level, so CLAUDE_ORG_ID
+      # must be set first (dummy UUID is fine — we don't make real API calls).
+      - name: Smoke test — import core modules
+        env:
+          CLAUDE_ORG_ID: "00000000-0000-0000-0000-000000000000"
+        run: |
+          python -c "import usage_check"
+          python -c "import session_history"
+          python -c "
+          import os
+          os.environ['CLAUDE_ORG_ID'] = '00000000-0000-0000-0000-000000000000'
+          import widget_updater
+          print('widget_updater imported OK')
+          "
+
+      # Smoke test B: run usage_check.py --json without cookies / config.
+      # It should exit non-zero and print a JSON error object, NOT a traceback.
+      - name: Smoke test — usage_check.py --json error path
+        run: |
+          python usage_check.py --json > out.json 2>&1 || true
+          python -c "
+          import json, sys
+          data = json.loads(open('out.json').read())
+          assert 'error' in data, f'Expected JSON error, got: {data}'
+          print('OK: got JSON error:', data['error'][:80])
+          "
+
+      # Smoke test C: usage_check.py --live --json should also exit non-zero
+      # with a JSON error (no cookies in CI, no config.json present).
+      - name: Smoke test — usage_check.py --live --json error path
+        run: |
+          python usage_check.py --live --json > out_live.json 2>&1 || true
+          python -c "
+          import json
+          data = json.loads(open('out_live.json').read())
+          assert 'error' in data, f'Expected JSON error, got: {data}'
+          print('OK: got JSON error:', data['error'][:80])
+          "
+
+      # Unit tests: pure functions, no network.
+      - name: Run pytest
+        env:
+          CLAUDE_ORG_ID: "00000000-0000-0000-0000-000000000000"
+          # Redirect widget state writes to a temp dir so tests are hermetic.
+          CLAUDE_USAGE_DATA_DIR: "${{ runner.temp }}/claude_usage_test"
+        run: pytest tests/ -v

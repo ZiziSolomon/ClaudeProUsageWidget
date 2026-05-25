@@ -1,0 +1,19 @@
+# Runtime dependencies for the Claude Usage Widget and usage_check.py.
+# Install with:  pip install -r requirements.txt
+
+# HTTP with TLS impersonation (used to query claude.ai with browser-like headers)
+curl-cffi>=0.7.0
+
+# Browser cookie extraction (Firefox / Chrome session cookies for claude.ai)
+browser-cookie3>=0.20.0
+
+# Filesystem event watcher (monitors ~/.claude/projects/ for JSONL changes)
+watchdog>=4.0.0
+
+# System tray icon (Windows/macOS/Linux tray integration)
+pystray>=0.19.5
+
+# Image rendering (ghost icon, text icon, arc icon)
+Pillow>=10.0.0
+
+# Build-only dependencies are in requirements-dev.txt
