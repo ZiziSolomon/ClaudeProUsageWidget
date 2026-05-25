@@ -192,11 +192,14 @@ RECAL_DISCREPANCY_PP      = 5
 # When we recalibrate we actively re-scan the transcript folder rather than
 # trust the running tally (which is built only from on_modified pings). A
 # seen_ids-deduped re-scan recovers any tokens the watcher missed. If it
-# recovers some AND live events have been silent this long, the watcher is
-# genuinely stuck (not just a message caught in flight) -- we heal the count
-# and tell the user a restart will resume live tracking. Off-laptop usage
-# leaves NO local-disk evidence, so it can never trip this.
-WATCHER_STUCK_SILENCE_SECS = 600
+# recovers some AND live events have been silent this long, the watcher looks
+# stuck. Off-laptop usage leaves NO local-disk evidence, so it can never trip
+# this.
+WATCHER_STUCK_SILENCE_SECS = 60
+# Before actually crying "stuck", wait this long and re-check: a ping can be a
+# beat behind, so if a transcript event lands in this grace window the watcher
+# was alive after all and we stay quiet.
+WATCHER_STUCK_RECHECK_SECS = 5
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -712,6 +715,9 @@ class TranscriptHandler(FileSystemEventHandler):
         # One-shot timer for the post-failure retry, and a once-per-outage
         # guard so a sustained outage toasts once rather than every cycle.
         self._retry_timer        = None
+        # One-shot timer for the deferred "watcher stuck" re-check (see
+        # _arm_stuck_recheck), so a ping arriving a beat late cancels the alarm.
+        self._stuck_timer        = None
         self._disconnect_notified = False
         # Callback invoked after any state update. Receives a dict so we can
         # add fields without breaking callers; today we send session + weekly.
@@ -935,7 +941,27 @@ class TranscriptHandler(FileSystemEventHandler):
         if missed <= 0 or self.last_event_at is None:
             return missed
         silent_for = (now - self.last_event_at).total_seconds()
-        if silent_for > WATCHER_STUCK_SILENCE_SECS and self.on_disconnect:
+        if silent_for > WATCHER_STUCK_SILENCE_SECS:
+            self._arm_stuck_recheck(self.last_event_at)
+        return missed
+
+    def _arm_stuck_recheck(self, marker: datetime) -> None:
+        """We found on-disk tokens with no recent ping. Don't alarm yet -- a ping
+        may be a beat behind. Wait WATCHER_STUCK_RECHECK_SECS, then alarm only if
+        still no event has arrived (last_event_at unchanged from `marker`).
+        Idempotent: one pending re-check at a time."""
+        if self._stuck_timer is not None:
+            return
+        t = threading.Timer(WATCHER_STUCK_RECHECK_SECS, self._stuck_recheck, args=(marker,))
+        t.daemon = True
+        self._stuck_timer = t
+        t.start()
+
+    def _stuck_recheck(self, marker: datetime) -> None:
+        self._stuck_timer = None
+        if self.last_event_at != marker:
+            return  # a ping landed during the grace window -- watcher is alive
+        if self.on_disconnect:
             try:
                 self.on_disconnect(
                     "Live tracking looks stuck (found usage on disk we weren't "
@@ -943,7 +969,6 @@ class TranscriptHandler(FileSystemEventHandler):
                 )
             except Exception as e:
                 print(f"  on_disconnect callback error: {e}")
-        return missed
 
     def _maybe_calibrate(self, force: bool = False) -> bool:
         """Hit the API for a fresh session % if the per-session budget or the

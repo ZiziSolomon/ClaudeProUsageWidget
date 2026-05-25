@@ -417,48 +417,77 @@ class TestWatcherStuck:
                             lambda state, s, e: state.__setitem__(
                                 "input_tokens", state["input_tokens"] + n))
 
-    def test_silent_with_missed_tokens_warns(self, monkeypatch):
+    def _no_real_timer(self, monkeypatch):
+        # Capture the deferred re-check instead of letting a real 5s timer fire.
+        armed = {}
+        class _FakeTimer:
+            def __init__(self, delay, fn, args=()):
+                armed["delay"], armed["fn"], armed["args"] = delay, fn, args
+            def start(self): pass
+            def cancel(self): pass
+        monkeypatch.setattr(widget_updater.threading, "Timer", _FakeTimer)
+        return armed
+
+    def test_silent_with_missed_tokens_arms_then_warns(self, monkeypatch):
         h = self._make_handler(monkeypatch)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(
             seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
         self._scan_adds(monkeypatch, 5000)
+        armed = self._no_real_timer(monkeypatch)
         warned = []
         h.on_disconnect = lambda msg: warned.append(msg)
-        assert h._rescan_and_check_watcher(now) == 5000   # healed
-        assert warned                                     # and warned
 
-    def test_recent_events_heals_without_warning(self, monkeypatch):
+        assert h._rescan_and_check_watcher(now) == 5000   # healed
+        assert armed["delay"] == widget_updater.WATCHER_STUCK_RECHECK_SECS
+        assert not warned                                 # not yet -- deferred
+        # Grace window elapses with no new ping (last_event_at unchanged):
+        armed["fn"](*armed["args"])
+        assert warned                                     # now it warns
+
+    def test_ping_in_grace_window_cancels_warning(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.last_event_at = now - timedelta(
+            seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
+        self._scan_adds(monkeypatch, 5000)
+        armed = self._no_real_timer(monkeypatch)
+        warned = []
+        h.on_disconnect = lambda msg: warned.append(msg)
+
+        h._rescan_and_check_watcher(now)
+        # A transcript event lands during the 5s grace window:
+        h.last_event_at = datetime.now(timezone.utc)
+        armed["fn"](*armed["args"])
+        assert not warned                                 # watcher was alive
+
+    def test_recent_events_no_recheck(self, monkeypatch):
         h = self._make_handler(monkeypatch)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(seconds=30)     # events flowing
         self._scan_adds(monkeypatch, 5000)
-        warned = []
-        h.on_disconnect = lambda msg: warned.append(msg)
+        armed = self._no_real_timer(monkeypatch)
         assert h._rescan_and_check_watcher(now) == 5000   # still healed
-        assert not warned                                 # no false alarm
+        assert not armed                                  # no re-check armed
 
-    def test_no_missed_tokens_no_warning(self, monkeypatch):
+    def test_no_missed_tokens_no_recheck(self, monkeypatch):
         h = self._make_handler(monkeypatch)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(
             seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
         self._scan_adds(monkeypatch, 0)
-        warned = []
-        h.on_disconnect = lambda msg: warned.append(msg)
+        armed = self._no_real_timer(monkeypatch)
         assert h._rescan_and_check_watcher(now) == 0
-        assert not warned
+        assert not armed
 
-    def test_never_saw_event_does_not_warn(self, monkeypatch):
-        # Healed silently if we've never observed a live event this session.
+    def test_never_saw_event_no_recheck(self, monkeypatch):
         h = self._make_handler(monkeypatch)
         now = datetime.now(timezone.utc)
         h.last_event_at = None
         self._scan_adds(monkeypatch, 5000)
-        warned = []
-        h.on_disconnect = lambda msg: warned.append(msg)
-        assert h._rescan_and_check_watcher(now) == 5000
-        assert not warned
+        armed = self._no_real_timer(monkeypatch)
+        assert h._rescan_and_check_watcher(now) == 5000   # healed silently
+        assert not armed
 
 
 class TestOnModifiedAdvancesPct:
