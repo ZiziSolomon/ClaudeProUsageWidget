@@ -85,12 +85,16 @@ DISCONNECT_FAIL_THRESHOLD = 2
 #   "no_login"       - cookies present but the session is not authenticated
 #   "fetch_error"    - network/HTTP/parse failure talking to claude.ai
 #   "config_missing" - org_id could not be resolved (no config, no discovery)
+#   "tracker_down"   - the local JSONL file watcher stopped (set by the tray)
+#   "no_projects"    - the ~/.claude/projects folder is missing (set by the tray)
 # ---------------------------------------------------------------------------
 STATUS_OK             = "ok"
 STATUS_NO_COOKIE      = "no_cookie"
 STATUS_NO_LOGIN       = "no_login"
 STATUS_FETCH_ERROR    = "fetch_error"
 STATUS_CONFIG_MISSING = "config_missing"
+STATUS_TRACKER_DOWN   = "tracker_down"
+STATUS_NO_PROJECTS    = "no_projects"
 
 # Browsers we know how to read claude.ai cookies from, in auto-try order.
 # Chrome/Edge first: most non-technical users are there. browser_cookie3
@@ -171,6 +175,11 @@ CALIBRATION_MAX_AGE_SECS = 3600
 # so a tight heartbeat both detects a dead link within ~10 min and keeps the
 # displayed figure honest.
 LIVENESS_INTERVAL_SECS = 600
+
+# A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
+# reassociating). Rather than toast immediately, we retry once after this delay
+# and only declare a disconnect if the retry ALSO fails. See _fetch_with_tracking.
+FETCH_RETRY_DELAY_SECS = 30
 
 
 # Lazily-resolved org_id and the resulting usage URL. Deliberately NOT computed
@@ -604,6 +613,10 @@ class TranscriptHandler(FileSystemEventHandler):
         # Consecutive API failures since the last success. Reset to 0 on
         # any successful fetch.
         self._api_failures    = 0
+        # One-shot timer for the post-failure retry, and a once-per-outage
+        # guard so a sustained outage toasts once rather than every cycle.
+        self._retry_timer        = None
+        self._disconnect_notified = False
         # Callback invoked after any state update. Receives a dict so we can
         # add fields without breaking callers; today we send session + weekly.
         self.on_state_change  = on_state_change
@@ -625,10 +638,13 @@ class TranscriptHandler(FileSystemEventHandler):
 
     def _fetch_with_tracking(self) -> dict | None:
         """Wraps _fetch_usage_status to track consecutive failures and the
-        current status. Fires the disconnect callback when failures hit
-        DISCONNECT_FAIL_THRESHOLD and we haven't successfully calibrated in
-        over an hour - the joint condition keeps a brief connectivity blip
-        from spamming toasts.
+        current status.
+
+        The FIRST failure in a streak doesn't toast: it schedules a single
+        retry FETCH_RETRY_DELAY_SECS later (see _retry_fetch). Only if failures
+        reach DISCONNECT_FAIL_THRESHOLD do we fire the disconnect callback, and
+        then just once per outage (self._disconnect_notified) so a sustained
+        outage doesn't re-toast every cycle.
 
         Side effects: updates self.status and self.last_liveness (any attempt
         counts as a liveness check, success or failure)."""
@@ -637,12 +653,12 @@ class TranscriptHandler(FileSystemEventHandler):
         self.last_liveness = datetime.now(timezone.utc)
         if raw is None:
             self._api_failures += 1
-            stale = (
-                self.last_calibrated is None
-                or (datetime.now(timezone.utc) - self.last_calibrated).total_seconds()
-                   > CALIBRATION_MAX_AGE_SECS
-            )
-            if self._api_failures >= DISCONNECT_FAIL_THRESHOLD and stale and self.on_disconnect:
+            if self._api_failures == 1:
+                # First blip: don't alarm the user yet, just retry shortly.
+                self._schedule_fetch_retry()
+            elif (self._api_failures >= DISCONNECT_FAIL_THRESHOLD
+                  and not self._disconnect_notified and self.on_disconnect):
+                self._disconnect_notified = True
                 try:
                     self.on_disconnect(
                         f"Lost contact with claude.ai ({self._api_failures} fetches "
@@ -652,7 +668,41 @@ class TranscriptHandler(FileSystemEventHandler):
                     print(f"  on_disconnect callback error: {e}")
         else:
             self._api_failures = 0
+            self._disconnect_notified = False
+            if self._retry_timer is not None:
+                self._retry_timer.cancel()
+                self._retry_timer = None
         return raw
+
+    def _schedule_fetch_retry(self) -> None:
+        """Arm a one-shot retry FETCH_RETRY_DELAY_SECS after a first failed
+        fetch. Idempotent: a retry already pending is not re-armed."""
+        if self._retry_timer is not None:
+            return
+        t = threading.Timer(FETCH_RETRY_DELAY_SECS, self._retry_fetch)
+        t.daemon = True
+        self._retry_timer = t
+        t.start()
+
+    def _retry_fetch(self) -> None:
+        """Re-attempt a fetch after a first failure. On success, adopt the
+        fresh numbers and notify the tray (clearing the error state); on a
+        second failure, _fetch_with_tracking fires the disconnect toast."""
+        self._retry_timer = None
+        prev_status = self.status
+        raw = self._fetch_with_tracking()
+        if raw is not None:
+            _, _, pct = _parse_session(raw)
+            wk_pct, wk_end = _parse_weekly(raw)
+            if pct is not None:
+                self.session_pct = pct
+            if wk_pct is not None:
+                self.weekly_pct = wk_pct
+                self.weekly_end = wk_end
+        if self.status != prev_status or raw is not None:
+            _save_state(self.state, self.session_pct, self.session_end,
+                        self.weekly_pct, self.weekly_end, status=self.status)
+            self._notify()
 
     def _check_and_maybe_disconnect(self, kind: str, stored: float | None,
                                     api: float | None,

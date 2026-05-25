@@ -291,6 +291,8 @@ _STATUS_TOOLTIPS = {
     "no_login":       "Not logged in to claude.ai",
     "fetch_error":    "claude.ai unreachable",
     "config_missing": "Org ID not configured",
+    "tracker_down":   "Usage tracker stopped",
+    "no_projects":    "Claude logs folder not found",
 }
 
 
@@ -618,6 +620,10 @@ class TrayApp:
         }
         self._prefs = _load_prefs()
         self._stopping = False
+        # Local-tracker problem, set by main()'s health check, kept separate
+        # from the API `status` field so the two failure modes don't clobber
+        # each other. None when the watcher is healthy; else (status, tooltip).
+        self._tracker_issue = None
         # Wired in by main() so the menu's "Confirm usage %" and the
         # hourly ticker can trigger an API hit.
         self.refresh_callback = None
@@ -639,11 +645,16 @@ class TrayApp:
     # ------ status helpers -----------------------------------------------
 
     def _status_ok(self) -> bool:
-        """True when the updater reports a clean connection."""
-        return self._state.get("status", "ok") == "ok"
+        """True only when both the API link and the local watcher are healthy."""
+        return (self._state.get("status", "ok") == "ok"
+                and self._tracker_issue is None)
 
     def _status_tooltip(self) -> str:
-        """Short human-readable reason for non-ok status."""
+        """Short human-readable reason for non-ok status. A dead local tracker
+        takes precedence over an API issue: if we can't count locally, the
+        number is wrong regardless of the link."""
+        if self._tracker_issue is not None:
+            return self._tracker_issue[1]
         status = self._state.get("status", "ok")
         return _STATUS_TOOLTIPS.get(status, f"Error ({status})")
 
@@ -836,13 +847,12 @@ class TrayApp:
             self._prefs["restart_prompt_snoozed_until"] = snooze_until_utc.isoformat()
         _save_prefs(self._prefs)
 
-    def on_disconnect(self, reason: str):
-        """Called by the updater when it suspects we're out of sync.
-        Surfaces a tray toast unless the user snoozed prompts for today."""
+    def _toast(self, reason: str):
+        """Pop a tray balloon unless the user snoozed prompts for today.
+        pystray attaches the balloon to a specific Icon object, so host it on
+        whichever icon is currently visible."""
         if self._restart_prompts_snoozed() or self._stopping:
             return
-        # Pick whichever icon is visible to host the toast - pystray attaches
-        # the balloon to a specific Icon object.
         host = next(
             (i for k, i in self.icons.items() if self._prefs[k]),
             next(iter(self.icons.values())),
@@ -854,6 +864,28 @@ class TrayApp:
             )
         except Exception as e:
             print(f"  notify error: {e}")
+
+    def on_disconnect(self, reason: str):
+        """Called by the updater when it suspects we're out of sync with the
+        live API (repeated fetch failures)."""
+        self._toast(reason)
+
+    def on_tracker_status(self, status: str, reason: str):
+        """Called by main()'s health check when the local JSONL watcher is
+        dead or the projects folder is missing. Greys the icon and toasts
+        once per distinct problem (not every tick)."""
+        first = self._tracker_issue is None or self._tracker_issue[0] != status
+        self._tracker_issue = (status, reason)
+        self._refresh_all()
+        if first:
+            self._toast(reason)
+
+    def on_tracker_recovered(self):
+        """Clear a previously-reported tracker problem once the watcher is
+        healthy again."""
+        if self._tracker_issue is not None:
+            self._tracker_issue = None
+            self._refresh_all()
 
     def _restart(self, _icon, _item):
         """Spawn a fresh copy of ourselves, then quit. Uses sys.executable
@@ -957,11 +989,51 @@ def main():
     observer.start()
     print(f"Watching {PROJECTS_DIR}")
 
-    # 30-second ticker: refreshes the tooltip countdown + zeros the icon
-    # if the session window expires while the user is idle.
+    # Held in a one-element dict so the health check can swap in a fresh
+    # Observer when the old watcher thread dies.
+    observer_box = {"obs": observer}
+
+    def _check_tracker():
+        """Cheap, local watcher-health probe (no network). Runs every tick.
+        Catches the failure mode the API status can't: the JSONL watcher
+        silently dying or the projects folder going missing, which would
+        otherwise freeze the estimate with no warning."""
+        if not PROJECTS_DIR.exists():
+            tray.on_tracker_status(
+                "no_projects",
+                "Can't find the Claude logs folder - usage tracking is paused.",
+            )
+            return
+        obs = observer_box["obs"]
+        if not obs.is_alive():
+            print("  watcher thread died; restarting observer")
+            try:
+                new_obs = Observer()
+                new_obs.schedule(handler, str(PROJECTS_DIR), recursive=True)
+                new_obs.start()
+                observer_box["obs"] = new_obs
+                tray.on_tracker_status(
+                    "tracker_down",
+                    "Usage tracker stopped and was auto-restarted.",
+                )
+            except Exception as e:
+                print(f"  observer restart failed: {e}")
+                tray.on_tracker_status(
+                    "tracker_down",
+                    "Usage tracker stopped and could not restart.",
+                )
+            return
+        tray.on_tracker_recovered()
+
+    # 30-second ticker: watcher-health probe, then refresh the tooltip
+    # countdown / zero the icon if the session window expired while idle.
     def _ticker():
         while True:
             time.sleep(30)
+            try:
+                _check_tracker()
+            except Exception as e:
+                print(f"  tracker check error: {e}")
             tray.tick()
     threading.Thread(target=_ticker, daemon=True).start()
 
@@ -985,8 +1057,8 @@ def main():
     try:
         tray.run()
     finally:
-        observer.stop()
-        observer.join(timeout=2)
+        observer_box["obs"].stop()
+        observer_box["obs"].join(timeout=2)
 
 
 if __name__ == "__main__":
