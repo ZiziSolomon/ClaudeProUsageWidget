@@ -169,6 +169,12 @@ CALIBRATION_CALLS_PER_SESSION = 2
 # Calibration CORRECTS the token->utilisation estimate; it is intentionally
 # infrequent (the live number drifts slowly within a session).
 CALIBRATION_MAX_AGE_SECS = 3600
+# Don't back-derive a budget from a live reading below this pct. The API reports
+# utilisation at integer (1%) resolution, so at pct=1-2 a single 1pp of rounding
+# is ±25-50% of the implied budget -- a budget locked in there is so unstable it
+# drives the estimate past 100%. Below the floor we hold no budget and show
+# pending ("--") rather than a wild guess. (Full fix: CALIBRATION-PLAN.md.)
+CALIBRATION_PCT_FLOOR = 5
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -563,7 +569,10 @@ def _check_discrepancy(kind: str, stored: float | None, api: float | None,
 
 def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
     total_io = state["input_tokens"] + state["output_tokens"]
-    implied  = round(total_io / (pct / 100)) if pct > 0 else None
+    # Only trust a budget back-derived at or above the pct floor; below it the
+    # integer-rounding error swamps the estimate (see CALIBRATION_PCT_FLOOR). We
+    # still log the sample for history -- just don't let it set the budget.
+    implied  = round(total_io / (pct / 100)) if pct >= CALIBRATION_PCT_FLOOR else None
     # Persist the implied budget so the local estimate can extrapolate the
     # displayed % from the rising token count BETWEEN API calibrations,
     # instead of freezing at the last fetched value.
@@ -600,7 +609,10 @@ def _estimate_session_pct(state: dict) -> float | None:
     if not budget:
         return None
     io_total = state["input_tokens"] + state["output_tokens"]
-    return round(100 * io_total / budget)
+    # Clamp: a too-small budget (e.g. one locked in early, or contaminated by
+    # off-laptop usage) would otherwise sail past 100%. The session can't exceed
+    # its own window. See CALIBRATION-PLAN.md for the real (delta-cal) fix.
+    return min(100, round(100 * io_total / budget))
 
 
 def process_file(path: Path, state: dict, session_start: datetime, session_end: datetime) -> bool:

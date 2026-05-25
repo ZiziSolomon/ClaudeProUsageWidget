@@ -195,6 +195,26 @@ class TestCalibrationRecordsBudget:
         # No divide-by-zero, and no bogus budget recorded.
         assert not state.get("implied_session_budget")
 
+    def test_below_floor_does_not_set_budget(self):
+        # A reading below CALIBRATION_PCT_FLOOR is too rounding-unstable to trust.
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 1000
+        state["output_tokens"] = 1000
+        pct = widget_updater.CALIBRATION_PCT_FLOOR - 1
+        widget_updater._append_calibration(state, float(pct), datetime.now(timezone.utc))
+        assert not state.get("implied_session_budget")
+
+    def test_at_floor_sets_budget(self):
+        # At the floor exactly we DO trust it: 2k io at floor% => 2k/(floor/100).
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 1000
+        state["output_tokens"] = 1000
+        floor = widget_updater.CALIBRATION_PCT_FLOOR
+        widget_updater._append_calibration(state, float(floor), datetime.now(timezone.utc))
+        assert state["implied_session_budget"] == round(2000 / (floor / 100))
+
 
 class TestLocalEstimate:
     def test_none_without_budget(self):
@@ -214,7 +234,13 @@ class TestLocalEstimate:
         after = widget_updater._estimate_session_pct(state)
         assert before == 50
         assert after == 70
-        assert after > before
+
+    def test_clamps_at_100(self):
+        # A too-small budget (locked early or contaminated) must not overshoot.
+        # 300k io against a 200k budget would be 150% unclamped.
+        state = {"input_tokens": 150000, "output_tokens": 150000,
+                 "implied_session_budget": 200000}
+        assert widget_updater._estimate_session_pct(state) == 100
 
 
 class TestOnModifiedAdvancesPct:
