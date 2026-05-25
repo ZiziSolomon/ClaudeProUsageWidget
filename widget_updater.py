@@ -180,8 +180,15 @@ CALIBRATION_PCT_FLOOR = 5
 # (locked too small early, or skewed by off-laptop usage) -- spend one API call
 # to re-anchor rather than trust the runaway local number. Gated by a cooldown
 # so a session stuck at the clamp can't fetch on every file event.
-FORCE_RECAL_GAP_PP        = 3
+FORCE_RECAL_GAP_PP        = 5
 FORCE_RECAL_COOLDOWN_SECS = 300
+# When a freshly-fetched API pct disagrees with what we were displaying by more
+# than this, the budget is wrong (not just drifting) -- re-derive it from the
+# current session token count. BELOW this we adopt the API pct for display but
+# leave the budget alone, so a 1pp API wobble can't thrash it. Same number as
+# FORCE_RECAL_GAP_PP by design: one threshold for "the estimate and the API
+# disagree enough to act."
+RECAL_DISCREPANCY_PP      = 5
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -574,16 +581,20 @@ def _check_discrepancy(kind: str, stored: float | None, api: float | None,
         _log_discrepancy(kind, stored, api, last_calibrated, state, scraped_at)
 
 
-def _append_calibration(state: dict, pct: float, scraped_at: datetime) -> None:
+def _append_calibration(state: dict, pct: float, scraped_at: datetime,
+                        update_budget: bool = True) -> None:
     total_io = state["input_tokens"] + state["output_tokens"]
     # Only trust a budget back-derived at or above the pct floor; below it the
     # integer-rounding error swamps the estimate (see CALIBRATION_PCT_FLOOR). We
     # still log the sample for history -- just don't let it set the budget.
     implied  = round(total_io / (pct / 100)) if pct >= CALIBRATION_PCT_FLOOR else None
     # Persist the implied budget so the local estimate can extrapolate the
-    # displayed % from the rising token count BETWEEN API calibrations,
-    # instead of freezing at the last fetched value.
-    if implied:
+    # displayed % from the rising token count BETWEEN API calibrations, instead
+    # of freezing at the last fetched value. update_budget=False records the
+    # sample for history without touching the budget -- used when the API agrees
+    # with us closely enough (<=RECAL_DISCREPANCY_PP) that re-deriving would just
+    # inject rounding noise.
+    if implied and update_budget:
         state["implied_session_budget"] = implied
     record   = {
         "scraped_at":              scraped_at.isoformat(),
@@ -783,11 +794,17 @@ class TranscriptHandler(FileSystemEventHandler):
 
     def _check_and_maybe_disconnect(self, kind: str, stored: float | None,
                                     api: float | None,
-                                    scraped_at: datetime) -> None:
+                                    scraped_at: datetime,
+                                    suppress_toast: bool = False) -> None:
         """Log a discrepancy (always >1pp) and, if it's large enough, also
-        fire the disconnect callback so the tray can prompt a restart."""
+        fire the disconnect callback so the tray can prompt a restart.
+
+        suppress_toast: we just re-derived the budget from this same API value
+        (the >RECAL_DISCREPANCY_PP path), so the mismatch is already being
+        corrected -- record it, but don't tell the user the widget is stuck."""
         _check_discrepancy(kind, stored, api, self.last_calibrated, self.state, scraped_at)
-        if (stored is not None and api is not None
+        if (not suppress_toast
+                and stored is not None and api is not None
                 and abs(api - stored) >= LARGE_DISCREPANCY_PP
                 and self.on_disconnect):
             try:
@@ -864,6 +881,24 @@ class TranscriptHandler(FileSystemEventHandler):
         the display moving between API hits instead of freezing."""
         return _estimate_session_pct(self.state)
 
+    def _adopt_api_pct(self, pct: float | None, now: datetime) -> bool:
+        """Adopt a freshly-fetched session pct as the authoritative display value
+        and re-derive the budget IFF it disagrees with what we were showing by
+        more than RECAL_DISCREPANCY_PP (or we hold no budget yet) and clears the
+        pct floor. Always records the sample for history. Returns True if it
+        re-derived the budget, so the caller can suppress the now-redundant
+        'stuck' toast (we're already correcting the mismatch)."""
+        if pct is None:
+            return False
+        prior     = self.session_pct
+        no_budget = not self.state.get("implied_session_budget")
+        big_diff  = prior is not None and abs(pct - prior) > RECAL_DISCREPANCY_PP
+        recalibrate = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
+        self.session_pct  = pct
+        self.last_api_pct = pct
+        _append_calibration(self.state, pct, now, update_budget=recalibrate)
+        return recalibrate
+
     def _maybe_calibrate(self, force: bool = False) -> bool:
         """Hit the API for a fresh session % if the per-session budget or the
         max-age window allows. Returns True if it adopted an API value, so the
@@ -881,17 +916,17 @@ class TranscriptHandler(FileSystemEventHandler):
         raw = self._fetch_with_tracking()
         _, _, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
-        self._check_and_maybe_disconnect("session", self.session_pct, pct, now)
+        prior = self.session_pct
+        recalibrated = self._adopt_api_pct(pct, now)
+        self._check_and_maybe_disconnect("session", prior, pct, now,
+                                         suppress_toast=recalibrated)
         self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
         if wk_pct is not None:
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end
         if pct is None:
             return False
-        self.session_pct = pct
-        self.last_api_pct = pct
         self.last_calibrated = now
-        _append_calibration(self.state, pct, now)
         if calls_left > 0:
             self.state["calibration_calls_remaining"] -= 1
         return True
@@ -932,11 +967,11 @@ class TranscriptHandler(FileSystemEventHandler):
         if raw is not None:
             _, _, pct = _parse_session(raw)
             wk_pct, wk_end = _parse_weekly(raw)
-            self._check_and_maybe_disconnect("session", self.session_pct, pct, now)
+            prior = self.session_pct
+            recalibrated = self._adopt_api_pct(pct, now)
+            self._check_and_maybe_disconnect("session", prior, pct, now,
+                                             suppress_toast=recalibrated)
             self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
-            if pct is not None:
-                self.session_pct = pct
-                self.last_api_pct = pct
             if wk_pct is not None:
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
@@ -1035,8 +1070,7 @@ class TranscriptHandler(FileSystemEventHandler):
         session_start, session_end, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
         scraped_at = datetime.now(timezone.utc)
-        self._check_and_maybe_disconnect("session", self.session_pct, pct, scraped_at)
-        self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, scraped_at)
+        prior = self.session_pct
         if wk_pct is not None:
             self.weekly_pct = wk_pct
             self.weekly_end = wk_end
@@ -1051,8 +1085,19 @@ class TranscriptHandler(FileSystemEventHandler):
             self.session_start = session_start
             self.session_end = session_end
         self.last_calibrated = datetime.now(timezone.utc)
+        # Re-derive the budget only on a meaningful disagreement (or no budget /
+        # fresh window), same gate as _adopt_api_pct -- inlined here because the
+        # session-reset above must run before we derive against the new tokens.
+        recalibrated = False
         if pct is not None:
-            _append_calibration(self.state, pct, self.last_calibrated)
+            no_budget   = not self.state.get("implied_session_budget")
+            big_diff    = prior is not None and abs(pct - prior) > RECAL_DISCREPANCY_PP
+            recalibrated = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
+            _append_calibration(self.state, pct, self.last_calibrated,
+                                update_budget=recalibrated)
+        self._check_and_maybe_disconnect("session", prior, pct, scraped_at,
+                                         suppress_toast=recalibrated)
+        self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, scraped_at)
         _save_state(self.state, self.session_pct, self.session_end,
                     self.weekly_pct, self.weekly_end, status=self.status)
         self._notify()

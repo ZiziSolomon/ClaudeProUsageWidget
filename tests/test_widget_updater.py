@@ -327,6 +327,71 @@ class TestEmergencyRecal:
         assert True in calls
 
 
+class TestAdoptApiPct:
+    """A freshly-fetched API pct is always adopted for display, but only
+    re-derives the budget when it disagrees with what we showed by more than
+    RECAL_DISCREPANCY_PP (or there's no budget yet) and clears the pct floor."""
+
+    def _make_handler(self, monkeypatch):
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        return widget_updater.TranscriptHandler()
+
+    def _capture(self, monkeypatch):
+        # Stub _append_calibration so the test neither writes to the real
+        # calibration log nor depends on it -- just records the gate decision
+        # and applies the budget the same way the real one would.
+        calls = {}
+        def fake(state, pct, when, update_budget=True):
+            calls["update_budget"] = update_budget
+            if update_budget and pct >= widget_updater.CALIBRATION_PCT_FLOOR:
+                io = state["input_tokens"] + state["output_tokens"]
+                state["implied_session_budget"] = round(io / (pct / 100))
+        monkeypatch.setattr(widget_updater, "_append_calibration", fake)
+        return calls
+
+    def test_big_diff_recalibrates(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"], h.state["output_tokens"] = 40000, 0
+        assert h._adopt_api_pct(80, datetime.now(timezone.utc)) is True
+        assert calls["update_budget"] is True
+        assert h.session_pct == 80 and h.last_api_pct == 80
+        assert h.state["implied_session_budget"] == 50000   # 40k / (80/100)
+
+    def test_small_diff_keeps_budget(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"], h.state["output_tokens"] = 40000, 0
+        assert h._adopt_api_pct(53, datetime.now(timezone.utc)) is False  # 3pp
+        assert calls["update_budget"] is False
+        assert h.session_pct == 53                            # display adopts
+        assert h.state["implied_session_budget"] == 200000    # budget untouched
+
+    def test_no_budget_recalibrates(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = None
+        h.state.pop("implied_session_budget", None)
+        h.state["input_tokens"], h.state["output_tokens"] = 20000, 0
+        assert h._adopt_api_pct(10, datetime.now(timezone.utc)) is True
+        assert calls["update_budget"] is True
+
+    def test_below_floor_no_recalibrate(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        assert h._adopt_api_pct(3, datetime.now(timezone.utc)) is False  # < floor
+        assert calls["update_budget"] is False
+        assert h.session_pct == 3                             # display still adopts
+
+
 class TestOnModifiedAdvancesPct:
     """Integration guard: on_modified must move session_pct from local token
     growth when no calibration fires. This is the exact path that froze."""
