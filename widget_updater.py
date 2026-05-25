@@ -96,10 +96,9 @@ STATUS_CONFIG_MISSING = "config_missing"
 STATUS_TRACKER_DOWN   = "tracker_down"
 STATUS_NO_PROJECTS    = "no_projects"
 
-# Browsers we know how to read claude.ai cookies from, in auto-try order.
-# Chrome/Edge first: most non-technical users are there. browser_cookie3
-# exposes one loader function per browser.
-_SUPPORTED_BROWSERS = ("chrome", "edge", "firefox")
+# Firefox only: Chrome/Edge use App-Bound Encryption (since Chrome 127) that
+# prevents external processes from decrypting cookies.
+_SUPPORTED_BROWSERS = ("firefox",)
 
 
 def _config_path() -> Path:
@@ -157,7 +156,7 @@ def _configured_org_id() -> str | None:
 
 
 def _configured_browser() -> str | None:
-    """Optional 'browser' key in config: firefox|chrome|edge. None = auto."""
+    """Optional 'browser' key in config: firefox. None = auto."""
     b = _read_config().get("browser")
     return b.lower().strip() if isinstance(b, str) else None
 
@@ -288,7 +287,7 @@ def _load_org_id() -> str | None:
 def _load_browser_cookies(browser: str | None = None) -> tuple[dict, str | None]:
     """Return ({cookie_name: value}, browser_used) of claude.ai cookies.
 
-    If `browser` is given (firefox|chrome|edge) only that browser is tried.
+    If `browser` is given (firefox) only that browser is tried.
     Otherwise we auto-try each supported browser and use the first that yields
     any claude.ai cookies. Returns ({}, None) when nothing is found.
 
@@ -335,7 +334,7 @@ def _fetch_usage_status() -> tuple[dict | None, str]:
     browser = _configured_browser()
     cookie_dict, used = _load_browser_cookies(browser)
     if not cookie_dict:
-        where = browser or "Firefox/Chrome/Edge"
+        where = browser or "Firefox"
         print(f"  STATUS=no_cookie: no claude.ai cookies found in {where}. "
               f"Open claude.ai in your browser and log in.")
         return None, STATUS_NO_COOKIE

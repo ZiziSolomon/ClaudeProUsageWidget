@@ -959,6 +959,14 @@ class TrayApp:
 # ---------------------------------------------------------------------------
 
 def main():
+    # Redirect stdout/stderr to a log file so prints survive the --windowed
+    # PyInstaller build (runw.exe discards both streams by default).
+    log_path = STATE_FILE.parent / "widget_run.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    _log_fh = open(log_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = _log_fh
+    sys.stderr = _log_fh
+
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
             "ClaudeUsage.Widget"
