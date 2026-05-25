@@ -1,85 +1,118 @@
-# Handoff — resume here (written 2026-05-24, ~14:35 BST)
+# Handoff — resume here (written 2026-05-25)
 
 ## Start-of-session prompt
-> Resume the ClaudeUsageWidget "usable by strangers" work. Read HANDOFF.md.
-> Three feature lanes were built by parallel agents but on a STALE git base
-> (see "CRITICAL" below) — they need rebasing onto current `main`, not
-> fast-merging. First: fix the base mismatch, then rebase/merge each branch
-> resolving conflicts in tray_widget.py and widget_updater.py, test, commit.
-> Then do A1 (build exe + zip + GitHub Release). Check usage with
+> Resume ClaudeUsageWidget. Read HANDOFF.md. This session finished the 0.1.0
+> session-% accuracy work (all unit-tested, 46 green) but it is NOT live-
+> verified. First task: live-verify the new recalibration control flow against
+> the real API, then do the 0.1.0 release/packaging. Check usage with
 > `python usage_check.py --live` and pace accordingly.
 
-## Why we paused
-Session usage hit **77%** (user's ceiling was 75%). Wrapped up rather than
-pushing further. Session resets ~16:50 BST; weekly was 60%. Next session has
-fresh budget.
+## What this session did (all on `main`, committed)
+Fixed the session-% accuracy bugs. The >100% overshoot had **three drivers**
+(see `CALIBRATION-PLAN.md` and the `accuracy-bugs` memory):
 
-## CRITICAL — worktree stale-base bug (fix this FIRST)
-- The `isolation: worktree` agents branched from **`origin/main` = bf972a6**,
-  but **local `main` = 2c5e75f**, which is 3 commits ahead:
-  464f6b9, 7a08ced, and 2c5e75f (usage_check.py).
-- `7a08ced` ("Fix ghost fill scaling and move runtime state out of the
-  bundle") modified **tray_widget.py AND widget_updater.py** — the files the
-  lanes edit. So lane branches will conflict and a plain `git merge` would
-  also try to drop files added after bf972a6.
-- **Fix going forward:** push local `main` to `origin` so future worktrees
-  branch from the right tip — BUT this repo's history may go public, so ASK
-  the user before pushing (and confirm the noreply identity on all commits).
-- **To integrate the existing branches:** `git rebase --onto main bf972a6
-  <branch>` (or cherry-pick the single feature commit) and resolve conflicts
-  in the two shared files. Re-test after each.
+1. **Integer-rounding instability** — API reports utilisation as an integer %
+   (floor convention, confirmed 83% vs 68% on real data). Back-deriving
+   `budget = io/(pct/100)` at pct=1–2 swings ±25–50%.
+2. **Session rollover** — old window's budget divided into new window's tokens.
+3. **Off-laptop usage contamination** — API pct is account-wide, local token
+   tally is local-only, so the back-derived budget is biased down per session.
 
-## Branches produced (all based on bf972a6 — need rebase)
-- **lane-b-tray** (`5a8a462`) — DONE. tray_widget.py: time-left number now
-  bold, rounds to nearest hour, shows plain minutes under 1h; "Start at login"
-  checkable menu item (shortcut in shell:startup); disconnected/error icon +
-  tooltip driven by a `status` field. Sample renders in
-  %TEMP%\claude_icon_test\.
-- **lane-a-auth** (`c2e0c78`) — DONE, and the agent fast-forwarded `main` into
-  its worktree first, so its merge-base is `7a08ced` (NOT the stale bf972a6).
-  It touches only widget_updater.py / ClaudeUsage.spec / config.example.json,
-  none of which main changed after 7a08ced → **merges CLEAN, no conflict**.
-  MERGE THIS ONE FIRST. Delivered: cross-browser cookies auto-try Chrome→Edge→
-  Firefox (C1), `_fetch_usage_status()` + `startup_sanity_check()` emitting the
-  status contract + loud logs (C2a/G1), `LIVENESS_INTERVAL_SECS=600` heartbeat
-  separate from calibration budget, lazy org_id/USAGE_URL resolution so import
-  no longer hard-fails, `_discover_org_id()` via /api/organizations preferring
-  Pro/Max (D1), tkinter/console first-run prompt (D2), config resolves from
-  %LOCALAPPDATA%\ClaudeUsage\config.json first then repo (G2). Back-compat
-  verified: usage_check.py + tray import names intact.
-  NOTE: lane-a-auth's base predates main's usage_check.py + HANDOFF.md commits,
-  but it doesn't touch them, so a 3-way merge keeps them (don't be alarmed by
-  `git diff main lane-a-auth` showing them as "deleted").
-- **docs-packaging** — DONE. Single root requirements.txt + requirements-dev.txt
-  (B1), README rewrite (top warning, usage_check headline, "device"
-  limitations, autostart/unhide tray, platform table), .github/workflows/ci.yml
-  (win+mac+linux smoke + pytest), tests/ (22 passing).
-  ⚠️ CONFLICT TO EXPECT: because it was on the stale base it RECREATED its own
-  `usage_check.py` and forward-ported `session_history.py` — both already on
-  main. Drop its versions and keep main's during rebase (or diff to confirm
-  identical). Take only its README/requirements/CI/tests changes.
+Commit trail (newest first):
+- `dc820c8` stuck-watcher: 1-min silence window + 5s deferred re-check
+- `8e8a352` README: per-model weighting added to Coming features
+- `9bc63ab` stuck-watcher detector via disk re-scan on recalibration
+- `36f3c84` recalibrate budget on >5pp API discrepancy + suppress false stuck toast
+- `7184fef` emergency re-anchor gap → 5pp (was 3, was 25)
+- `18c8e98` self-heal: force recal when estimate is suspect (clamp/gap), cooldown-gated
+- `523ffba` pct-floor on calibration + clamp display (closes n/0)
+- `7881c9a` CALIBRATION-PLAN.md (the 0.1.1 design) + README roadmap
+- `49805ae` session rollover fix (`_roll_over_if_expired`)
 
-## The status-field contract (Lane A produces, Lane B consumes)
-`status` in widget_state.json + on_state_change payload, values:
-`"ok" | "no_cookie" | "no_login" | "fetch_error" | "config_missing"`.
-Lane B reads it defensively (absent ⇒ "ok"). Verify Lane A emits exactly these.
+## How the accuracy logic now works (control flow in widget_updater.py)
+- **Display = local extrapolation between API calls.** `_estimate_session_pct`
+  = `100*io/budget`, **clamped to 100**. Budget = last back-derived
+  `implied_session_budget`. No budget yet ⇒ shows pending `--`.
+- **Calibration floor.** `_append_calibration` only sets a budget at
+  `pct >= CALIBRATION_PCT_FLOOR (5)`; below that it's too rounding-unstable.
+  It gained `update_budget` so a sample can be logged for history without
+  churning the budget.
+- **Adopt + maybe-recalibrate.** `_adopt_api_pct` (used by calibration +
+  liveness; `force_refresh` inlines the same gate because its session-reset
+  must run first) always adopts the fresh API pct for display, but only
+  re-derives the budget when it disagrees with the prior display by
+  `> RECAL_DISCREPANCY_PP (5)` (or no budget yet). Gating on >5pp avoids the
+  rounding thrash (the historical 200k→123k→141k swing).
+- **Self-heal trigger.** In `on_modified`, after the local estimate updates,
+  `_estimate_is_suspect` fires a forced API re-anchor when the estimate pegs at
+  the 100% clamp OR runs `FORCE_RECAL_GAP_PP (5)` past the last API-confirmed
+  pct. Cooldown-gated by `FORCE_RECAL_COOLDOWN_SECS (300)` so a stuck-at-100
+  session can't hammer the endpoint. (`FORCE_RECAL_GAP_PP == RECAL_DISCREPANCY_PP`
+  by design — same "disagree enough to act" threshold.)
+- **Stuck-watcher detection.** On every recalibration, `_rescan_and_check_watcher`
+  does an active `full_scan` of the transcript folder. `seen_ids` dedup means it
+  recovers exactly the tokens the watchdog Observer missed → heals the count and
+  derives the budget against truth. If it recovers tokens AND live events have
+  been silent for `WATCHER_STUCK_SILENCE_SECS (60)`, it arms a
+  `WATCHER_STUCK_RECHECK_SECS (5)` one-shot timer and only toasts "restart" if no
+  ping lands in that grace window (`last_event_at` unchanged). **Off-laptop usage
+  can never trip this** (no local-disk tokens to recover) — that's the whole
+  point of the disk-rescan approach.
+- **Old pct-based "stuck" toast is dormant:** when we recalibrate off a
+  discrepancy we pass `suppress_toast=True`, so the `LARGE_DISCREPANCY_PP (10)`
+  toast no longer false-fires. Stuck detection now comes from the disk re-scan.
 
-## Done & committed on main (2c5e75f)
-- `usage_check.py` — CLI: default = widget estimate, `--live` = authoritative
-  claude.ai web check (== Claude Code session usage), `--json` for agents.
-  **Highlight this in the README** (it was the original point of the project).
-- onboarding.md updated (how Claude checks usage); memory files added
-  (usage-check-tool, powershell-commit-message). These live in ~/.claude, not
-  this repo.
+## Tunable constants (top of widget_updater.py)
+`CALIBRATION_PCT_FLOOR=5`, `RECAL_DISCREPANCY_PP=5`, `FORCE_RECAL_GAP_PP=5`,
+`FORCE_RECAL_COOLDOWN_SECS=300`, `WATCHER_STUCK_SILENCE_SECS=60`,
+`WATCHER_STUCK_RECHECK_SECS=5`, `LIVENESS_INTERVAL_SECS=1200`.
 
-## Cadence decision (for Lane A review)
-Web check moved hourly → ~10 min, BUT as a separate **liveness heartbeat**, not
-by lowering the per-session calibration budget (CALIBRATION_CALLS_PER_SESSION).
-Confirm Lane A implemented it that way.
+## NEXT: live verification (required before declaring 0.1.0 done)
+Tests cover the logic but NOTHING here has run against the real API in the live
+widget. Things to actually watch:
+1. A fresh session: confirm it shows `--` below 5%, then a sane number, and
+   never displays >100%.
+2. Force a >5pp disagreement (or wait for natural drift) and confirm the budget
+   re-derives (watch the `calibration: …` log line) — and that it does NOT
+   re-derive on small (<5pp) moves.
+3. The forced re-anchor: confirm extra API calls are bounded by the 5-min
+   cooldown and don't spam discrepancy toasts.
+4. Stuck detector: hard to provoke deliberately; mainly confirm it does NOT
+   false-fire during normal use or when you use claude.ai web on the side.
+Run the widget with `pythonw tray_widget.py` (or the built exe). `usage_check.py
+--live` is the authoritative cross-check.
 
-## Gotchas
-- PowerShell: use `git commit -F <file>` for multi-line messages; `@'...'@`
-  here-strings leak a stray `@` into the subject (bit us twice — see memory).
-- Never commit `config.json` (gitignored, holds org_id). It is NOT present in
-  fresh worktrees, so testing there needs `$env:CLAUDE_ORG_ID`.
-- Cross-platform scope decided: core + CI only; tray/packaging stay Windows v1.
+## THEN: 0.1.0 release
+Windows-only first (resist scope creep — see `shipping-plan-v010` memory).
+Build exe + zip + GitHub Release. `build.ps1` is the safe rebuild (won't drop
+config.json or fight the file lock). Branch discipline starts at 0.1.1 (user's
+call this session): commit straight to main for 0.1.0, branch after.
+
+## 0.1.1 and beyond (deferred, designed)
+- **0.1.1 — improved early-session calibration:** recency-weighted prior +
+  delta-calibration on increments + asymmetric blip classifier (off-laptop usage
+  is always ≥0, so a negative delta-residual unambiguously = budget-too-small =
+  self-healing). Front-loaded poll schedule. Full design + validation tasks in
+  `CALIBRATION-PLAN.md`. Today's clamp/floor/re-anchor are the stopgap for this.
+- **Per-model weighting** (new roadmap item): usage is currently raw unweighted
+  input+output; weighting Opus heavier is planned. (NB: model mix did NOT
+  correlate with budget on our data, r=−0.05 — so this is correctness, not the
+  fix for the budget variance, which is off-laptop usage.)
+- `v020-configurable-widgets` memory: separate deferred spec (settings GUI + SVG).
+
+## Gotchas (still current)
+- **Live API auth works via FIREFOX cookies only** — Chrome/Edge fail (memory
+  `cookie-browser-support`). Verify in Firefox.
+- Runtime state lives in `%LOCALAPPDATA%\ClaudeUsage`, NOT the repo `usage_data/`
+  (memory `runtime-state-location`). Calibration history: `…\usage_data\
+  calibration.jsonl`, discrepancies: `discrepancies.jsonl`.
+- Edit the **root** `config.json`, never the `dist` copy (memory
+  `config-json-rebuild-hazard`). `config.json` is gitignored (holds org_id);
+  fresh checkouts need `$env:CLAUDE_ORG_ID` to import widget_updater.
+- PowerShell: commit with `git commit -F <file>`, not `@'…'@` here-strings
+  (leaks a stray `@`). Tests in this session used a temp file via Bash heredoc.
+- Tests: `python -m pytest tests/test_widget_updater.py -q` (46 green). Note
+  `TestCalibrationRecordsBudget` calls the real `_append_calibration`, which
+  writes to the real calibration.jsonl — minor pre-existing test pollution.
+- Untracked in the tree (intentionally not committed): build/, dist/, *.bak,
+  *.log, .claude/, DECISION.md, alert_preview.png, install_start_menu.ps1.
