@@ -189,6 +189,14 @@ FORCE_RECAL_COOLDOWN_SECS = 300
 # FORCE_RECAL_GAP_PP by design: one threshold for "the estimate and the API
 # disagree enough to act."
 RECAL_DISCREPANCY_PP      = 5
+# When we recalibrate we actively re-scan the transcript folder rather than
+# trust the running tally (which is built only from on_modified pings). A
+# seen_ids-deduped re-scan recovers any tokens the watcher missed. If it
+# recovers some AND live events have been silent this long, the watcher is
+# genuinely stuck (not just a message caught in flight) -- we heal the count
+# and tell the user a restart will resume live tracking. Off-laptop usage
+# leaves NO local-disk evidence, so it can never trip this.
+WATCHER_STUCK_SILENCE_SECS = 600
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -688,6 +696,10 @@ class TranscriptHandler(FileSystemEventHandler):
         # Cooldown stamp for emergency re-anchoring (see _estimate_is_suspect),
         # so a session pegged at the 100% clamp can't fetch on every file event.
         self.last_forced_recal = None
+        # When we last got a transcript file event -- proof the watcher is
+        # delivering. Used by _rescan_and_check_watcher to tell a stuck watcher
+        # (silent + missed tokens on disk) from a healthy idle one.
+        self.last_event_at    = None
         # Last successful/attempted liveness ping (distinct from calibration).
         self.last_liveness    = None
         # Most recent status contract value (see STATUS_* constants). Seeded
@@ -896,8 +908,42 @@ class TranscriptHandler(FileSystemEventHandler):
         recalibrate = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
         self.session_pct  = pct
         self.last_api_pct = pct
+        # Re-scan from disk before deriving the budget so it's computed against
+        # the true token count, and so a stuck watcher surfaces (see method).
+        if recalibrate:
+            self._rescan_and_check_watcher(now)
         _append_calibration(self.state, pct, now, update_budget=recalibrate)
         return recalibrate
+
+    def _rescan_and_check_watcher(self, now: datetime) -> int:
+        """Active full re-scan of the transcript folder. The running tally is
+        built only from on_modified pings; if the watcher died/missed events the
+        on-disk transcripts hold tokens we never counted. A seen_ids-deduped
+        full_scan adds exactly those, healing the count. Returns the number of
+        recovered tokens.
+
+        If it recovered any AND live events have been silent for
+        WATCHER_STUCK_SILENCE_SECS, the watcher is stuck (a healthy watcher
+        delivers events, so silence + on-disk growth is the tell) -- prompt a
+        restart. Off-laptop usage leaves no local-disk evidence, so it never
+        trips this."""
+        if self.session_start is None or self.session_end is None:
+            return 0
+        io_before = self.state["input_tokens"] + self.state["output_tokens"]
+        full_scan(self.state, self.session_start, self.session_end)
+        missed = (self.state["input_tokens"] + self.state["output_tokens"]) - io_before
+        if missed <= 0 or self.last_event_at is None:
+            return missed
+        silent_for = (now - self.last_event_at).total_seconds()
+        if silent_for > WATCHER_STUCK_SILENCE_SECS and self.on_disconnect:
+            try:
+                self.on_disconnect(
+                    "Live tracking looks stuck (found usage on disk we weren't "
+                    "notified about). Restart to resume live updates."
+                )
+            except Exception as e:
+                print(f"  on_disconnect callback error: {e}")
+        return missed
 
     def _maybe_calibrate(self, force: bool = False) -> bool:
         """Hit the API for a fresh session % if the per-session budget or the
@@ -1013,6 +1059,8 @@ class TranscriptHandler(FileSystemEventHandler):
         if event.is_directory or not event.src_path.endswith(".jsonl"):
             return
         now = datetime.now(timezone.utc)
+        # Proof the watcher is delivering events (see _rescan_and_check_watcher).
+        self.last_event_at = now
         # Time-based rollover first: clears the dead window's token tally + pct
         # so _startup's discrepancy check can't fire a false "stuck" alert.
         self._roll_over_if_expired(now)
@@ -1077,11 +1125,13 @@ class TranscriptHandler(FileSystemEventHandler):
         if pct is not None:
             self.session_pct = pct
             self.last_api_pct = pct
+        reset = False
         if session_start is not None:
             stored_start = self.state.get("session_start")
             if stored_start != session_start.isoformat():
                 self.state = _empty_state(session_start)
                 full_scan(self.state, session_start, session_end)
+                reset = True
             self.session_start = session_start
             self.session_end = session_end
         self.last_calibrated = datetime.now(timezone.utc)
@@ -1093,6 +1143,10 @@ class TranscriptHandler(FileSystemEventHandler):
             no_budget   = not self.state.get("implied_session_budget")
             big_diff    = prior is not None and abs(pct - prior) > RECAL_DISCREPANCY_PP
             recalibrated = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
+            # A fresh window already full_scanned from empty, so there's no
+            # missed-token baseline to check; only re-scan otherwise.
+            if recalibrated and not reset:
+                self._rescan_and_check_watcher(self.last_calibrated)
             _append_calibration(self.state, pct, self.last_calibrated,
                                 update_budget=recalibrated)
         self._check_and_maybe_disconnect("session", prior, pct, scraped_at,

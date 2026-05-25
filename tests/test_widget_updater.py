@@ -349,6 +349,9 @@ class TestAdoptApiPct:
                 io = state["input_tokens"] + state["output_tokens"]
                 state["implied_session_budget"] = round(io / (pct / 100))
         monkeypatch.setattr(widget_updater, "_append_calibration", fake)
+        # Keep the recalibrate path off the real disk: the rescan is covered by
+        # TestWatcherStuck; here we only care about the budget gate decision.
+        monkeypatch.setattr(widget_updater, "full_scan", lambda *a, **k: None)
         return calls
 
     def test_big_diff_recalibrates(self, monkeypatch):
@@ -390,6 +393,72 @@ class TestAdoptApiPct:
         assert h._adopt_api_pct(3, datetime.now(timezone.utc)) is False  # < floor
         assert calls["update_budget"] is False
         assert h.session_pct == 3                             # display still adopts
+
+
+class TestWatcherStuck:
+    """On recalibration we re-scan the folder from disk. Tokens recovered that
+    no on_modified event reported mean the watcher missed events; if it's also
+    been silent for WATCHER_STUCK_SILENCE_SECS, it's stuck -> prompt restart.
+    Off-laptop usage leaves no local-disk tokens, so it never trips this."""
+
+    def _make_handler(self, monkeypatch):
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        h = widget_updater.TranscriptHandler()
+        now = datetime.now(timezone.utc)
+        h.session_start = now - timedelta(hours=1)
+        h.session_end   = now + timedelta(hours=4)
+        h.state["input_tokens"], h.state["output_tokens"] = 10000, 0
+        return h
+
+    def _scan_adds(self, monkeypatch, n):
+        monkeypatch.setattr(widget_updater, "full_scan",
+                            lambda state, s, e: state.__setitem__(
+                                "input_tokens", state["input_tokens"] + n))
+
+    def test_silent_with_missed_tokens_warns(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.last_event_at = now - timedelta(
+            seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
+        self._scan_adds(monkeypatch, 5000)
+        warned = []
+        h.on_disconnect = lambda msg: warned.append(msg)
+        assert h._rescan_and_check_watcher(now) == 5000   # healed
+        assert warned                                     # and warned
+
+    def test_recent_events_heals_without_warning(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.last_event_at = now - timedelta(seconds=30)     # events flowing
+        self._scan_adds(monkeypatch, 5000)
+        warned = []
+        h.on_disconnect = lambda msg: warned.append(msg)
+        assert h._rescan_and_check_watcher(now) == 5000   # still healed
+        assert not warned                                 # no false alarm
+
+    def test_no_missed_tokens_no_warning(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.last_event_at = now - timedelta(
+            seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
+        self._scan_adds(monkeypatch, 0)
+        warned = []
+        h.on_disconnect = lambda msg: warned.append(msg)
+        assert h._rescan_and_check_watcher(now) == 0
+        assert not warned
+
+    def test_never_saw_event_does_not_warn(self, monkeypatch):
+        # Healed silently if we've never observed a live event this session.
+        h = self._make_handler(monkeypatch)
+        now = datetime.now(timezone.utc)
+        h.last_event_at = None
+        self._scan_adds(monkeypatch, 5000)
+        warned = []
+        h.on_disconnect = lambda msg: warned.append(msg)
+        assert h._rescan_and_check_watcher(now) == 5000
+        assert not warned
 
 
 class TestOnModifiedAdvancesPct:
