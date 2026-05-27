@@ -528,12 +528,16 @@ def _draw_centered_text(d: ImageDraw.ImageDraw, text: str, size: int, color,
 # Reset-time tooltip helpers.
 # ---------------------------------------------------------------------------
 
-def _fmt_short(end) -> str:
+def _fmt_short(end, weekly: bool = False) -> str:
     """Format time remaining for tooltip display.
 
+    Session (weekly=False):
     - Under 1 hour: "in 34m"
-    - 1 hour+: "in 2h 41m" (minutes omitted if exactly on the hour)
-    - 2+ days: "in Nd Nh"
+    - 1 hour+: "in 2h 41m" (minutes dropped if exactly on hour)
+
+    Weekly (weekly=True):
+    - Under 24 hours: "in 2h 41m"
+    - 24 hours+: "in Nd Xh"
     """
     if not end:
         return ""
@@ -547,7 +551,8 @@ def _fmt_short(end) -> str:
         return f"in {mins}m"
     hrs = mins // 60
     rem = mins % 60
-    if hrs < 48:
+    day_threshold = 24 if weekly else 48
+    if hrs < day_threshold:
         return f"in {hrs}h {rem}m" if rem else f"in {hrs}h"
     days = hrs // 24
     leftover_h = hrs % 24
@@ -778,7 +783,7 @@ class TrayApp:
                     f"{_fmt_short(self._state['session_end'])}").strip()
         if pref_key == "show_weekly_pct":
             return (f"Weekly {_fmt_pct(self._state['weekly_pct'])} "
-                    f"{_fmt_short(self._state['weekly_end'])}").strip()
+                    f"{_fmt_short(self._state['weekly_end'], weekly=True)}").strip()
         if pref_key == "show_session_reset":
             return self._ghost_tooltip()
         return ""
@@ -816,7 +821,7 @@ class TrayApp:
         s = _fmt_pct(self._state["session_pct"])
         w = _fmt_pct(self._state["weekly_pct"])
         s_when = _fmt_short(self._state["session_end"])
-        w_when = _fmt_short(self._state["weekly_end"])
+        w_when = _fmt_short(self._state["weekly_end"], weekly=True)
         # Two-line tooltip - Windows renders this in the system font.
         return f"Session: {s} {s_when}\nWeekly: {w} {w_when}".strip()
 
