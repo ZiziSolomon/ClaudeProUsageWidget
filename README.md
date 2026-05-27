@@ -144,7 +144,7 @@ Planned, not yet shipped:
 - **macOS & Linux packaging** — the core already runs cross-platform (see above); only the tray packaging is Windows-only today.
 - **Configurable widgets** — custom icons, per-widget colours, per-threshold colour changes, and a settings window.
 - **Extra usage** — surface pay-as-you-go / overage usage beyond your plan's included limits, alongside the session and weekly readings.
-- **Improved early-session calibration** — replace the back-derived budget with a recency-weighted prior plus delta-calibration that detects off-laptop usage, so the estimate is accurate from the first minutes of a session and can't overshoot 100%. Design in [`CALIBRATION-PLAN.md`](CALIBRATION-PLAN.md).
+- **Improved early-session calibration** — replace the back-derived budget with a recency-weighted prior plus delta-calibration that detects off-laptop usage, so the estimate is accurate from the first minutes of a session and can't overshoot 100%.
 - **Per-model weighting** — weight tokens by model when computing usage (an Opus token costs more against the limit than a Sonnet/Haiku one); today the estimate counts raw input + output tokens unweighted.
 - **Usage history and drift tracking** — in-app visualisation of how your usage estimate tracks against the API over time, surfacing the data already logged in `calibration.jsonl`.
 
