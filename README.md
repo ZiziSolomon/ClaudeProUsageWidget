@@ -134,8 +134,6 @@ The widget reads your session cookie directly from your Firefox's local cookie s
 
 You don't need to use Firefox as your default browser — just being logged in to [claude.ai](https://claude.ai) there is enough.
 
-For what it's worth, once calibrated, the endpoint is only called every 20 minutes by default while providing live estimates using local token counts from your transcripts.
-
 ---
 
 ## Platform support
@@ -173,7 +171,7 @@ intentional, and they may not welcome a tool that surfaces it. **Use at your
 own risk, including the risk of account action.** Decide for yourself whether
 that tradeoff is worth it.
 
-(For what it's worth, once calibrated, the endpoint is only called every 20 minutes by default while providing live estimates using local token counts from your transcripts — but treat that as a property of the design, not a safety guarantee.)
+(For what it's worth, once calibrated, the endpoint is only called every 20 minutes by default while providing live estimates using local token counts from your transcripts. Treat that as a property of the design, not a safety guarantee.)
 
 ---
 
