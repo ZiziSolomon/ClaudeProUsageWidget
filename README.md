@@ -93,18 +93,6 @@ python tray_widget.py
 
 Make sure you're logged in to [claude.ai](https://claude.ai) in **Firefox** before running.
 
-### Finding your org ID (fallback only)
-
-The widget auto-detects your org ID from your browser session.
-If auto-detection fails, you can find it manually:
-
-1. Open <https://claude.ai/settings/usage> in your browser.
-2. Open DevTools → Network tab → reload the page.
-3. Look for a request to `/api/organizations/<UUID>/usage`. Copy the UUID.
-4. Either:
-   - Set the environment variable `CLAUDE_ORG_ID=<your-uuid>`, or
-   - Copy `config.example.json` to `config.json` and fill in `org_id`.
-
 ---
 
 ## Making the icon always visible
