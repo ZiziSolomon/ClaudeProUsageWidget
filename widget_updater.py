@@ -96,9 +96,7 @@ STATUS_CONFIG_MISSING = "config_missing"
 STATUS_TRACKER_DOWN   = "tracker_down"
 STATUS_NO_PROJECTS    = "no_projects"
 
-# Firefox only: Chrome/Edge use App-Bound Encryption (since Chrome 127) that
-# prevents external processes from decrypting cookies.
-_SUPPORTED_BROWSERS = ("firefox",)
+_SUPPORTED_BROWSER = "firefox"
 
 
 def _config_path() -> Path:
@@ -155,10 +153,6 @@ def _configured_org_id() -> str | None:
     return _read_config().get("org_id")
 
 
-def _configured_browser() -> str | None:
-    """Optional 'browser' key in config: firefox. None = auto."""
-    b = _read_config().get("browser")
-    return b.lower().strip() if isinstance(b, str) else None
 
 
 SESSION_HOURS = 5
@@ -281,34 +275,19 @@ def _load_org_id() -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Cookie loading (cross-browser)  [C1]
+# Cookie loading (Firefox only)  [C1]
 # ---------------------------------------------------------------------------
 
-def _load_browser_cookies(browser: str | None = None) -> tuple[dict, str | None]:
-    """Return ({cookie_name: value}, browser_used) of claude.ai cookies.
+def _load_browser_cookies() -> dict:
+    """Return {cookie_name: value} of claude.ai cookies from Firefox.
 
-    If `browser` is given (firefox) only that browser is tried.
-    Otherwise we auto-try each supported browser and use the first that yields
-    any claude.ai cookies. Returns ({}, None) when nothing is found.
-
-    browser_cookie3 raises on locked DBs / missing browsers, so each attempt
-    is isolated - one broken browser must not hide cookies in another."""
-    order = [browser] if browser else list(_SUPPORTED_BROWSERS)
-    for name in order:
-        loader = getattr(browser_cookie3, name, None)
-        if loader is None:
-            print(f"  unknown browser '{name}', skipping")
-            continue
-        try:
-            jar = loader(domain_name=".claude.ai")
-            cookie_dict = {c.name: c.value for c in jar}
-            if cookie_dict:
-                return cookie_dict, name
-        except Exception as e:
-            # Expected when a browser isn't installed or its cookie DB is
-            # locked (browser open). Log loudly enough to debug, then move on.
-            print(f"  could not read {name} cookies: {e}")
-    return {}, None
+    Returns {} when Firefox has no claude.ai cookies or the DB is locked."""
+    try:
+        jar = browser_cookie3.firefox(domain_name=".claude.ai")
+        return {c.name: c.value for c in jar}
+    except Exception as e:
+        print(f"  could not read Firefox cookies: {e}")
+        return {}
 
 
 # claude.ai sets a session cookie (sessionKey / __Secure-*) once logged in.
@@ -331,15 +310,13 @@ def _fetch_usage_status() -> tuple[dict | None, str]:
     Returns (raw_json_or_None, status) where status is one of the STATUS_*
     contract values. Never swallows the failure silently - the cause is
     printed and reflected in the returned status so the tray can surface it."""
-    browser = _configured_browser()
-    cookie_dict, used = _load_browser_cookies(browser)
+    cookie_dict = _load_browser_cookies()
     if not cookie_dict:
-        where = browser or "Firefox"
-        print(f"  STATUS=no_cookie: no claude.ai cookies found in {where}. "
-              f"Open claude.ai in your browser and log in.")
+        print(f"  STATUS=no_cookie: no claude.ai cookies found in Firefox. "
+              f"Open claude.ai in Firefox and log in.")
         return None, STATUS_NO_COOKIE
     if not _looks_logged_in(cookie_dict):
-        print(f"  STATUS=no_login: cookies found in {used} but no active "
+        print(f"  STATUS=no_login: cookies found in Firefox but no active "
               f"claude.ai session. Log in at https://claude.ai/.")
         return None, STATUS_NO_LOGIN
 
@@ -353,7 +330,7 @@ def _fetch_usage_status() -> tuple[dict | None, str]:
     try:
         r = cffi_requests.get(
             url, cookies=cookie_dict,
-            impersonate=used if used in ("chrome", "edge", "firefox") else "chrome",
+            impersonate="firefox",
             headers={"Referer": "https://claude.ai/"},
             timeout=10,
         )
@@ -389,7 +366,7 @@ def _discover_org_id(cookies: dict | None) -> str | None:
     try:
         r = cffi_requests.get(
             "https://claude.ai/api/organizations", cookies=cookies,
-            impersonate="chrome", headers={"Referer": "https://claude.ai/"},
+            impersonate="firefox", headers={"Referer": "https://claude.ai/"},
             timeout=10,
         )
         r.raise_for_status()
@@ -431,7 +408,7 @@ def _prompt_for_org_id(cookies: dict | None) -> str | None:
         try:
             r = cffi_requests.get(
                 "https://claude.ai/api/organizations", cookies=cookies,
-                impersonate="chrome", headers={"Referer": "https://claude.ai/"},
+                impersonate="firefox", headers={"Referer": "https://claude.ai/"},
                 timeout=10,
             )
             r.raise_for_status()
@@ -1224,16 +1201,14 @@ def startup_sanity_check() -> dict:
     print("Claude Usage Widget - startup check")
     print("=" * 60)
 
-    browser_pref = _configured_browser()
-    cookie_dict, used = _load_browser_cookies(browser_pref)
+    cookie_dict = _load_browser_cookies()
     logged_in = bool(cookie_dict) and _looks_logged_in(cookie_dict)
 
     if not cookie_dict:
-        print(f"[X] Cookies: none found in "
-              f"{browser_pref or 'Firefox/Chrome/Edge'}. "
-              f"Open https://claude.ai/ and log in.")
+        print("[X] Cookies: none found in Firefox. "
+              "Open https://claude.ai/ in Firefox and log in.")
     else:
-        print(f"[OK] Cookies: found in {used} "
+        print(f"[OK] Cookies: found in Firefox "
               f"({len(cookie_dict)} claude.ai cookies).")
         if not logged_in:
             print("[X] Login: cookies present but no active session - "
@@ -1260,7 +1235,6 @@ def startup_sanity_check() -> dict:
     print(f"     State:   {STATE_FILE}")
     print("=" * 60)
     return {
-        "browser": used,
         "cookies": bool(cookie_dict),
         "logged_in": logged_in,
         "org_id": org_id,

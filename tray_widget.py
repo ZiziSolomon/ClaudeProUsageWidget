@@ -1065,6 +1065,14 @@ def main():
                     handler.force_refresh()
             except Exception as e:
                 print(f"  rollover check error: {e}")
+            try:
+                now = datetime.now(timezone.utc)
+                est = handler._local_estimate()
+                if est is not None and handler._estimate_is_suspect(est, now):
+                    handler.last_forced_recal = now
+                    handler._maybe_calibrate(force=True)
+            except Exception as e:
+                print(f"  suspect-estimate check error: {e}")
             tray.tick()
     threading.Thread(target=_ticker, daemon=True).start()
 

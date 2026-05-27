@@ -3,3 +3,9 @@ __pycache__/
 usage_data/
 config.json
 _scrub.py
+build/
+dist/
+*.log
+*.bak
+drift_analysis.png
+.claude/
