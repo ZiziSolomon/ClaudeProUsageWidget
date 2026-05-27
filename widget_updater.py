@@ -569,7 +569,9 @@ def _check_discrepancy(kind: str, stored: float | None, api: float | None,
 
 
 def _append_calibration(state: dict, pct: float, scraped_at: datetime,
-                        update_budget: bool = True) -> None:
+                        update_budget: bool = True,
+                        stale_pct: float | None = None,
+                        trigger: str = "scheduled") -> None:
     total_io = state["input_tokens"] + state["output_tokens"]
     # Only trust a budget back-derived at or above the pct floor; below it the
     # integer-rounding error swamps the estimate (see CALIBRATION_PCT_FLOOR). We
@@ -586,6 +588,8 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
     record   = {
         "scraped_at":              scraped_at.isoformat(),
         "session_pct":             pct,
+        "stale_pct_before":        stale_pct,
+        "trigger":                 trigger,
         "session_start":           state.get("session_start"),
         "transcript_input_tokens": state["input_tokens"],
         "transcript_output_tokens":state["output_tokens"],
@@ -861,7 +865,8 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_pct   = pct
 
         self.last_calibrated = datetime.now(timezone.utc)
-        _append_calibration(self.state, pct, self.last_calibrated)
+        _append_calibration(self.state, pct, self.last_calibrated,
+                            stale_pct=self.session_pct, trigger="startup")
         _save_state(self.state, pct, session_end, self.weekly_pct,
                     self.weekly_end, status=self.status)
         print(f"  Session {pct}% | weekly {self.weekly_pct}% | tokens in+out: "
@@ -875,7 +880,8 @@ class TranscriptHandler(FileSystemEventHandler):
         the display moving between API hits instead of freezing."""
         return _estimate_session_pct(self.state)
 
-    def _adopt_api_pct(self, pct: float | None, now: datetime) -> bool:
+    def _adopt_api_pct(self, pct: float | None, now: datetime,
+                       trigger: str = "scheduled") -> bool:
         """Adopt a freshly-fetched session pct as the authoritative display value
         and re-derive the budget IFF it disagrees with what we were showing by
         more than RECAL_DISCREPANCY_PP (or we hold no budget yet) and clears the
@@ -894,7 +900,8 @@ class TranscriptHandler(FileSystemEventHandler):
         # the true token count, and so a stuck watcher surfaces (see method).
         if recalibrate:
             self._rescan_and_check_watcher(now)
-        _append_calibration(self.state, pct, now, update_budget=recalibrate)
+        _append_calibration(self.state, pct, now, update_budget=recalibrate,
+                            stale_pct=prior, trigger=trigger)
         return recalibrate
 
     def _rescan_and_check_watcher(self, now: datetime) -> int:
@@ -964,7 +971,8 @@ class TranscriptHandler(FileSystemEventHandler):
         _, _, pct = _parse_session(raw)
         wk_pct, wk_end = _parse_weekly(raw)
         prior = self.session_pct
-        recalibrated = self._adopt_api_pct(pct, now)
+        recalibrated = self._adopt_api_pct(pct, now,
+                                           trigger="suspect" if force else "scheduled")
         self._check_and_maybe_disconnect("session", prior, pct, now,
                                          suppress_toast=recalibrated)
         self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
@@ -1015,7 +1023,7 @@ class TranscriptHandler(FileSystemEventHandler):
             _, _, pct = _parse_session(raw)
             wk_pct, wk_end = _parse_weekly(raw)
             prior = self.session_pct
-            recalibrated = self._adopt_api_pct(pct, now)
+            recalibrated = self._adopt_api_pct(pct, now, trigger="liveness")
             self._check_and_maybe_disconnect("session", prior, pct, now,
                                              suppress_toast=recalibrated)
             self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
@@ -1149,7 +1157,8 @@ class TranscriptHandler(FileSystemEventHandler):
             if recalibrated and not reset:
                 self._rescan_and_check_watcher(self.last_calibrated)
             _append_calibration(self.state, pct, self.last_calibrated,
-                                update_budget=recalibrated)
+                                update_budget=recalibrated,
+                                stale_pct=prior, trigger="force_refresh")
         self._check_and_maybe_disconnect("session", prior, pct, scraped_at,
                                          suppress_toast=recalibrated)
         self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, scraped_at)
