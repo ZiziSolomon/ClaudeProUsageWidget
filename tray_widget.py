@@ -780,7 +780,7 @@ class TrayApp:
             return (f"Weekly {_fmt_pct(self._state['weekly_pct'])} "
                     f"{_fmt_short(self._state['weekly_end'])}").strip()
         if pref_key == "show_session_reset":
-            return f"Session resets {_fmt_short(self._state['session_end'])}".strip()
+            return self._ghost_tooltip()
         return ""
 
     # ------ state updates ----------------------------------------------
