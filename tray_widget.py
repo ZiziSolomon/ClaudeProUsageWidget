@@ -532,7 +532,7 @@ def _fmt_short(end) -> str:
     """Format time remaining for tooltip display.
 
     - Under 1 hour: "in 34m"
-    - 1 hour+: rounds to nearest hour (e.g. 2h41m -> "in 3h")
+    - 1 hour+: "in 2h 41m" (minutes omitted if exactly on the hour)
     - 2+ days: "in Nd Nh"
     """
     if not end:
@@ -545,12 +545,12 @@ def _fmt_short(end) -> str:
         return "resetting"
     if mins < 60:
         return f"in {mins}m"
-    # Round to nearest hour for cleaner tooltips.
-    hrs_rounded = int(round(mins / 60))
-    if hrs_rounded < 48:
-        return f"in {hrs_rounded}h"
-    days = round(hrs_rounded / 24)
-    leftover_h = hrs_rounded % 24
+    hrs = mins // 60
+    rem = mins % 60
+    if hrs < 48:
+        return f"in {hrs}h {rem}m" if rem else f"in {hrs}h"
+    days = hrs // 24
+    leftover_h = hrs % 24
     if leftover_h:
         return f"in {days}d {leftover_h}h"
     return f"in {days}d"
