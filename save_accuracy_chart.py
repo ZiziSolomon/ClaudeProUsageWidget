@@ -43,6 +43,18 @@ def to_local_naive(dt: datetime) -> datetime:
     return datetime.fromtimestamp(dt.timestamp())
 
 
+def _session_key(dt: datetime) -> datetime:
+    """Group session_starts that belong to the same real 5h window.
+
+    Every widget restart recomputes session_start = session_end - 5h from
+    the API's resets_at, which carries microseconds; this drifts the
+    stored session_start by milliseconds across restarts even within the
+    same real window. Rounding down to the minute collapses those drifts
+    without losing the ability to distinguish adjacent real sessions
+    (which are 5h apart by construction)."""
+    return dt.replace(second=0, microsecond=0)
+
+
 def _load_all_records() -> list[dict]:
     """All calibration records with a parseable session_start. The list is
     naturally in time order because calibration.jsonl is append-only."""
@@ -60,9 +72,11 @@ def _load_all_records() -> list[dict]:
         if not r.get("session_start"):
             continue
         try:
-            r["_session_start_dt"] = datetime.fromisoformat(r["session_start"])
+            ss = datetime.fromisoformat(r["session_start"])
         except ValueError:
             continue
+        r["_session_start_dt"] = ss
+        r["_session_key"] = _session_key(ss)
         records.append(r)
     return records
 
@@ -86,25 +100,26 @@ def _resolve_session(args) -> datetime:
         target_utc = target_local.astimezone(timezone.utc) if target_local.tzinfo \
                      else target_local.astimezone().astimezone(timezone.utc)
         window = timedelta(hours=SESSION_HOURS)
-        # Distinct session_starts only - one record per session is plenty.
+        # Distinct session keys only (minute-rounded so restart-drift
+        # doesn't fragment one real session into many).
         seen = set()
         for r in records:
-            ss = r["_session_start_dt"]
-            if ss in seen:
+            key = r["_session_key"]
+            if key in seen:
                 continue
-            seen.add(ss)
-            if ss <= target_utc < ss + window:
-                return ss
+            seen.add(key)
+            if key <= target_utc < key + window:
+                return key
         sys.exit(f"No recorded session covered {args.at} "
                  f"(local). Try --last to see what's on file.")
 
-    # --last (default): pick the session_start belonging to the record with
+    # --last (default): pick the session key belonging to the record with
     # the most recent scraped_at. Using scraped_at (not session_start)
     # because some tests have historically polluted the log with synthetic
     # future-dated session_start values (e.g. 2099-01-01); scraped_at is
     # always the real wall-clock time and reflects actual activity.
     latest = max(records, key=lambda r: r["scraped_at"])
-    return latest["_session_start_dt"]
+    return latest["_session_key"]
 
 
 def load_api_points(session_start: datetime) -> list[dict]:
@@ -112,9 +127,8 @@ def load_api_points(session_start: datetime) -> list[dict]:
     resolved budget (i.e. were above the floor at fetch time, OR were
     sub-floor-blended after the 2026-05-28 calibration changes)."""
     points = []
-    iso_prefix = session_start.isoformat()
     for r in _load_all_records():
-        if r["session_start"] != iso_prefix:
+        if r["_session_key"] != session_start:
             continue
         if r.get("implied_session_budget") and r.get("session_pct") is not None:
             points.append({
@@ -132,18 +146,18 @@ def load_api_points(session_start: datetime) -> list[dict]:
 
 
 def load_local_estimates(session_start: datetime) -> list[dict]:
-    """Parse [HH:MM:SS] pct lines for the chosen session. The log only
-    carries HH:MM:SS not dates, so we anchor each 'Widget HTTP' restart
-    block to a real datetime by matching it against calibration.jsonl
-    records (which DO carry full datetimes via scraped_at) whose
-    scraped_at lies inside the session window.
+    """Parse [HH:MM:SS] pct lines that fall in the session window.
 
-    For each Widget HTTP block we find the first calibration record whose
-    scraped_at falls inside it (between this block's start line and the
-    next Widget HTTP line). That calibration's local date is the anchor.
-    Lines within the block whose HH:MM:SS lies in the session window are
-    kept; clock rollover within a single block is handled by advancing the
-    inferred date when HH:MM:SS goes backwards."""
+    The log only carries HH:MM:SS, not dates. The trick: walk the log
+    BACKWARDS from EOF (which is roughly 'now'), anchoring the most
+    recent line to the log file's mtime date. As we walk up, time goes
+    monotonically backwards in clock terms; whenever we see HMS jump
+    UPWARD (e.g. 23:55 above 00:05) that's a midnight crossing and the
+    inferred date steps back a day.
+
+    This treats every line uniformly across Widget HTTP restart blocks
+    and needs no calibration-log anchoring. Lines older than the session
+    window are dropped."""
     if not LOG.exists():
         return []
     all_lines = LOG.read_text(encoding="utf-8", errors="ignore").splitlines()
@@ -151,64 +165,41 @@ def load_local_estimates(session_start: datetime) -> list[dict]:
     sess_local_start = to_local_naive(session_start)
     sess_local_end   = sess_local_start + timedelta(hours=SESSION_HOURS)
 
-    # Find every Widget HTTP line index (block boundaries).
-    starts = [i for i, l in enumerate(all_lines) if l.startswith("Widget HTTP")]
-    if not starts:
-        return []
-    blocks = []
-    for j, s in enumerate(starts):
-        e = starts[j + 1] if j + 1 < len(starts) else len(all_lines)
-        blocks.append((s, e))
-
-    # Calibration scraped_at points in this session, as local-naive datetimes
-    # plus their wall-clock HH:MM:SS for anchoring.
-    cal_points = [
-        to_local_naive(datetime.fromisoformat(r["scraped_at"]))
-        for r in _load_all_records()
-        if r["_session_start_dt"] == session_start
-    ]
-    if not cal_points:
-        return []
-
     line_pat = re.compile(r"^\[(\d{2}):(\d{2}):(\d{2})\].*pct=(\d+(?:\.\d+)?)")
-    points = []
-    for s, e in blocks:
-        # Find a calibration that landed in this block by HH:MM:SS proximity:
-        # walk the block looking for an "Fetching usage" / "calibration:"
-        # marker, and grab the first [HH:MM:SS] line afterwards.
-        block_hms = []
-        for line in all_lines[s:e]:
-            m = line_pat.match(line)
-            if m:
-                block_hms.append((int(m.group(1)), int(m.group(2)), int(m.group(3))))
-        if not block_hms:
-            continue
-        first_block_hms = block_hms[0]
-        anchor = None
-        for cp in cal_points:
-            if (cp.hour, cp.minute, cp.second) >= first_block_hms and \
-               cp - timedelta(hours=SESSION_HOURS) <= datetime(cp.year, cp.month, cp.day, *first_block_hms):
-                anchor = cp
-                break
-        if anchor is None:
-            # No calibration anchors this block to our session; skip it.
-            continue
-        anchor_date = anchor.date()
-        last_hms = None
-        for line in all_lines[s:e]:
-            m = line_pat.match(line)
-            if not m:
-                continue
-            h, mi, sec = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            hms = (h, mi, sec)
-            if last_hms is not None and hms < last_hms:
-                anchor_date = anchor_date + timedelta(days=1)
-            last_hms = hms
-            ts = datetime(anchor_date.year, anchor_date.month, anchor_date.day,
-                          h, mi, sec)
-            if sess_local_start <= ts < sess_local_end:
-                points.append({"ts": ts, "pct": float(m.group(4))})
-    return points
+    matches = []
+    for line in all_lines:
+        m = line_pat.match(line)
+        if m:
+            matches.append((int(m.group(1)), int(m.group(2)),
+                            int(m.group(3)), float(m.group(4))))
+    if not matches:
+        return []
+
+    # Anchor the LAST line to the log file's mtime. Most-recent line in
+    # an actively-written log is by definition very recent, so the log's
+    # mtime date is the right date for it.
+    log_mtime = datetime.fromtimestamp(LOG.stat().st_mtime)
+    current_date = log_mtime.date()
+
+    # Build (datetime, pct) pairs by walking backwards.
+    dated = []
+    prev_hms = None
+    for h, mi, sec, pct in reversed(matches):
+        hms = (h, mi, sec)
+        if prev_hms is not None and hms > prev_hms:
+            # Walking backwards: an UPWARD HMS jump means we crossed
+            # midnight going back into the previous day.
+            current_date -= timedelta(days=1)
+        prev_hms = hms
+        ts = datetime(current_date.year, current_date.month, current_date.day,
+                      h, mi, sec)
+        dated.append((ts, pct))
+
+    # Restore chronological order and keep only in-window points.
+    dated.reverse()
+    return [{"ts": ts, "pct": pct}
+            for ts, pct in dated
+            if sess_local_start <= ts < sess_local_end]
 
 
 def main() -> None:
