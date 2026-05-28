@@ -364,6 +364,39 @@ class TestLocalEstimate:
                  "implied_session_budget": 200000}
         assert widget_updater._estimate_session_pct(state) == 100
 
+    def test_anchor_snaps_to_api_pct(self):
+        # With anchor_io == current io, estimate is exactly anchor_pct regardless
+        # of what total_io / budget would yield (eliminates rounding drift).
+        state = {
+            "input_tokens": 30000, "output_tokens": 30000,
+            "implied_session_budget": 200000,
+            "anchor_pct": 28.5,   # API said 28.5% when io was 60k
+            "anchor_io":  60000,  # same as current => delta = 0
+        }
+        assert widget_updater._estimate_session_pct(state) == 28.5
+
+    def test_anchor_delta_adds_from_anchor(self):
+        # Tokens written after the anchor grow estimate from anchor_pct, not zero.
+        state = {
+            "input_tokens": 30000, "output_tokens": 30000,
+            "implied_session_budget": 200000,
+            "anchor_pct": 28.5,
+            "anchor_io":  60000,
+        }
+        state["output_tokens"] += 20000  # +20k delta => +10pp
+        # 28.5 + 100 * (20000 / 200000) = 28.5 + 10.0 = 38.5
+        assert widget_updater._estimate_session_pct(state) == 38.5
+
+    def test_anchor_clamps_at_100(self):
+        state = {
+            "input_tokens": 200000, "output_tokens": 0,
+            "implied_session_budget": 100000,
+            "anchor_pct": 80.0,
+            "anchor_io":  80000,
+        }
+        # 80.0 + 100 * (120000 / 100000) = 80 + 120 = 200 → clamped
+        assert widget_updater._estimate_session_pct(state) == 100
+
 
 class TestEmergencyRecal:
     """When the local estimate goes somewhere that proves the budget is wrong
@@ -516,6 +549,30 @@ class TestAdoptApiPct:
         assert h._adopt_api_pct(3, datetime.now(timezone.utc)) is False  # < floor
         assert calls["update_budget"] is False
         assert h.session_pct == 3                             # display still adopts
+
+    def test_sets_anchor(self, monkeypatch):
+        # _adopt_api_pct must record anchor_pct + anchor_io so subsequent
+        # _local_estimate calls start from the API value, not total_io/budget.
+        h = self._make_handler(monkeypatch)
+        self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
+        h._adopt_api_pct(53, datetime.now(timezone.utc))
+        assert h.state["anchor_pct"] == 53
+        assert h.state["anchor_io"]  == 60000   # 40k + 20k at time of call
+
+    def test_local_estimate_uses_anchor_immediately(self, monkeypatch):
+        # After _adopt_api_pct, _local_estimate returns exactly the API pct when
+        # no new tokens have been written (delta = 0).
+        h = self._make_handler(monkeypatch)
+        self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
+        h._adopt_api_pct(53, datetime.now(timezone.utc))
+        # No new tokens: delta = 0, so estimate == anchor_pct exactly.
+        assert h._local_estimate() == 53
 
 
 class TestWatcherStuck:

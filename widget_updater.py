@@ -724,16 +724,26 @@ def _estimate_session_pct(state: dict) -> float | None:
     """Session % extrapolated from the local token count and the budget
     implied by the last API calibration. None until a budget exists.
 
+    When an API anchor is present (set by _set_anchor on every API read),
+    extrapolates as:  anchor_pct + 100 * (current_io - anchor_io) / budget
+    This snaps the estimate to the exact API value at calibration time and
+    grows it only by locally-observed tokens written after that snapshot,
+    eliminating drift from budget rounding and off-laptop usage.
+
     Module-level (not just a handler method) so the freeze-regression test can
     exercise it without standing up a network-touching TranscriptHandler."""
     budget = state.get("implied_session_budget")
     if not budget:
         return None
-    io_total = state["input_tokens"] + state["output_tokens"]
-    # Clamp: a too-small budget (e.g. one locked in early, or contaminated by
-    # off-laptop usage) would otherwise sail past 100%. The session can't exceed
-    # its own window. See CALIBRATION-PLAN.md for the real (delta-cal) fix.
-    return min(100, round(100 * io_total / budget))
+    io_total   = state["input_tokens"] + state["output_tokens"]
+    anchor_pct = state.get("anchor_pct")
+    anchor_io  = state.get("anchor_io", 0)
+    if anchor_pct is not None:
+        raw = anchor_pct + 100 * (io_total - anchor_io) / budget
+    else:
+        # Fallback before first API reading: total-io / budget.
+        raw = 100 * io_total / budget
+    return min(100, round(raw, 1))
 
 
 # Cheap byte-level prefilter: assistant records with usage are the only lines
@@ -978,6 +988,7 @@ class TranscriptHandler(FileSystemEventHandler):
             wk_pct, wk_end = _parse_weekly(raw)
             if pct is not None:
                 self.session_pct = pct
+                self._set_anchor(pct)
             if wk_pct is not None:
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
@@ -1059,6 +1070,7 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_start = session_start
         self.session_end   = session_end
         self.session_pct   = pct
+        self._set_anchor(pct)
 
         self.last_calibrated = datetime.now(timezone.utc)
         _append_calibration(self.state, pct, self.last_calibrated,
@@ -1075,6 +1087,14 @@ class TranscriptHandler(FileSystemEventHandler):
         calibrated at least once (no budget to divide by). This is what keeps
         the display moving between API hits instead of freezing."""
         return _estimate_session_pct(self.state)
+
+    def _set_anchor(self, pct: float) -> None:
+        """Record the API-confirmed pct and current local io as the extrapolation
+        anchor.  _local_estimate then starts from pct and adds delta only, so the
+        display snaps to the API value and drifts only on new local tokens."""
+        self.state["anchor_pct"] = pct
+        self.state["anchor_io"]  = (self.state["input_tokens"]
+                                    + self.state["output_tokens"])
 
     def _adopt_api_pct(self, pct: float | None, now: datetime,
                        trigger: str = "scheduled") -> bool:
@@ -1096,6 +1116,7 @@ class TranscriptHandler(FileSystemEventHandler):
         # the true token count, and so a stuck watcher surfaces (see method).
         if recalibrate:
             self._rescan_and_check_watcher(now)
+        self._set_anchor(pct)
         _append_calibration(self.state, pct, now, update_budget=recalibrate,
                             stale_pct=prior, trigger=trigger)
         return recalibrate
@@ -1413,6 +1434,7 @@ class TranscriptHandler(FileSystemEventHandler):
             # missed-token baseline to check; only re-scan otherwise.
             if recalibrated and not reset:
                 self._rescan_and_check_watcher(self.last_calibrated)
+            self._set_anchor(pct)
             _append_calibration(self.state, pct, self.last_calibrated,
                                 update_budget=recalibrated,
                                 stale_pct=prior, trigger="force_refresh")
