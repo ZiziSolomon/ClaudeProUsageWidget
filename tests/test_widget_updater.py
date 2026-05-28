@@ -177,6 +177,15 @@ def _assistant_line(msg_id: str, inp: int, out: int, ts: datetime) -> str:
 
 
 class TestCalibrationRecordsBudget:
+    # Every _append_calibration call writes to CALIBRATION_FILE. Without the
+    # monkeypatch these tests would (and did) pollute the real user log with
+    # synthetic 2099 session_start records, confusing tools like
+    # save_accuracy_chart.py. Pin to a tmp file in every test.
+    @pytest.fixture(autouse=True)
+    def _isolate_calibration_file(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
+                            tmp_path / "calibration.jsonl")
+
     def test_append_calibration_stores_implied_budget(self):
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
@@ -195,15 +204,13 @@ class TestCalibrationRecordsBudget:
         # No divide-by-zero, and no bogus budget recorded.
         assert not state.get("implied_session_budget")
 
-    def test_below_floor_sets_blended_budget(self, tmp_path, monkeypatch):
+    def test_below_floor_sets_blended_budget(self):
         # Below CALIBRATION_PCT_FLOOR we no longer leave budget=None (which
         # left the display stuck at the last API pct for hours - exactly the
         # bug that landed v0.1.0 in trouble). Instead we synthesize a budget
         # from a live-reading midpoint X blended with the user's historical
         # median M. See _blended_sub_floor_budget for the math.
-        # Use a tmp calibration file so we don't read real history.
-        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
-                            tmp_path / "calibration.jsonl")
+        # _isolate_calibration_file fixture ensures we don't read real history.
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 1000
