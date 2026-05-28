@@ -75,12 +75,14 @@ def _iter_assistant_events():
     for f in PROJECTS_DIR.rglob("*.jsonl"):
         try:
             text = f.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
+        except Exception as e:
+            print(f"[X] _iter_assistant_events: could not read {f}: {type(e).__name__}: {e}")
             continue
         for line in text.splitlines():
             try:
                 obj = json.loads(line)
-            except Exception:
+            except Exception as e:
+                print(f"[X] _iter_assistant_events: JSON decode failed in {f.name}: {type(e).__name__}: {e}")
                 continue
             if obj.get("type") != "assistant":
                 continue
@@ -92,7 +94,8 @@ def _iter_assistant_events():
                 continue
             try:
                 ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
-            except Exception:
+            except Exception as e:
+                print(f"[X] _iter_assistant_events: bad timestamp {ts_raw!r} in {f.name}: {type(e).__name__}: {e}")
                 continue
             yield (ts, mid,
                    usage.get("input_tokens", 0),
@@ -154,7 +157,8 @@ def load_calibration_budgets() -> list[dict]:
     for line in CALIBRATION_FILE.read_text(encoding="utf-8").splitlines():
         try:
             rec = json.loads(line)
-        except Exception:
+        except Exception as e:
+            print(f"[X] load_calibration_budgets: JSON decode failed: {type(e).__name__}: {e}")
             continue
         pct = rec.get("session_pct")
         start = rec.get("session_start")
@@ -177,7 +181,8 @@ def load_calibration_budgets() -> list[dict]:
     for line in CALIBRATION_FILE.read_text(encoding="utf-8").splitlines():
         try:
             rec = json.loads(line)
-        except Exception:
+        except Exception as e:
+            print(f"[X] load_calibration_budgets (count pass): JSON decode failed: {type(e).__name__}: {e}")
             continue
         start = rec.get("session_start")
         if start in best:
@@ -194,7 +199,8 @@ def _parse(ts: str | None) -> datetime | None:
         return None
     try:
         return datetime.fromisoformat(ts)
-    except Exception:
+    except Exception as e:
+        print(f"[X] _parse: bad timestamp {ts!r}: {type(e).__name__}: {e}")
         return None
 
 

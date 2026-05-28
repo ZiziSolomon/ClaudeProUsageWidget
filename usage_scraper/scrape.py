@@ -69,7 +69,8 @@ def count_transcript_tokens(session_start: datetime, session_end: datetime) -> d
                 entry["output"]       += usage.get("output_tokens", 0)
                 entry["cache_read"]   += usage.get("cache_read_input_tokens", 0)
                 entry["cache_create"] += usage.get("cache_creation_input_tokens", 0)
-        except Exception:
+        except Exception as e:
+            print(f"[X] count_transcript_tokens: error processing {jsonl_path.name}: {type(e).__name__}: {e}")
             continue
 
     total_in  = sum(m["input"]  for m in by_model.values())

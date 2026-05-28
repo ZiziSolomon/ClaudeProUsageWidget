@@ -56,8 +56,8 @@ def _data_dir() -> Path:
                 src, dst = legacy / name, d / name
                 if src.exists() and not dst.exists():
                     dst.write_bytes(src.read_bytes())
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[!] legacy state migration skipped: {e}")
     return d
 
 
@@ -489,7 +489,8 @@ def _load_state() -> dict:
         s = json.loads(STATE_FILE.read_text())
         s["seen_ids"] = set(s.get("seen_ids", []))
         return s
-    except Exception:
+    except Exception as e:
+        print(f"[X] _load_state failed, starting fresh: {type(e).__name__}: {e}")
         return _empty_state()
 
 
@@ -499,6 +500,9 @@ def _empty_state(session_start: datetime | None = None) -> dict:
         "input_tokens": 0,
         "output_tokens": 0,
         "by_model": {},
+        # Per-file byte offsets for incremental JSONL parsing. See process_file.
+        # Cleared on session reset so the new session counts from scratch.
+        "offsets": {},
         "session_start": session_start.isoformat() if session_start else None,
         "calibration_calls_remaining": CALIBRATION_CALLS_PER_SESSION,
     }
@@ -624,11 +628,80 @@ def _estimate_session_pct(state: dict) -> float | None:
     return min(100, round(100 * io_total / budget))
 
 
+# Cheap byte-level prefilter: assistant records with usage are the only lines
+# that contribute to token totals. Skipping json.loads on the ~90% of lines
+# that can't possibly match (user turns, tool results) is the bulk of the
+# speedup on top of the seek-to-offset incremental read.
+#
+# Match on bare quoted tokens (not "type":"assistant" with no space) so the
+# filter survives any whitespace Claude Code or json.dumps might insert
+# around colons. False positives are fine - json.loads runs as a second
+# gate and the obj.get("type") check rejects them. Only false NEGATIVES
+# would lose tokens, and the quoted word "assistant" only appears in
+# transcripts as the type value.
+_ASSISTANT_MARKER = b'"assistant"'
+_USAGE_MARKER     = b'"usage"'
+
+
 def process_file(path: Path, state: dict, session_start: datetime, session_end: datetime) -> bool:
-    changed = False
+    """Incrementally read `path` from the last byte offset we consumed.
+
+    JSONL transcripts are append-only, so we seek to where we left off and
+    parse only the new bytes. Offsets are persisted in state["offsets"], keyed
+    by absolute path string. A trailing partial line (write landed mid-line
+    between FS events) is left for the next call.
+
+    Failures are LOUD - swallowing exceptions silently is what masked the
+    2.5MB-file stall in the first place. Anything unexpected prints to
+    stdout (which the tray captures to widget_run.log).
+    """
+    key = str(path)
+    offsets = state.setdefault("offsets", {})
+    offset  = offsets.get(key, 0)
+
     try:
-        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-            obj = json.loads(line)
+        size = path.stat().st_size
+    except OSError as e:
+        print(f"[X] process_file stat failed for {path}: {e}")
+        return False
+
+    # File shrank => rotated/truncated/replaced. Rescan from 0; seen_ids
+    # still dedupes anything we already counted.
+    if size < offset:
+        print(f"[!] {path.name} shrank ({size} < {offset}); rescanning from 0")
+        offset = 0
+    if size == offset:
+        return False
+
+    try:
+        with path.open("rb") as f:
+            f.seek(offset)
+            chunk = f.read()
+    except OSError as e:
+        print(f"[X] process_file read failed for {path} at offset {offset}: {e}")
+        return False
+
+    # Keep any unterminated trailing line for next event. Without this we'd
+    # corrupt one record per write that lands mid-line.
+    last_nl = chunk.rfind(b"\n")
+    if last_nl == -1:
+        return False  # no complete line yet
+    complete = chunk[:last_nl]
+    offsets[key] = offset + last_nl + 1
+
+    changed = False
+    for raw in complete.split(b"\n"):
+        if _ASSISTANT_MARKER not in raw or _USAGE_MARKER not in raw:
+            continue
+        try:
+            obj = json.loads(raw)
+        except json.JSONDecodeError as e:
+            # Loud: a line passed the prefilter but isn't valid JSON. Either
+            # the format changed or our offset bookkeeping desynced.
+            print(f"[X] process_file JSON decode failed in {path.name}: {e} "
+                  f"(line starts: {raw[:80]!r})")
+            continue
+        try:
             if obj.get("type") != "assistant":
                 continue
             msg   = obj.get("message", {})
@@ -647,16 +720,28 @@ def process_file(path: Path, state: dict, session_start: datetime, session_end: 
             state["input_tokens"]   += usage.get("input_tokens", 0)
             state["output_tokens"]  += usage.get("output_tokens", 0)
             changed = True
-    except Exception:
-        pass
+        except Exception as e:
+            # Loud: an assistant/usage record failed downstream accounting.
+            # Don't kill the whole scan - keep going - but make the failure
+            # visible so it can be fixed before the next release.
+            print(f"[X] process_file record accounting failed in {path.name}: "
+                  f"{type(e).__name__}: {e}")
     return changed
 
 
 def full_scan(state: dict, session_start: datetime, session_end: datetime) -> None:
+    seen_paths = set()
     for f in PROJECTS_DIR.rglob("*.jsonl"):
+        seen_paths.add(str(f))
         mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
         if mtime >= session_start:
             process_file(f, state, session_start, session_end)
+    # Prune offset entries for files that are gone or stale - keeps the state
+    # file from growing without bound across weeks of sessions.
+    offsets = state.get("offsets", {})
+    for key in list(offsets):
+        if key not in seen_paths:
+            del offsets[key]
 
 
 # ---------------------------------------------------------------------------

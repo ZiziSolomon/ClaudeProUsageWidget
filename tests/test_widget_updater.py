@@ -343,7 +343,8 @@ class TestAdoptApiPct:
         # calibration log nor depends on it -- just records the gate decision
         # and applies the budget the same way the real one would.
         calls = {}
-        def fake(state, pct, when, update_budget=True):
+        def fake(state, pct, when, update_budget=True,
+                 stale_pct=None, trigger="scheduled"):
             calls["update_budget"] = update_budget
             if update_budget and pct >= widget_updater.CALIBRATION_PCT_FLOOR:
                 io = state["input_tokens"] + state["output_tokens"]
@@ -638,4 +639,152 @@ class TestLivenessInterval:
         monkeypatch.setenv("CLAUDE_POLL_INTERVAL_MINUTES", "soon")
         monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
         assert widget_updater._liveness_interval_secs() == 1200
+
+
+# ---------------------------------------------------------------------------
+# Incremental process_file - the watcher stalled on a 2.5MB transcript
+# because each FS event re-read and re-parsed the whole file. The fix is
+# to seek to a stored byte offset and only parse new bytes. These tests
+# guard the seek+offset semantics and the multi-MB performance floor.
+# ---------------------------------------------------------------------------
+
+class TestIncrementalProcessFile:
+    def _window(self):
+        # A generous window so synthesized timestamps always fall inside.
+        now = datetime.now(timezone.utc)
+        return now - timedelta(hours=1), now + timedelta(hours=4), now
+
+    def test_append_only_reads_new_bytes(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(_assistant_line("m1", 100, 200, now) + "\n",
+                     encoding="utf-8")
+
+        assert widget_updater.process_file(f, state, start, end) is True
+        first_off = state["offsets"][str(f)]
+        assert state["input_tokens"] == 100
+        assert state["output_tokens"] == 200
+
+        # Second call with no changes is a no-op and doesn't re-parse.
+        assert widget_updater.process_file(f, state, start, end) is False
+        assert state["offsets"][str(f)] == first_off
+
+        # Append a new record. Only the new bytes should be parsed.
+        with f.open("a", encoding="utf-8") as h:
+            h.write(_assistant_line("m2", 50, 75, now) + "\n")
+        assert widget_updater.process_file(f, state, start, end) is True
+        assert state["input_tokens"] == 150
+        assert state["output_tokens"] == 275
+        assert state["offsets"][str(f)] > first_off
+
+    def test_partial_trailing_line_held_for_next_read(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        full = _assistant_line("m1", 100, 200, now) + "\n"
+        partial = _assistant_line("m2", 50, 50, now)  # NO trailing newline
+        f.write_bytes((full + partial).encode("utf-8"))
+
+        widget_updater.process_file(f, state, start, end)
+        # Only m1 should be counted; the partial m2 line is held back.
+        assert state["input_tokens"] == 100
+        assert "m1" in state["seen_ids"]
+        assert "m2" not in state["seen_ids"]
+
+        # Complete the line, run again - now m2 is picked up.
+        with f.open("ab") as h:
+            h.write(b"\n")
+        widget_updater.process_file(f, state, start, end)
+        assert state["input_tokens"] == 150
+        assert "m2" in state["seen_ids"]
+
+    def test_truncation_rescans_from_zero(self, tmp_path, capsys):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(_assistant_line("m1", 100, 200, now) + "\n",
+                     encoding="utf-8")
+        widget_updater.process_file(f, state, start, end)
+
+        # Replace with shorter content (rotation/truncation).
+        f.write_text(_assistant_line("m2", 10, 20, now) + "\n",
+                     encoding="utf-8")
+        widget_updater.process_file(f, state, start, end)
+
+        # Loud failure - the shrink should print a warning.
+        assert "shrank" in capsys.readouterr().out
+        # m1 still counted (seen_ids dedupes), m2 also counted.
+        assert state["input_tokens"] == 110
+        assert {"m1", "m2"} <= state["seen_ids"]
+
+    def test_invalid_json_after_prefilter_logs_loudly(self, tmp_path, capsys):
+        start, end, _ = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        # A line that passes the byte prefilter but isn't valid JSON.
+        f.write_bytes(b'{"type":"assistant","usage":BROKEN\n')
+        widget_updater.process_file(f, state, start, end)
+        out = capsys.readouterr().out
+        assert "JSON decode failed" in out
+
+    def test_large_file_incremental_is_fast(self, tmp_path):
+        """The bug: process_file re-read and re-parsed a 2.5MB file on every
+        FS event, stalling the watcher. After the fix, the second call (with
+        one new record appended) should be effectively instant - it only
+        parses the delta, not the whole file."""
+        import time
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "big.jsonl"
+
+        # Build a ~3MB transcript: mostly user/tool-result noise the
+        # prefilter throws away, plus a few assistant records. This mirrors
+        # the real shape of a long Claude Code session.
+        noise = json.dumps({"type": "user",
+                            "message": {"content": "x" * 500}})
+        lines = []
+        for i in range(5000):
+            lines.append(noise)
+            if i % 500 == 0:
+                lines.append(_assistant_line(f"m{i}", 10, 20, now))
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        size_mb = f.stat().st_size / (1024 * 1024)
+        assert size_mb > 2, f"test fixture too small: {size_mb:.2f}MB"
+
+        # First (cold) scan - expected to be the slow one. We don't assert on
+        # this; we just want a baseline budget consumed once.
+        t0 = time.perf_counter()
+        widget_updater.process_file(f, state, start, end)
+        cold = time.perf_counter() - t0
+        cold_in = state["input_tokens"]
+        assert cold_in > 0
+
+        # Append one new assistant record and time the incremental call.
+        with f.open("a", encoding="utf-8") as h:
+            h.write(_assistant_line("m_new", 7, 11, now) + "\n")
+        t0 = time.perf_counter()
+        widget_updater.process_file(f, state, start, end)
+        warm = time.perf_counter() - t0
+
+        # The whole point: warm path doesn't pay the cold cost. 50ms is
+        # generous - on a developer machine it's typically <1ms - but loose
+        # enough to survive CI jitter.
+        assert warm < 0.05, (
+            f"incremental read should be <50ms, was {warm*1000:.1f}ms "
+            f"(cold was {cold*1000:.1f}ms, file {size_mb:.2f}MB)"
+        )
+        assert state["input_tokens"] == cold_in + 7
+
+    def test_no_trailing_newline_returns_false(self, tmp_path):
+        """A file with content but no completed line yet must NOT advance
+        the offset - otherwise the first record gets lost forever."""
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_bytes(_assistant_line("m1", 100, 200, now).encode("utf-8"))
+
+        assert widget_updater.process_file(f, state, start, end) is False
+        assert state["offsets"].get(str(f), 0) == 0
+        assert state["input_tokens"] == 0
 

@@ -197,15 +197,16 @@ def _query_system_status_font() -> str:
         )
         if ok:
             return ncm.lfStatusFont.lfFaceName or "Segoe UI"
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[X] _query_system_status_font failed, using Segoe UI: {type(e).__name__}: {e}")
     return "Segoe UI"
 
 
 def _is_windows_11() -> bool:
     try:
         return sys.platform == "win32" and sys.getwindowsversion().build >= 22000
-    except Exception:
+    except Exception as e:
+        print(f"[X] _is_windows_11 check failed: {type(e).__name__}: {e}")
         return False
 
 
@@ -245,8 +246,8 @@ def pick_taskbar_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
         if path:
             try:
                 return ImageFont.truetype(path, size)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[X] pick_taskbar_font failed to load Segoe UI Variable ({path}): {type(e).__name__}: {e}")
 
     # Whatever the OS says is the status-bar font (usually Segoe UI).
     face = _query_system_status_font()
@@ -254,8 +255,8 @@ def pick_taskbar_font(size: int, bold: bool = False) -> ImageFont.ImageFont:
     if path:
         try:
             return ImageFont.truetype(path, size)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[X] pick_taskbar_font failed to load {face} ({path}): {type(e).__name__}: {e}")
 
     # Last-resort fallback.
     return ImageFont.load_default()
@@ -585,7 +586,8 @@ def _load_prefs() -> dict:
     try:
         data = json.loads(PREFS_FILE.read_text())
         return {**DEFAULT_PREFS, **data}
-    except Exception:
+    except Exception as e:
+        print(f"[X] _load_prefs failed, using defaults: {type(e).__name__}: {e}")
         return dict(DEFAULT_PREFS)
 
 
@@ -833,7 +835,8 @@ class TrayApp:
             return False
         try:
             return datetime.fromisoformat(until) > datetime.now(timezone.utc)
-        except Exception:
+        except Exception as e:
+            print(f"[X] _restart_prompts_snoozed: bad timestamp {until!r}: {type(e).__name__}: {e}")
             return False
 
     def _toggle_snooze(self, _icon, _item):
@@ -930,7 +933,7 @@ class TrayApp:
         self._stopping = True
         for icon in self.icons.values():
             try: icon.stop()
-            except Exception: pass
+            except Exception as e: print(f"[X] icon.stop() failed during quit: {type(e).__name__}: {e}")
 
     def _make_setup(self, pref_key: str):
         # pystray.Icon.run/run_detached internally set visible=True before
@@ -976,8 +979,8 @@ def main():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
             "ClaudeUsage.Widget"
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[X] SetCurrentProcessExplicitAppUserModelID failed: {type(e).__name__}: {e}")
 
     tray = TrayApp()
 
