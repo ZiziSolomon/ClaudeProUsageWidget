@@ -195,15 +195,25 @@ class TestCalibrationRecordsBudget:
         # No divide-by-zero, and no bogus budget recorded.
         assert not state.get("implied_session_budget")
 
-    def test_below_floor_does_not_set_budget(self):
-        # A reading below CALIBRATION_PCT_FLOOR is too rounding-unstable to trust.
+    def test_below_floor_sets_blended_budget(self, tmp_path, monkeypatch):
+        # Below CALIBRATION_PCT_FLOOR we no longer leave budget=None (which
+        # left the display stuck at the last API pct for hours - exactly the
+        # bug that landed v0.1.0 in trouble). Instead we synthesize a budget
+        # from a live-reading midpoint X blended with the user's historical
+        # median M. See _blended_sub_floor_budget for the math.
+        # Use a tmp calibration file so we don't read real history.
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
+                            tmp_path / "calibration.jsonl")
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 1000
-        state["output_tokens"] = 1000
-        pct = widget_updater.CALIBRATION_PCT_FLOOR - 1
-        widget_updater._append_calibration(state, float(pct), datetime.now(timezone.utc))
-        assert not state.get("implied_session_budget")
+        state["output_tokens"] = 1000  # 2k io total
+        pct = widget_updater.CALIBRATION_PCT_FLOOR - 1  # 4%
+        widget_updater._append_calibration(state, float(pct),
+                                           datetime.now(timezone.utc))
+        # No prior history -> blend falls back to X alone:
+        # midpoint_pct = (3.5 + 4.5) / 2 = 4.0% => X = 2000 / 0.04 = 50000.
+        assert state["implied_session_budget"] == 50000
 
     def test_at_floor_sets_budget(self):
         # At the floor exactly we DO trust it: 2k io at floor% => 2k/(floor/100).
@@ -214,6 +224,111 @@ class TestCalibrationRecordsBudget:
         floor = widget_updater.CALIBRATION_PCT_FLOOR
         widget_updater._append_calibration(state, float(floor), datetime.now(timezone.utc))
         assert state["implied_session_budget"] == round(2000 / (floor / 100))
+
+
+class TestBlendedSubFloorBudget:
+    """The sub-floor blend (X from live reading + M from history). Direct
+    tests on the pure function so we can pin the math precisely without
+    going through the calibration file dance."""
+
+    def _x(self, total_io, pct):
+        # Mirror the production midpoint: round-to-nearest at 1% means
+        # true_pct in [N-0.5, N+0.5], so midpoint = N (for N>=0.5) or
+        # 0.25% (for N=0).
+        lower = max(pct - 0.5, 0.0)
+        upper = pct + 0.5
+        return total_io / (((lower + upper) / 2) / 100)
+
+    def test_no_history_returns_x(self):
+        # With no M to blend, we just get X back unchanged.
+        total_io, pct = 2000, 4.0
+        x = self._x(total_io, pct)
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, None)
+        assert b == int(round(x))
+
+    def test_weight_at_pct_zero(self):
+        # pct=0 => w=0.2 => 0.2*X + 0.8*M, no clamp needed if M close to X.
+        total_io, pct = 500, 0.0
+        x = self._x(total_io, pct)             # 500 / 0.0025 = 200000
+        m = 250000                              # close to X
+        expected = 0.2 * x + 0.8 * m
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
+        assert b == int(round(expected))
+
+    def test_weight_at_pct_four(self):
+        # pct=4 (just under the floor) => w=0.8 => 0.8*X + 0.2*M.
+        total_io, pct = 8000, 4.0
+        x = self._x(total_io, pct)              # 8000 / 0.04 = 200000
+        m = 250000
+        expected = 0.8 * x + 0.2 * m
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
+        assert b == int(round(expected))
+
+    def test_lower_clamp_when_m_too_small(self):
+        # M < X/2 would drag the blend below the live reading's plausibility
+        # floor. Clamp to X/2 - this is the asymmetric guard.
+        total_io, pct = 8000, 2.0
+        x = self._x(total_io, pct)              # 8000 / 0.02 = 400000
+        m = 1                                    # absurdly small
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
+        assert b == int(round(x * 0.5))
+
+    def test_no_upper_clamp_when_m_huge(self):
+        # M >> X is the off-laptop-contamination signature (local total_io
+        # undercounts, so X is too small). The blend should let M dominate
+        # without a 2X ceiling yanking it back to wrong.
+        total_io, pct = 500, 4.0
+        x = self._x(total_io, pct)              # 500 / 0.04 = 12500
+        m = 10_000_000                          # absurdly large vs X
+        expected = 0.8 * x + 0.2 * m            # = 10000 + 2000000 = 2010000
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
+        assert b == int(round(expected))
+        # And confirm we did NOT clamp at 2X.
+        assert b > x * 2
+
+    def test_zero_tokens_returns_none(self):
+        # Before any local tokens are counted there's no X to form, so we
+        # can't produce a budget even if we have a prior median.
+        b = widget_updater._blended_sub_floor_budget(0, 2.0, 250000)
+        assert b is None
+
+    def test_above_floor_returns_none(self):
+        # This function only handles sub-floor; above-floor is the simple
+        # direct back-derivation, handled in _append_calibration itself.
+        b = widget_updater._blended_sub_floor_budget(
+            10000, float(widget_updater.CALIBRATION_PCT_FLOOR), 250000)
+        assert b is None
+
+
+class TestPriorBudgetMedian:
+    """Loads the median budget from calibration.jsonl. Window cap, ignores
+    None/0 entries, missing file => None."""
+
+    def test_missing_file_returns_none(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
+                            tmp_path / "nope.jsonl")
+        assert widget_updater._load_prior_budget_median() is None
+
+    def test_ignores_null_budget_entries(self, tmp_path, monkeypatch):
+        f = tmp_path / "calibration.jsonl"
+        f.write_text("\n".join([
+            json.dumps({"implied_session_budget": None}),
+            json.dumps({"implied_session_budget": 200000}),
+            json.dumps({"implied_session_budget": 300000}),
+        ]) + "\n", encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
+        assert widget_updater._load_prior_budget_median() == 250000
+
+    def test_window_caps_to_recent(self, tmp_path, monkeypatch):
+        # Older absurd value should drop out of the window and not skew the
+        # median.
+        f = tmp_path / "calibration.jsonl"
+        lines = [json.dumps({"implied_session_budget": 999_999_999})]
+        lines += [json.dumps({"implied_session_budget": 200000})
+                  for _ in range(widget_updater.PRIOR_BUDGET_WINDOW)]
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
+        assert widget_updater._load_prior_budget_median() == 200000
 
 
 class TestLocalEstimate:

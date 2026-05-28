@@ -193,6 +193,15 @@ WATCHER_STUCK_SILENCE_SECS = 60
 # beat behind, so if a transcript event lands in this grace window the watcher
 # was alive after all and we stay quiet.
 WATCHER_STUCK_RECHECK_SECS = 5
+# Proactive 1-minute watchdog: walk PROJECTS_DIR transcripts and compare the
+# newest mtime to last_event_at. If disk has been written more recently than
+# we got an event AND that gap exceeds WATCHDOG_MTIME_GAP_SECS, the watcher
+# is missing events. Trigger a rescan (which heals the count) and let the
+# existing stuck-recheck logic decide whether to alarm. Closes the gap where
+# reactive detection (calibration-piggybacked) never runs because nothing
+# else is firing -- exactly today's "stuck at 1%" scenario.
+WATCHDOG_INTERVAL_SECS = 60
+WATCHDOG_MTIME_GAP_SECS = 30
 # Liveness heartbeat: how often we re-poll claude.ai to refresh `status` and
 # adopt the authoritative pct, INDEPENDENT of the calibration budget. Between
 # polls the live number keeps moving on its own by counting tokens from local
@@ -572,21 +581,118 @@ def _check_discrepancy(kind: str, stored: float | None, api: float | None,
         _log_discrepancy(kind, stored, api, last_calibrated, state, scraped_at)
 
 
+# Number of recent above-floor calibrations to take the median of when
+# seeding a prior_budget. Big enough to wash out a one-off outlier session,
+# small enough to track real changes in usage habits over a few weeks.
+PRIOR_BUDGET_WINDOW = 10
+
+
+def _load_prior_budget_median() -> int | None:
+    """Median implied_session_budget over the last PRIOR_BUDGET_WINDOW
+    above-floor calibration samples. None if we don't have any history yet
+    (fresh install, or every prior session also stalled below the floor).
+
+    Reads from calibration.jsonl, which the widget already writes. Same-day
+    repeats are fine - they're all valid budget evidence."""
+    if not CALIBRATION_FILE.exists():
+        return None
+    budgets: list[int] = []
+    try:
+        # Read tail-ish: the file is append-only and small (one line per
+        # calibration, a few KB per session). Cheap to read whole.
+        for line in CALIBRATION_FILE.read_text(encoding="utf-8").splitlines():
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            b = rec.get("implied_session_budget")
+            if isinstance(b, (int, float)) and b > 0:
+                budgets.append(int(b))
+    except OSError as e:
+        print(f"[X] prior budget read failed: {e}")
+        return None
+    if not budgets:
+        return None
+    recent = budgets[-PRIOR_BUDGET_WINDOW:]
+    recent.sort()
+    n = len(recent)
+    return recent[n // 2] if n % 2 else (recent[n // 2 - 1] + recent[n // 2]) // 2
+
+
+def _blended_sub_floor_budget(total_io: int, pct_live: float,
+                              prior_median: int | None) -> int | None:
+    """Estimate a session budget when the live API pct is below the
+    CALIBRATION_PCT_FLOOR, by blending a live-reading midpoint X with the
+    user's historical median M.
+
+    The API only ever returns integer percentages, so a reading of N means
+    the true pct lies in [N-0.5, N+0.5] (clamped at 0). The midpoint of that
+    range, fed back through total_io, gives X - our best single-shot guess
+    from the live reading alone.
+
+    M (prior_median) is the user's typical session budget across recent
+    above-floor calibrations - their gravity. It carries real signal even
+    when it disagrees with X, especially at pct=0 where X's bounds are wide
+    enough to be barely informative.
+
+    Blend: w * X + (1-w) * M, with w linear in pct_live (0.2 at pct=0 ->
+    0.8 at pct=4). At low pct we lean on M because X is uncertain; as the
+    live reading firms up, we lean on X.
+
+    Lower-clamp at X/2 only - asymmetric. The symmetric [X/2, 2X] clamp
+    would actively cause the off-laptop-contamination overshoot it's
+    supposed to prevent: if the user runs Claude elsewhere, local total_io
+    undercounts true usage so X comes out too small, and M (which reflects
+    full-session reality) is the more correct value. Capping upward at 2X
+    would yank the blended answer back to the wrong X-derived number.
+    M < X is the suspicious direction (prior sessions somehow smaller than
+    this one's X estimate suggests) - that's where the clamp earns its
+    keep. M > X is the contamination signature - let it through.
+    Returns None if we can't form even an X (zero tokens)."""
+    if total_io <= 0 or pct_live is None or pct_live >= CALIBRATION_PCT_FLOOR:
+        return None
+    # Round-to-nearest at 1% resolution: pct=N => true ∈ [N-0.5, N+0.5].
+    # Clamp the lower edge at 0 (no negative usage).
+    lower_pct = max(pct_live - 0.5, 0.0)
+    upper_pct = pct_live + 0.5
+    midpoint_pct = (lower_pct + upper_pct) / 2
+    # midpoint_pct == 0 only if pct_live <= -0.5, which we've excluded.
+    # For pct_live=0 the midpoint is 0.25%, which keeps X finite.
+    if midpoint_pct <= 0:
+        return None
+    x = total_io / (midpoint_pct / 100)
+    if prior_median is None or prior_median <= 0:
+        return int(round(x))
+    # Weight: 0.2 at pct=0, 0.8 at pct=4. Linear; clamped just in case
+    # a future floor change makes pct_live land outside [0, 4].
+    w = max(0.2, min(0.8, 0.2 + 0.15 * pct_live))
+    blended = w * x + (1 - w) * prior_median
+    # Asymmetric clamp: floor at X/2 to stop M dragging us implausibly low,
+    # but no ceiling - M > X is the off-laptop-contamination signature and
+    # we want M to win in that case.
+    blended = max(x * 0.5, blended)
+    return int(round(blended))
+
+
 def _append_calibration(state: dict, pct: float, scraped_at: datetime,
                         update_budget: bool = True,
                         stale_pct: float | None = None,
                         trigger: str = "scheduled") -> None:
     total_io = state["input_tokens"] + state["output_tokens"]
-    # Only trust a budget back-derived at or above the pct floor; below it the
-    # integer-rounding error swamps the estimate (see CALIBRATION_PCT_FLOOR). We
-    # still log the sample for history -- just don't let it set the budget.
-    implied  = round(total_io / (pct / 100)) if pct >= CALIBRATION_PCT_FLOOR else None
-    # Persist the implied budget so the local estimate can extrapolate the
-    # displayed % from the rising token count BETWEEN API calibrations, instead
-    # of freezing at the last fetched value. update_budget=False records the
-    # sample for history without touching the budget -- used when the API agrees
-    # with us closely enough (<=RECAL_DISCREPANCY_PP) that re-deriving would just
-    # inject rounding noise.
+    # Above-floor: back-derive the budget straight from the live pct. Below
+    # the floor, integer-rounding swamps a direct back-derivation, so we
+    # blend a live-reading midpoint with the user's historical median (see
+    # _blended_sub_floor_budget). Pre-fix behaviour was to record None and
+    # leave the display stuck at whatever pct the API last returned - which
+    # could mean an hour of "1%" after a calibration burned both startup
+    # calls under the floor.
+    if pct >= CALIBRATION_PCT_FLOOR:
+        implied = round(total_io / (pct / 100))
+        budget_source = "live"
+    else:
+        prior = _load_prior_budget_median()
+        implied = _blended_sub_floor_budget(total_io, pct, prior)
+        budget_source = "blended" if implied is not None else None
     if implied and update_budget:
         state["implied_session_budget"] = implied
     record   = {
@@ -599,13 +705,15 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         "transcript_output_tokens":state["output_tokens"],
         "transcript_io_total":     total_io,
         "implied_session_budget":  implied,
+        "budget_source":           budget_source,
         "by_model":                state["by_model"],
         "source":                  "widget",
     }
     CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     with CALIBRATION_FILE.open("a") as f:
         f.write(json.dumps(record) + "\n")
-    print(f"  calibration: {pct}% = {total_io} tokens => budget ~{implied}")
+    print(f"  calibration: {pct}% = {total_io} tokens => budget ~{implied} "
+          f"({budget_source})")
 
 
 # ---------------------------------------------------------------------------
@@ -783,6 +891,9 @@ class TranscriptHandler(FileSystemEventHandler):
         # One-shot timer for the deferred "watcher stuck" re-check (see
         # _arm_stuck_recheck), so a ping arriving a beat late cancels the alarm.
         self._stuck_timer        = None
+        # Recurring timer for the proactive watchdog (_watchdog_tick), started
+        # by start_watchdog() after the observer is up.
+        self._watchdog_timer     = None
         self._disconnect_notified = False
         # Callback invoked after any state update. Receives a dict so we can
         # add fields without breaking callers; today we send session + weekly.
@@ -1037,6 +1148,67 @@ class TranscriptHandler(FileSystemEventHandler):
                 )
             except Exception as e:
                 print(f"  on_disconnect callback error: {e}")
+
+    def _watchdog_tick(self) -> None:
+        """Periodic proactive check that the watcher is keeping up. Walks
+        PROJECTS_DIR for the newest transcript mtime; if it's more than
+        WATCHDOG_MTIME_GAP_SECS ahead of last_event_at, the watcher missed
+        events. Trigger a rescan (which heals the token count via seen_ids
+        dedupe) and let _arm_stuck_recheck decide whether to alarm.
+
+        Mtime check is cheap (one stat per file, no parsing). The rescan
+        only runs if mtime says something's actually off, so the hot path
+        on a healthy widget is just a directory walk + stat. Loud on
+        failure - swallowing a watchdog error would defeat its purpose.
+
+        Reschedules itself unconditionally so a single failed tick doesn't
+        kill the watchdog forever."""
+        try:
+            if self.session_start is None:
+                return  # no active session => nothing to watchdog
+            newest = 0.0
+            try:
+                for f in PROJECTS_DIR.rglob("*.jsonl"):
+                    try:
+                        m = f.stat().st_mtime
+                        if m > newest:
+                            newest = m
+                    except OSError:
+                        continue  # file vanished between rglob and stat - fine
+            except OSError as e:
+                print(f"[X] watchdog directory walk failed: {e}")
+                return
+            if newest == 0.0:
+                return  # no transcripts at all
+            now = datetime.now(timezone.utc)
+            newest_dt = datetime.fromtimestamp(newest, tz=timezone.utc)
+            # If we've never had an event, treat session_start as the baseline -
+            # otherwise a fresh start would alarm against the first transcript.
+            baseline = self.last_event_at or self.session_start
+            gap = (newest_dt - baseline).total_seconds()
+            if gap <= WATCHDOG_MTIME_GAP_SECS:
+                return
+            print(f"[!] watchdog: transcript mtime {gap:.0f}s ahead of last event; "
+                  f"rescanning")
+            self._rescan_and_check_watcher(now)
+        except Exception as e:
+            # Loud - silent watchdog failure is exactly the class of bug
+            # the watchdog exists to catch.
+            print(f"[X] watchdog tick failed: {type(e).__name__}: {e}")
+        finally:
+            t = threading.Timer(WATCHDOG_INTERVAL_SECS, self._watchdog_tick)
+            t.daemon = True
+            self._watchdog_timer = t
+            t.start()
+
+    def start_watchdog(self) -> None:
+        """Kick off the periodic watchdog. Idempotent - safe to call twice."""
+        if getattr(self, "_watchdog_timer", None) is not None:
+            return
+        t = threading.Timer(WATCHDOG_INTERVAL_SECS, self._watchdog_tick)
+        t.daemon = True
+        self._watchdog_timer = t
+        t.start()
 
     def _maybe_calibrate(self, force: bool = False) -> bool:
         """Hit the API for a fresh session % if the per-session budget or the
@@ -1348,6 +1520,7 @@ def main():
     observer = Observer()
     observer.schedule(handler, str(PROJECTS_DIR), recursive=True)
     observer.start()
+    handler.start_watchdog()
     print(f"Watching {PROJECTS_DIR}")
     try:
         while True:

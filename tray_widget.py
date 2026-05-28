@@ -1003,6 +1003,7 @@ def main():
     observer = Observer()
     observer.schedule(handler, str(PROJECTS_DIR), recursive=True)
     observer.start()
+    handler.start_watchdog()
     print(f"Watching {PROJECTS_DIR}")
 
     # Held in a one-element dict so the health check can swap in a fresh
