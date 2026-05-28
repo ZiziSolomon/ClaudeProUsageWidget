@@ -19,16 +19,32 @@
     exe, and fails loudly if not.
 
 .PARAMETER Run
-    Relaunch dist\ClaudeUsage\ClaudeUsage.exe after a successful build.
+    Relaunch dist\ClaudeUsage\ClaudeUsage.exe after a successful build,
+    without prompting. Use this in scripts/CI where you don't want a stdin
+    read.
+
+.PARAMETER NoRun
+    Skip the relaunch without prompting. Use when you only want artifacts.
+
+    With neither -Run nor -NoRun passed, the script prompts after a
+    successful build with default = Yes - because "rebuild without
+    relaunch" is almost always not what you want (you end up testing
+    yesterday's binary).
 
 .EXAMPLE
-    .\build.ps1
-    .\build.ps1 -Run
+    .\build.ps1              # prompts to relaunch (default Yes)
+    .\build.ps1 -Run         # rebuild + relaunch, no prompt
+    .\build.ps1 -NoRun       # rebuild only, no prompt
 #>
 [CmdletBinding()]
 param(
-    [switch]$Run
+    [switch]$Run,
+    [switch]$NoRun
 )
+
+if ($Run -and $NoRun) {
+    throw "-Run and -NoRun are mutually exclusive."
+}
 
 $ErrorActionPreference = 'Stop'
 Set-Location -Path $PSScriptRoot
@@ -78,10 +94,25 @@ if ($missing.Count -gt 0) {
 }
 Write-Host "OK: $exePath and bundled config.json present." -ForegroundColor Green
 
-# --- 4. Optional relaunch -------------------------------------------------
-if ($Run) {
+# --- 4. Relaunch (default Yes when interactive) ---------------------------
+# Resolve the relaunch decision: explicit flag wins; otherwise prompt with
+# default Yes. The prompt is skipped in non-interactive contexts (e.g.
+# piped/redirected) to avoid hanging - default to relaunch there too.
+$shouldRun = $Run
+if (-not $Run -and -not $NoRun) {
+    if ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+        $reply = Read-Host "Relaunch ClaudeUsage now? [Y/n]"
+        $shouldRun = ($reply -eq '' -or $reply -match '^[Yy]')
+    } else {
+        $shouldRun = $true  # non-interactive: default to relaunch
+    }
+}
+
+if ($shouldRun) {
     Write-Host "Launching $exePath ..."
     Start-Process -FilePath (Resolve-Path $exePath)
+} else {
+    Write-Host "Not relaunching (use -Run, or omit -NoRun, to relaunch next time)."
 }
 
 Write-Host "Build complete." -ForegroundColor Green
