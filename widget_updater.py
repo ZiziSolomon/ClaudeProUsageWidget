@@ -1033,7 +1033,15 @@ class TranscriptHandler(FileSystemEventHandler):
             except Exception as e:
                 print(f"  tray notify error: {e}")
 
+    def _log_estimate(self) -> None:
+        if self.session_pct is not None:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+                  f"in={self.state['input_tokens']} "
+                  f"out={self.state['output_tokens']} "
+                  f"pct={self.session_pct}")
+
     def _startup(self):
+        self._log_estimate()
         print("Fetching usage from API...")
         raw = self._fetch_with_tracking()
         session_start, session_end, pct = _parse_session(raw)
@@ -1244,6 +1252,7 @@ class TranscriptHandler(FileSystemEventHandler):
         age = (now - self.last_calibrated).total_seconds() if self.last_calibrated else float("inf")
         if not force and calls_left <= 0 and age < CALIBRATION_MAX_AGE_SECS:
             return False
+        self._log_estimate()
         print("Fetching usage from API (calibration)...")
         raw = self._fetch_with_tracking()
         _, _, pct = _parse_session(raw)
@@ -1398,6 +1407,7 @@ class TranscriptHandler(FileSystemEventHandler):
         while the user is idle, and (b) the right-click "Confirm usage %"
         menu item so they can re-verify on demand.
         """
+        self._log_estimate()
         print("Fetching usage from API (forced)...")
         raw = self._fetch_with_tracking()
         if raw is None:

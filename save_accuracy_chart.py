@@ -217,6 +217,8 @@ def main() -> None:
                          "useful for debugging across multiple sessions). Pass "
                          "docs/accuracy_sample.png explicitly when regenerating "
                          "the README chart.")
+    ap.add_argument("--no-open", action="store_true",
+                    help="Save the PNG but do not open it.")
     args = ap.parse_args()
 
     session_start = _resolve_session(args)
@@ -258,6 +260,8 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(args.out, dpi=140, bbox_inches="tight")
     print(f"Saved -> {args.out}")
+    if not args.no_open:
+        os.startfile(args.out)
 
 
 if __name__ == "__main__":
