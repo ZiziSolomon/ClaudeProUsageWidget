@@ -108,7 +108,41 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #555;
+    /* clickable collapse header */
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
   }
+
+  .section-title:hover { color: #888; }
+
+  /* chevron: points down when open, right when collapsed */
+  .section-title::after {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 4px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transform: rotate(90deg);
+    transition: transform 0.15s;
+  }
+
+  .section.collapsed .section-title::after {
+    transform: rotate(0deg);
+  }
+
+  .section-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section.collapsed .section-body { display: none; }
 
   /* ---- toggle buttons ---- */
   .toggles {
@@ -196,31 +230,6 @@
   .setting-input.narrow { width: 56px; }
 
   .setting-input:focus { border-color: #555; }
-
-  /* poll-interval presets: same look as toggle buttons, scoped separately
-     so the generic toggle handler (which posts /toggle?key=) ignores them. */
-  .poll-btn {
-    background: #2a2a2c;
-    border: 1px solid transparent;
-    color: #888;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.75rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    user-select: none;
-  }
-
-  .poll-btn:hover {
-    background: #333;
-    color: #ccc;
-  }
-
-  .poll-btn.on {
-    background: #2A78D6;
-    color: #fff;
-  }
 
   /* ---- accuracy chart ---- */
   .chart-row {
@@ -329,63 +338,68 @@
 
 </div>
 
-<div class="section">
+<div class="section" data-section="taskbar">
   <div class="section-title">Show in taskbar</div>
-  <div class="toggles">
-    <button class="toggle-btn" data-key="show_session_ghost">Session ghost</button>
-    <button class="toggle-btn" data-key="show_weekly_ghost">Weekly ghost</button>
-    <button class="toggle-btn" data-key="show_session_pct">Session %</button>
-    <button class="toggle-btn" data-key="show_weekly_pct">Weekly %</button>
-    <button class="toggle-btn" data-key="show_session_reset">Session clock</button>
-  </div>
-</div>
-
-<div class="section">
-  <div class="section-title">Settings</div>
-  <div class="toggles">
-    <button class="toggle-btn" data-key="start_at_login">Start at login</button>
-  </div>
-  <div class="setting-row">
-    <span class="setting-label">Check usage every</span>
-    <div class="toggles" id="poll-presets">
-      <button class="poll-btn" data-minutes="5">5m</button>
-      <button class="poll-btn" data-minutes="10">10m</button>
-      <button class="poll-btn" data-minutes="20">20m</button>
-      <button class="poll-btn" data-minutes="60">60m</button>
+  <div class="section-body">
+    <div class="toggles">
+      <button class="toggle-btn" data-key="show_session_ghost">Session ghost</button>
+      <button class="toggle-btn" data-key="show_weekly_ghost">Weekly ghost</button>
+      <button class="toggle-btn" data-key="show_session_pct">Session %</button>
+      <button class="toggle-btn" data-key="show_weekly_pct">Weekly %</button>
+      <button class="toggle-btn" data-key="show_session_reset">Session clock</button>
     </div>
   </div>
-  <div class="setting-row">
-    <span class="setting-label">Re-check at these % (one-shot)</span>
-    <input type="text" id="oneshot-input" class="setting-input" placeholder="5,10,95"/>
-    <button class="action-btn" id="oneshot-save">Save</button>
-  </div>
-  <div class="setting-row">
-    <span class="setting-label">…and after every</span>
-    <input type="number" id="delta-input" class="setting-input narrow" min="1" step="1"/>
-    <span class="setting-label">% moved</span>
-    <button class="action-btn" id="delta-save">Save</button>
+</div>
+
+<div class="section" data-section="settings">
+  <div class="section-title">Settings</div>
+  <div class="section-body">
+    <div class="toggles">
+      <button class="toggle-btn" data-key="start_at_login">Start at login</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Check usage every</span>
+      <input type="number" id="poll-input" class="setting-input narrow" min="2" step="1"/>
+      <span class="setting-label">min</span>
+      <button class="action-btn" id="poll-save">Save</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Re-check at these % (one-shot)</span>
+      <input type="text" id="oneshot-input" class="setting-input" placeholder="5,10,95"/>
+      <button class="action-btn" id="oneshot-save">Save</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">…and after every</span>
+      <input type="number" id="delta-input" class="setting-input narrow" min="1" step="1"/>
+      <span class="setting-label">% moved</span>
+      <button class="action-btn" id="delta-save">Save</button>
+    </div>
   </div>
 </div>
 
-<div class="section">
+<div class="section" data-section="actions">
   <div class="section-title">Actions</div>
-  <div class="toggles">
-    <button class="action-btn" data-action="confirm">Confirm usage %</button>
-    <button class="action-btn" data-action="open_config">Open config folder</button>
-    <button class="action-btn" data-action="restart">Restart widget</button>
-    <button class="action-btn" data-action="quit">Quit widget</button>
+  <div class="section-body">
+    <div class="toggles">
+      <button class="action-btn" data-action="confirm">Confirm usage %</button>
+      <button class="action-btn" data-action="open_config">Open config folder</button>
+      <button class="action-btn" data-action="restart">Restart widget</button>
+      <button class="action-btn" data-action="quit">Quit widget</button>
+    </div>
   </div>
 </div>
 
-<div class="section">
+<div class="section" data-section="log">
   <div class="section-title">Widget log</div>
-  <div class="chart-row">
-    <select id="session-select" class="session-select">
-      <option value="">Loading…</option>
-    </select>
-    <button class="action-btn" id="chart-btn">Generate</button>
+  <div class="section-body">
+    <div class="chart-row">
+      <select id="session-select" class="session-select">
+        <option value="">Loading…</option>
+      </select>
+      <button class="action-btn" id="chart-btn">Generate</button>
+    </div>
+    <img id="chart-img" alt="Accuracy chart"/>
   </div>
-  <img id="chart-img" alt="Accuracy chart"/>
 </div>
 
 <script>
@@ -477,14 +491,12 @@
         const key = btn.dataset.key;
         btn.classList.toggle('on', !!p[key]);
       });
-      // Highlight whichever poll-interval preset matches the effective value.
-      // No match (e.g. an env override or a custom value) leaves all off.
-      const mins = Number(p.poll_interval_minutes);
-      document.querySelectorAll('.poll-btn').forEach(btn => {
-        btn.classList.toggle('on', Number(btn.dataset.minutes) === mins);
-      });
-      // Prefill the liveness-trigger inputs, but never overwrite a field the
+      // Prefill the numeric setting inputs, but never overwrite a field the
       // user is actively editing (refreshPrefs runs on a timer).
+      const poll = document.getElementById('poll-input');
+      if (document.activeElement !== poll && p.poll_interval_minutes != null) {
+        poll.value = p.poll_interval_minutes;
+      }
       const oneshot = document.getElementById('oneshot-input');
       if (document.activeElement !== oneshot && Array.isArray(p.liveness_oneshot_pcts)) {
         oneshot.value = p.liveness_oneshot_pcts.join(',');
@@ -503,13 +515,6 @@
     });
   });
 
-  document.querySelectorAll('.poll-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await fetch('/set_poll?minutes=' + btn.dataset.minutes, { method: 'POST' });
-      await refreshPrefs();
-    });
-  });
-
   async function saveSetting(url, btn) {
     const orig = btn.textContent;
     const res = await fetch(url, { method: 'POST' }).then(r => r.json()).catch(() => ({}));
@@ -518,6 +523,12 @@
     await refreshPrefs();
     setTimeout(() => { btn.textContent = orig; }, 1200);
   }
+
+  document.getElementById('poll-save').addEventListener('click', () => {
+    const v = document.getElementById('poll-input').value.trim();
+    saveSetting('/set_poll?minutes=' + encodeURIComponent(v),
+                document.getElementById('poll-save'));
+  });
 
   document.getElementById('oneshot-save').addEventListener('click', () => {
     const v = document.getElementById('oneshot-input').value.trim();
@@ -531,9 +542,27 @@
                 document.getElementById('delta-save'));
   });
 
-  document.querySelectorAll('.action-btn').forEach(btn => {
+  // Only real action buttons carry data-action; the Save buttons reuse the
+  // .action-btn look but must not fire a stray /action?name=undefined.
+  document.querySelectorAll('.action-btn[data-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       fetch('/action?name=' + btn.dataset.action, { method: 'POST' });
+    });
+  });
+
+  // ---- collapsible sections ----
+  // Each section's header toggles its body; state persists in localStorage.
+  // Default is open for everything except Settings (kept closed to declutter).
+  document.querySelectorAll('.section').forEach(sec => {
+    const id    = sec.dataset.section;
+    const title = sec.querySelector('.section-title');
+    const saved = localStorage.getItem('section:' + id);
+    const collapsed = saved === null ? (id === 'settings') : (saved === '1');
+    sec.classList.toggle('collapsed', collapsed);
+    title.addEventListener('click', () => {
+      const nowCollapsed = !sec.classList.contains('collapsed');
+      sec.classList.toggle('collapsed', nowCollapsed);
+      localStorage.setItem('section:' + id, nowCollapsed ? '1' : '0');
     });
   });
 
