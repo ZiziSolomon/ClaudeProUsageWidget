@@ -825,7 +825,7 @@ class TrayApp:
         s_when = _fmt_short(self._state["session_end"])
         w_when = _fmt_short(self._state["weekly_end"], weekly=True)
         # Two-line tooltip - Windows renders this in the system font.
-        return f"Session: {s} {s_when}\nWeekly: {w} {w_when}".strip()
+        return f"Session: {s} {s_when}  \nWeekly: {w} {w_when}".strip()
 
     # ------ restart prompt + snooze ------------------------------------
 
@@ -924,6 +924,28 @@ class TrayApp:
         """Toggle "Start at login" by creating or removing the Startup shortcut."""
         _set_startup(not _startup_enabled())
 
+    def web_toggle(self, key: str) -> None:
+        """Toggle a pref key or start_at_login, called from the HTTP handler."""
+        if key == "start_at_login":
+            _set_startup(not _startup_enabled())
+            return
+        if key not in self._prefs:
+            return
+        currently_on = self._prefs[key]
+        if currently_on and self._visible_count() <= 1:
+            return  # can't hide last visible icon
+        self._prefs[key] = not currently_on
+        _save_prefs(self._prefs)
+        self._apply_visibility()
+        self._refresh_all()
+
+    def web_action(self, name: str) -> None:
+        """Run a named action, called from the HTTP handler (any thread)."""
+        if name == "confirm" and self.refresh_callback:
+            threading.Thread(target=self.refresh_callback, daemon=True).start()
+        elif name == "restart":
+            self._restart(None, None)
+
     # ------ misc --------------------------------------------------------
 
     def _open_dashboard(self, _i, _it):
@@ -983,6 +1005,9 @@ def main():
         print(f"[X] SetCurrentProcessExplicitAppUserModelID failed: {type(e).__name__}: {e}")
 
     tray = TrayApp()
+    _WidgetHandler._prefs_getter    = lambda: {**tray._prefs, "start_at_login": _startup_enabled()}
+    _WidgetHandler._toggle_callback = tray.web_toggle
+    _WidgetHandler._action_callback = tray.web_action
 
     server = HTTPServer(("127.0.0.1", SERVER_PORT), _WidgetHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()

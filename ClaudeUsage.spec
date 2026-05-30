@@ -12,7 +12,7 @@ a = Analysis(
     # still read if the per-user one is absent (see _read_config in
     # widget_updater). Most users won't need config.json at all now: missing
     # org_id is auto-discovered from /api/organizations on first run.
-    datas=[('config.json', '.')],
+    datas=[('config.json', '.'), ('widget.html', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

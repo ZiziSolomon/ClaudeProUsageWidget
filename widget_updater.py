@@ -16,12 +16,15 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+import sys
+
 import browser_cookie3
 from curl_cffi import requests as cffi_requests
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-WIDGET_HTML = Path(__file__).parent / "widget.html"
+_BASE = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).parent
+WIDGET_HTML = _BASE / "widget.html"
 SERVER_PORT = 7433
 
 PROJECTS_DIR     = Path.home() / ".claude" / "projects"
@@ -982,6 +985,7 @@ class TranscriptHandler(FileSystemEventHandler):
         second failure, _fetch_with_tracking fires the disconnect toast."""
         self._retry_timer = None
         prev_status = self.status
+        self._log_estimate()
         raw = self._fetch_with_tracking()
         if raw is not None:
             _, _, pct = _parse_session(raw)
@@ -989,6 +993,7 @@ class TranscriptHandler(FileSystemEventHandler):
             if pct is not None:
                 self.session_pct = pct
                 self._set_anchor(pct)
+                self._log_estimate()
             if wk_pct is not None:
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
@@ -1079,6 +1084,7 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_end   = session_end
         self.session_pct   = pct
         self._set_anchor(pct)
+        self._log_estimate()
 
         self.last_calibrated = datetime.now(timezone.utc)
         _append_calibration(self.state, pct, self.last_calibrated,
@@ -1305,12 +1311,14 @@ class TranscriptHandler(FileSystemEventHandler):
         if age < _liveness_interval_secs():
             return
         prev_status = self.status
+        self._log_estimate()
         raw = self._fetch_with_tracking()  # updates self.status + last_liveness
         if raw is not None:
             _, _, pct = _parse_session(raw)
             wk_pct, wk_end = _parse_weekly(raw)
             prior = self.session_pct
             recalibrated = self._adopt_api_pct(pct, now, trigger="liveness")
+            self._log_estimate()
             self._check_and_maybe_disconnect("session", prior, pct, now,
                                              suppress_toast=recalibrated)
             self._check_and_maybe_disconnect("weekly",  self.weekly_pct, wk_pct, now)
@@ -1364,15 +1372,16 @@ class TranscriptHandler(FileSystemEventHandler):
             self._startup()
             return
 
-        # Liveness heartbeat: independent of whether this file actually
-        # changed our counts, ping the link if it's been too long since the
-        # last check, so a dead/disconnected link surfaces within ~10 min.
-        self._maybe_liveness()
-
         changed = process_file(
             Path(event.src_path), self.state,
             self.session_start, datetime.now(timezone.utc),
         )
+
+        # Liveness heartbeat after token counting so the anchor is set against
+        # the up-to-date io total, preventing an immediate post-anchor overshoot
+        # from tokens that arrived in this same file event.
+        self._maybe_liveness()
+
         if changed:
             calibrated = self._maybe_calibrate()
             # If we didn't just adopt a fresh API value, advance the displayed
@@ -1445,6 +1454,7 @@ class TranscriptHandler(FileSystemEventHandler):
             if recalibrated and not reset:
                 self._rescan_and_check_watcher(self.last_calibrated)
             self._set_anchor(pct)
+            self._log_estimate()
             _append_calibration(self.state, pct, self.last_calibrated,
                                 update_budget=recalibrated,
                                 stale_pct=prior, trigger="force_refresh")
@@ -1458,13 +1468,38 @@ class TranscriptHandler(FileSystemEventHandler):
 
 
 class _WidgetHandler(BaseHTTPRequestHandler):
+    # Wired in by tray_widget.main() after TrayApp is constructed.
+    _prefs_getter    = staticmethod(lambda: {})
+    _toggle_callback = staticmethod(lambda key: None)
+    _action_callback = staticmethod(lambda name: None)
+
     def do_GET(self):
         if self.path.startswith("/state"):
             body = STATE_FILE.read_bytes() if STATE_FILE.exists() else b"{}"
             self._respond(body, "application/json")
+        elif self.path.startswith("/prefs"):
+            self._respond(json.dumps(_WidgetHandler._prefs_getter()).encode(), "application/json")
         else:
             body = WIDGET_HTML.read_bytes() if WIDGET_HTML.exists() else b"<h1>widget.html not found</h1>"
             self._respond(body, "text/html")
+
+    def do_POST(self):
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        if parsed.path == "/toggle":
+            key = params.get("key", [None])[0]
+            if key:
+                _WidgetHandler._toggle_callback(key)
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/action":
+            name = params.get("name", [None])[0]
+            if name:
+                _WidgetHandler._action_callback(name)
+            self._respond(b'{"ok":true}', "application/json")
+        else:
+            self.send_response(404)
+            self.end_headers()
 
     def _respond(self, body: bytes, ctype: str):
         self.send_response(200)

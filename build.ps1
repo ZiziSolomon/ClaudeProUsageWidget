@@ -52,6 +52,7 @@ Set-Location -Path $PSScriptRoot
 $spec    = 'ClaudeUsage.spec'
 $exePath = 'dist\ClaudeUsage\ClaudeUsage.exe'
 $bundledConfig = 'dist\ClaudeUsage\_internal\config.json'
+$bundledWidget = 'dist\ClaudeUsage\_internal\widget.html'
 
 if (-not (Test-Path $spec)) {
     throw "Cannot find $spec in $PSScriptRoot - run this from the repo root."
@@ -89,10 +90,11 @@ if ($buildExit -ne 0) {
 $missing = @()
 if (-not (Test-Path $exePath))       { $missing += $exePath }
 if (-not (Test-Path $bundledConfig)) { $missing += $bundledConfig }
+if (-not (Test-Path $bundledWidget)) { $missing += $bundledWidget }
 if ($missing.Count -gt 0) {
     throw "Build produced an incomplete bundle - missing:`n  $($missing -join "`n  ")"
 }
-Write-Host "OK: $exePath and bundled config.json present." -ForegroundColor Green
+Write-Host "OK: $exePath, config.json, and widget.html present." -ForegroundColor Green
 
 # --- 4. Relaunch (default Yes when interactive) ---------------------------
 # Resolve the relaunch decision: explicit flag wins; otherwise prompt with
