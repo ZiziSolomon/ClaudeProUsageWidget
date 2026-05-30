@@ -162,8 +162,26 @@ from widget_updater import (
     _liveness_oneshot_pcts,
     _liveness_delta_pct,
     _read_widget_config_all,
+    _widget_shape_path,
+    _widget_show_text,
     resolve_widget_color,
 )
+
+
+def _load_widget_mask(widget: str, size: int) -> "Image.Image | None":
+    """Load the custom shape mask for `widget` resized to `size`, or None when
+    no custom shape is set (so the caller falls back to the built-in ghost).
+    Failures degrade gracefully to the built-in shape rather than crash the
+    icon refresh."""
+    sp = _widget_shape_path(widget)
+    if sp is None:
+        return None
+    try:
+        import widget_shapes
+        return widget_shapes.load_mask(sp, size)
+    except Exception as e:
+        print(f"[X] _load_widget_mask({widget}) failed, using built-in: {e}")
+        return None
 
 PREFS_FILE = STATE_FILE.parent / "tray_prefs.json"
 
@@ -426,7 +444,8 @@ def render_ghost(pct: float, size: int = 64,
                  base_fill=FILL_COLOR, alert_fill=ALERT_COLOR,
                  base_color: str | None = None,
                  color_stops: str | None = None,
-                 fill_mode: str = "level") -> Image.Image:
+                 fill_mode: str = "level",
+                 body_mask: Image.Image | None = None) -> Image.Image:
     """Render the ghost icon at the given percentage fill.
 
     Colour precedence: if base_color / color_stops are supplied (from the
@@ -436,13 +455,18 @@ def render_ghost(pct: float, size: int = 64,
     tuple path coexist during the transition — callers that already pass RGBA
     tuples keep working unchanged.
 
+    body_mask: an optional L-mode silhouette to use INSTEAD of the built-in
+    ghost body (a custom uploaded shape, already resized to `size`). The whole
+    colour + fill-mode pipeline below operates on whatever mask it's given, so
+    a custom shape fills and tints identically to the ghost. None = built-in.
+
     fill_mode:
       "level"   — existing bottom-to-top linear fill (default).
       "angular" — clockwise wedge from 12 o'clock, intersected with the body
                   mask.  Useful when you want the ghost to read like a clock.
     """
     pct = max(0.0, min(100.0, float(pct or 0)))
-    mask = _body_mask(size)
+    mask = body_mask if body_mask is not None else _body_mask(size)
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
 
     ghost = Image.new("RGBA", (size, size), GHOST_COLOR)
@@ -571,7 +595,9 @@ def _fmt_remaining_label(remaining_secs: float | None) -> str:
 
 
 def render_reset_arc_icon(session_start, session_end,
-                          size: int = 64) -> Image.Image:
+                          size: int = 64,
+                          body_mask: Image.Image | None = None,
+                          show_text: bool = True) -> Image.Image:
     """Pie-arc background + remaining-time label.
 
     The arc represents *elapsed* time: it starts empty and fills clockwise
@@ -581,6 +607,13 @@ def render_reset_arc_icon(session_start, session_end,
     Arc colour is sourced from the 'clock' widget config (base_color /
     color_stops). The colour resolver treats elapsed-time % as the pct driver,
     matching what updateArc() in widget.html does — so both renderers agree.
+
+    body_mask: when a custom shape is set for the clock, the elapsed-time wedge
+    is intersected with that silhouette (via render_ghost's angular path) so the
+    clock fills a custom shape instead of a circle. None = built-in circle arc.
+
+    show_text: when False, the reset-time number is omitted (the user wants a
+    bare shape). The standalone session%/weekly% text icons are unaffected.
     """
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d   = ImageDraw.Draw(img)
@@ -590,12 +623,22 @@ def render_reset_arc_icon(session_start, session_end,
     margin = max(1, size // 32)
     box = (margin, margin, size - 1 - margin, size - 1 - margin)
 
+    def _empty(label: str) -> Image.Image:
+        # Neutral "no live session" rendering, shared by the no-data and
+        # already-elapsed cases.
+        if body_mask is None:
+            d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
+        else:
+            track = Image.new("RGBA", (size, size), ARC_TRACK_COLOR)
+            img.paste(track, mask=body_mask)
+        if show_text:
+            _draw_centered_text(d, label, size, (200, 200, 200, 255))
+        return img
+
     # Compute progress and remaining seconds. When data is missing, render
     # an empty track + a dash so the user knows the icon is alive but idle.
     if not session_start or not session_end:
-        d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
-        _draw_centered_text(d, "--", size, (200, 200, 200, 255))
-        return img
+        return _empty("--")
 
     if isinstance(session_start, str):
         session_start = datetime.fromisoformat(session_start)
@@ -607,9 +650,7 @@ def render_reset_arc_icon(session_start, session_end,
     # fall back to the same neutral empty-track + dash as the no-data case
     # rather than a misleading full arc reading "0".
     if now >= session_end:
-        d.ellipse(box, outline=ARC_TRACK_COLOR, width=max(1, size // 24))
-        _draw_centered_text(d, "--", size, (200, 200, 200, 255))
-        return img
+        return _empty("--")
 
     total = (session_end - session_start).total_seconds()
     used  = (now - session_start).total_seconds()
@@ -626,6 +667,20 @@ def render_reset_arc_icon(session_start, session_end,
                                        cc.get("color_stops"))
     arc_rgba    = _hex_to_rgba(hex_color)
 
+    if body_mask is not None:
+        # Custom shape: reuse render_ghost's angular pipeline so the elapsed
+        # wedge is clipped to the silhouette, identical to the ghost widgets in
+        # angular mode. elapsed_pct is the fill driver, matching the HTML.
+        img = render_ghost(elapsed_pct, size,
+                           base_color=cc.get("base_color", "#2A78D6"),
+                           color_stops=cc.get("color_stops"),
+                           fill_mode="angular", body_mask=body_mask)
+        if show_text:
+            _draw_centered_text(ImageDraw.Draw(img),
+                                _fmt_remaining_label(remaining), size,
+                                (255, 255, 255, 255), bold=True)
+        return img
+
     # Track first (the "empty" part), then the pie slice for elapsed time.
     # pieslice angle 0 = east, so -90 puts the start at 12 o'clock.
     d.ellipse(box, fill=ARC_TRACK_COLOR)
@@ -639,8 +694,9 @@ def render_reset_arc_icon(session_start, session_end,
 
     # Label on top. White looks crisp on both the blue arc and the dim track.
     # Bold so the number is legible at small tray-icon sizes.
-    _draw_centered_text(d, _fmt_remaining_label(remaining), size,
-                        (255, 255, 255, 255), bold=True)
+    if show_text:
+        _draw_centered_text(d, _fmt_remaining_label(remaining), size,
+                            (255, 255, 255, 255), bold=True)
     return img
 
 
@@ -880,14 +936,16 @@ class TrayApp:
             return render_ghost(s_pct, ICON_SIZE,
                                 base_color=sc.get("base_color"),
                                 color_stops=sc.get("color_stops"),
-                                fill_mode=sc.get("fill_mode", "level"))
+                                fill_mode=sc.get("fill_mode", "level"),
+                                body_mask=_load_widget_mask("session", ICON_SIZE))
         if pref_key == "show_weekly_ghost":
             from widget_updater import _widget_config
             wc = _widget_config("weekly")
             return render_ghost(w_pct, ICON_SIZE,
                                 base_color=wc.get("base_color"),
                                 color_stops=wc.get("color_stops"),
-                                fill_mode=wc.get("fill_mode", "level"))
+                                fill_mode=wc.get("fill_mode", "level"),
+                                body_mask=_load_widget_mask("weekly", ICON_SIZE))
         if pref_key == "show_session_pct":
             return render_text_icon(_fmt_pct(self._state["session_pct"]),
                                     (255, 255, 255, 255), TEXT_ICON_SIZE)
@@ -899,6 +957,8 @@ class TrayApp:
                 self._state.get("session_start"),
                 self._state.get("session_end"),
                 ICON_SIZE,
+                body_mask=_load_widget_mask("clock", ICON_SIZE),
+                show_text=_widget_show_text("clock"),
             )
         raise KeyError(pref_key)
 

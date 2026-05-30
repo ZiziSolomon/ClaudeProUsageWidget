@@ -326,11 +326,19 @@ def _liveness_delta_pct() -> float:
 # Default appearance values, used as fallbacks when the config key is absent.
 # These match the hardcoded colours previously scattered across widget.html and
 # tray_widget.py so existing installs behave identically with no config change.
+# `shape` is the filename of a custom alpha-mask PNG under SHAPES_DIR (empty =
+# built-in ghost/clock). `show_text` controls the visible label (dashboard
+# pct-label / arc text, and the tray clock's reset-time number). Both absent in
+# an old config => today's exact behaviour (no custom shape, text shown).
 _WIDGET_DEFAULTS: dict[str, dict] = {
-    "session": {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "level"},
-    "weekly":  {"base_color": "#F5A623", "color_stops": "90:#D64E2A", "fill_mode": "level"},
-    "clock":   {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "angular"},
+    "session": {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "level",  "shape": "", "show_text": True},
+    "weekly":  {"base_color": "#F5A623", "color_stops": "90:#D64E2A", "fill_mode": "level",  "shape": "", "show_text": True},
+    "clock":   {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "angular", "shape": "", "show_text": True},
 }
+
+# Custom shape masks live next to the rest of the per-user runtime state, NOT in
+# the repo — a source checkout must never be polluted by an upload.
+SHAPES_DIR = DATA_DIR / "shapes"
 
 
 def _is_valid_hex(s: str) -> bool:
@@ -414,17 +422,47 @@ def _write_widget_color(widget: str, field: str, value: str) -> None:
         raise ValueError(f"unknown widget: {widget!r}")
     if field not in ("base_color", "color_stops", "fill_mode"):
         raise ValueError(f"unknown field: {field!r}")
+    _write_widget_field(widget, field, value)
+
+
+def _write_widget_field(widget: str, field: str, value) -> None:
+    """Persist any single per-widget field (incl. shape/show_text), merging
+    into the existing 'widgets' block. The colour-only validation lives in
+    _write_widget_color; this lower-level helper is shared by the shape/text
+    setters whose value types (str filename, bool) differ."""
+    if widget not in _WIDGET_DEFAULTS:
+        raise ValueError(f"unknown widget: {widget!r}")
     p = _config_path()
     try:
         cfg = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
     except Exception as e:
-        print(f"  _write_widget_color: config read error: {e}")
+        print(f"  _write_widget_field: config read error: {e}")
         cfg = {}
     widgets = dict(cfg.get("widgets") or {})
     entry   = dict(widgets.get(widget) or {})
     entry[field] = value
     widgets[widget] = entry
     _write_config_value("widgets", widgets)
+
+
+def _widget_shape_path(widget: str) -> Path | None:
+    """Absolute path to the custom mask PNG for `widget`, or None when no shape
+    is configured (built-in default) or the recorded file has gone missing.
+    Missing-file tolerance means deleting the mask cleanly reverts to default."""
+    shape = _widget_config(widget).get("shape") or ""
+    if not shape:
+        return None
+    # Guard against path traversal in a hand-edited config: only a bare
+    # filename under SHAPES_DIR is honoured.
+    name = Path(shape).name
+    p = SHAPES_DIR / name
+    return p if p.exists() else None
+
+
+def _widget_show_text(widget: str) -> bool:
+    """Resolve the per-widget show_text flag (default True for back-compat)."""
+    val = _widget_config(widget).get("show_text", True)
+    return bool(val)
 
 
 # A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
@@ -1848,6 +1886,19 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
+        elif path == "/shape_image":
+            # Serve the stored custom mask PNG for one widget, used by the
+            # dashboard as a CSS mask-image. 404 when no shape is set so the JS
+            # can fall back to the built-in inline SVG. The `?t=` cache-buster
+            # the client appends makes re-uploads show up immediately.
+            from urllib.parse import parse_qs
+            widget = parse_qs(urlparse(self.path).query).get("widget", [None])[0]
+            sp = _widget_shape_path(widget) if widget in _WIDGET_DEFAULTS else None
+            if sp is not None:
+                self._respond(sp.read_bytes(), "image/png")
+            else:
+                self.send_response(404)
+                self.end_headers()
         else:
             body = WIDGET_HTML.read_bytes() if WIDGET_HTML.exists() else b"<h1>widget.html not found</h1>"
             self._respond(body, "text/html")
@@ -1933,6 +1984,37 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 return
             _write_widget_color(widget, "fill_mode", value)
             self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_widget_text":
+            # Per-widget show_text toggle. value=1/0 (or true/false).
+            widget = params.get("widget", [None])[0]
+            raw    = (params.get("value", [None])[0] or "").lower()
+            if widget not in _WIDGET_DEFAULTS or raw not in ("1", "0", "true", "false"):
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_widget_field(widget, "show_text", raw in ("1", "true"))
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_widget_shape":
+            # Custom-shape upload: the raw file body is POSTed with ?widget= and
+            # the Content-Type header. We process it into a canonical alpha mask
+            # (raster threshold or SVG flatten), store it under SHAPES_DIR, and
+            # record the filename in config. Returns {ok, error} so the dashboard
+            # can show a clear message on an unsupported SVG / bad file.
+            self._handle_shape_upload(params.get("widget", [None])[0])
+        elif parsed.path == "/reset_widget_shape":
+            # Revert one widget to its built-in shape: clear the config ref and
+            # delete the stored mask so the dir doesn't accumulate orphans.
+            widget = params.get("widget", [None])[0]
+            if widget not in _WIDGET_DEFAULTS:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            try:
+                sp = SHAPES_DIR / f"shape_{widget}.png"
+                if sp.exists():
+                    sp.unlink()
+            except OSError as e:
+                print(f"  reset_widget_shape: could not remove mask: {e}")
+            _write_widget_field(widget, "shape", "")
+            self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/chart":
             at = params.get("at", [None])[0]
             ok = _run_accuracy_chart(at)
@@ -1940,6 +2022,55 @@ class _WidgetHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _handle_shape_upload(self, widget: str | None) -> None:
+        """Read, validate, process and store a custom-shape upload.
+
+        The body is the raw file bytes (the dashboard POSTs the File directly,
+        not multipart, to keep parsing trivial). We cap the read at
+        widget_shapes.MAX_UPLOAD_BYTES via Content-Length so a giant body can't
+        exhaust memory before validation. On success we write the mask under
+        SHAPES_DIR and record its filename in config; on any ShapeError we
+        return {ok:false, error} for the dashboard to display."""
+        import widget_shapes
+        if widget not in _WIDGET_DEFAULTS:
+            self._respond(json.dumps({"ok": False, "error": "unknown widget"}).encode(),
+                          "application/json")
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            length = 0
+        if length <= 0:
+            self._respond(json.dumps({"ok": False, "error": "empty upload"}).encode(),
+                          "application/json")
+            return
+        if length > widget_shapes.MAX_UPLOAD_BYTES:
+            # Reject by Content-Length before reading the body into memory.
+            self._respond(json.dumps(
+                {"ok": False, "error": f"file too large (max "
+                 f"{widget_shapes.MAX_UPLOAD_BYTES} bytes)"}).encode(),
+                "application/json")
+            return
+        body = self.rfile.read(length)
+        ctype = self.headers.get("Content-Type")
+        # The dashboard passes the original filename in X-Shape-Filename so we
+        # can sniff .svg vs raster even when the browser sends a generic type.
+        fname = self.headers.get("X-Shape-Filename")
+        try:
+            mask = widget_shapes.process_upload(body, fname, ctype)
+            stored = widget_shapes.save_mask(mask, SHAPES_DIR, widget)
+        except widget_shapes.ShapeError as e:
+            self._respond(json.dumps({"ok": False, "error": str(e)}).encode(),
+                          "application/json")
+            return
+        except Exception as e:  # defensive: never 500 on a bad upload
+            print(f"  shape upload failed: {type(e).__name__}: {e}")
+            self._respond(json.dumps({"ok": False, "error": "could not process file"}).encode(),
+                          "application/json")
+            return
+        _write_widget_field(widget, "shape", stored)
+        self._respond(json.dumps({"ok": True}).encode(), "application/json")
 
     def _respond(self, body: bytes, ctype: str):
         self.send_response(200)

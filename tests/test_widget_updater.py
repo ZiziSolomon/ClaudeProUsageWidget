@@ -1580,3 +1580,213 @@ class TestWriteWidgetColor:
     def test_unknown_field_raises(self):
         with pytest.raises(ValueError, match="unknown field"):
             widget_updater._write_widget_color("session", "border_radius", "5px")
+
+
+# ---------------------------------------------------------------------------
+# Custom shapes + per-widget show_text  (feature: upload + show-text)
+# ---------------------------------------------------------------------------
+
+# These tests exercise the pure shape-processing module and the config
+# read/write of the new `shape` / `show_text` fields. They import widget_shapes
+# directly (Pillow-only, no network/GUI) so they run anywhere the other tests do.
+import io as _io
+
+try:
+    import widget_shapes
+    from PIL import Image
+    _SHAPES_OK = True
+except Exception as _e:  # pragma: no cover - only when Pillow is missing
+    _SHAPES_OK = False
+
+
+def _png_bytes(img) -> bytes:
+    buf = _io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+@pytest.mark.skipif(not _SHAPES_OK, reason="widget_shapes/Pillow unavailable")
+class TestRasterToMask:
+    """raster_bytes_to_mask: non-black pixels traced, black dropped."""
+
+    def test_white_square_kept(self):
+        # A white block on black: the block becomes the (normalised) silhouette.
+        img = Image.new("RGB", (40, 40), (0, 0, 0))
+        for x in range(10, 30):
+            for y in range(10, 30):
+                img.putpixel((x, y), (255, 255, 255))
+        mask = widget_shapes.raster_bytes_to_mask(_png_bytes(img))
+        assert mask.mode == "L"
+        assert mask.size == (widget_shapes.REF_SIZE, widget_shapes.REF_SIZE)
+        # The silhouette is trimmed-then-centred to fill the box, so the centre
+        # pixel must be fully opaque.
+        c = widget_shapes.REF_SIZE // 2
+        assert mask.getpixel((c, c)) == 255
+
+    def test_all_black_raises(self):
+        img = Image.new("RGB", (20, 20), (0, 0, 0))
+        with pytest.raises(widget_shapes.ShapeError):
+            widget_shapes.raster_bytes_to_mask(_png_bytes(img))
+
+    def test_near_black_dropped_colour_kept(self):
+        # Left half near-black (below threshold) is dropped; right half blue is
+        # kept. After trim+centre the silhouette is just the right half, so the
+        # mask's content bbox must be non-empty and roughly fill the canvas.
+        img = Image.new("RGB", (40, 40), (0, 0, 0))
+        for x in range(20, 40):
+            for y in range(0, 40):
+                img.putpixel((x, y), (0, 120, 255))
+        mask = widget_shapes.raster_bytes_to_mask(_png_bytes(img))
+        assert mask.getbbox() is not None
+
+    def test_transparent_background_ignored(self):
+        # A black silhouette on a TRANSPARENT background must still trace: the
+        # alpha gate keeps the opaque (even if black) pixels and drops the
+        # transparent ones.
+        img = Image.new("RGBA", (40, 40), (0, 0, 0, 0))
+        for x in range(12, 28):
+            for y in range(12, 28):
+                img.putpixel((x, y), (0, 0, 0, 255))  # opaque black
+        mask = widget_shapes.raster_bytes_to_mask(_png_bytes(img))
+        assert mask.getbbox() is not None
+
+
+@pytest.mark.skipif(not _SHAPES_OK, reason="widget_shapes/Pillow unavailable")
+class TestSvgToMask:
+    """svg_bytes_to_mask: simple paths/shapes flatten; junk SVG errors."""
+
+    def test_triangle_path(self):
+        svg = b'<svg viewBox="0 0 100 100"><path d="M 10 10 L 90 10 L 50 90 Z"/></svg>'
+        mask = widget_shapes.svg_bytes_to_mask(svg)
+        assert mask.mode == "L"
+        assert mask.getbbox() is not None
+
+    def test_rect_shape(self):
+        svg = b'<svg viewBox="0 0 100 100"><rect x="20" y="20" width="60" height="60"/></svg>'
+        mask = widget_shapes.svg_bytes_to_mask(svg)
+        assert mask.getbbox() is not None
+
+    def test_empty_svg_raises(self):
+        svg = b'<svg viewBox="0 0 100 100"></svg>'
+        with pytest.raises(widget_shapes.ShapeError):
+            widget_shapes.svg_bytes_to_mask(svg)
+
+    def test_invalid_xml_raises(self):
+        with pytest.raises(widget_shapes.ShapeError):
+            widget_shapes.svg_bytes_to_mask(b'<svg><path d="M 0 0')
+
+
+@pytest.mark.skipif(not _SHAPES_OK, reason="widget_shapes/Pillow unavailable")
+class TestProcessUpload:
+    """process_upload: dispatch + validation (oversize / wrong type / empty)."""
+
+    def test_dispatch_png(self):
+        img = Image.new("RGB", (20, 20), (255, 255, 255))
+        mask = widget_shapes.process_upload(_png_bytes(img), "shape.png")
+        assert mask.size == (widget_shapes.REF_SIZE, widget_shapes.REF_SIZE)
+
+    def test_dispatch_svg_by_extension(self):
+        svg = b'<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>'
+        mask = widget_shapes.process_upload(svg, "shape.svg")
+        assert mask.getbbox() is not None
+
+    def test_dispatch_svg_by_content_sniff(self):
+        # No filename, but the body starts with <svg => routed to the flattener.
+        svg = b'<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>'
+        mask = widget_shapes.process_upload(svg, None, "application/octet-stream")
+        assert mask.getbbox() is not None
+
+    def test_oversize_rejected(self):
+        with pytest.raises(widget_shapes.ShapeError, match="too large"):
+            widget_shapes.process_upload(b"x" * (widget_shapes.MAX_UPLOAD_BYTES + 1),
+                                         "big.png")
+
+    def test_empty_rejected(self):
+        with pytest.raises(widget_shapes.ShapeError, match="empty"):
+            widget_shapes.process_upload(b"", "x.png")
+
+    def test_wrong_type_rejected(self):
+        with pytest.raises(widget_shapes.ShapeError, match="unsupported"):
+            widget_shapes.process_upload(b"%PDF-1.4 ...", "doc.pdf")
+
+    def test_save_and_load_roundtrip(self, tmp_path):
+        img = Image.new("RGB", (30, 30), (0, 0, 0))
+        for x in range(8, 22):
+            for y in range(4, 26):
+                img.putpixel((x, y), (0, 200, 255))
+        mask = widget_shapes.raster_bytes_to_mask(_png_bytes(img))
+        fname = widget_shapes.save_mask(mask, tmp_path, "session")
+        assert (tmp_path / fname).exists()
+        loaded = widget_shapes.load_mask(tmp_path / fname, 64)
+        assert loaded.size == (64, 64)
+        # load_mask re-binarises to a crisp 0/255 mask for the fill pipeline.
+        assert set(loaded.get_flattened_data()) <= {0, 255}
+
+
+@pytest.mark.skipif(not _SHAPES_OK, reason="widget_shapes/Pillow unavailable")
+class TestShapeConfigDefaults:
+    """Back-compat: shape/show_text default to ''/True when config is absent."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        missing = tmp_path / "nope.json"
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: missing)
+        monkeypatch.setattr(widget_updater, "_bundled_config_path", lambda: missing)
+
+    def test_shape_default_empty(self):
+        for name in ("session", "weekly", "clock"):
+            assert widget_updater._widget_config(name)["shape"] == ""
+
+    def test_show_text_default_true(self):
+        for name in ("session", "weekly", "clock"):
+            assert widget_updater._widget_show_text(name) is True
+
+    def test_shape_path_none_when_unset(self):
+        assert widget_updater._widget_shape_path("session") is None
+
+
+class TestShapeShowTextWrite:
+    """_write_widget_field persists shape/show_text; helpers read them back."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        cfg = tmp_path / "config.json"
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: cfg)
+        monkeypatch.setattr(widget_updater, "_bundled_config_path",
+                            lambda: tmp_path / "nope.json")
+        self._cfg = cfg
+
+    def test_write_show_text_false(self):
+        widget_updater._write_widget_field("session", "show_text", False)
+        data = json.loads(self._cfg.read_text())
+        assert data["widgets"]["session"]["show_text"] is False
+        assert widget_updater._widget_show_text("session") is False
+
+    def test_write_shape_filename(self):
+        widget_updater._write_widget_field("weekly", "shape", "shape_weekly.png")
+        data = json.loads(self._cfg.read_text())
+        assert data["widgets"]["weekly"]["shape"] == "shape_weekly.png"
+
+    def test_shape_path_none_when_file_missing(self):
+        # A recorded filename whose file doesn't exist resolves to None, so a
+        # deleted mask cleanly reverts to the built-in shape.
+        widget_updater._write_widget_field("clock", "shape", "ghost_missing.png")
+        assert widget_updater._widget_shape_path("clock") is None
+
+    def test_write_field_unknown_widget_raises(self):
+        with pytest.raises(ValueError, match="unknown widget"):
+            widget_updater._write_widget_field("bogus", "shape", "x.png")
+
+    def test_show_text_reflects_config(self):
+        # When shapes dir has the file, _widget_shape_path returns it.
+        import widget_shapes
+        from PIL import Image
+        shapes_dir = self._cfg.parent / "shapes"
+        shapes_dir.mkdir(parents=True, exist_ok=True)
+        Image.new("L", (10, 10), 255).save(shapes_dir / "shape_session.png")
+        # Point SHAPES_DIR at our temp dir for the duration of this assertion.
+        import unittest.mock as mock
+        with mock.patch.object(widget_updater, "SHAPES_DIR", shapes_dir):
+            widget_updater._write_widget_field("session", "shape", "shape_session.png")
+            p = widget_updater._widget_shape_path("session")
+            assert p is not None and p.name == "shape_session.png"

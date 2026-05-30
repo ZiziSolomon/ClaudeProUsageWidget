@@ -13,7 +13,12 @@ a = Analysis(
     # widget_updater). Most users won't need config.json at all now: missing
     # org_id is auto-discovered from /api/organizations on first run.
     datas=[('config.json', '.'), ('widget.html', '.')],
-    hiddenimports=[],
+    # widget_shapes is imported lazily (inside functions) by both tray_widget
+    # and widget_updater so the import is only paid when a custom shape is used.
+    # PyInstaller's static analysis can miss function-local imports, so name it
+    # explicitly here. It's pure-Python + Pillow (already bundled) — no new
+    # native dependency, so the lean build is unaffected.
+    hiddenimports=['widget_shapes'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

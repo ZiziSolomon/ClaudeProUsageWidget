@@ -69,6 +69,26 @@
     transition: clip-path 0.5s ease;
   }
 
+  /* Custom-shape layer: a colour-filled box masked to the uploaded silhouette
+     via mask-image. Hidden by default; shown (display:block) only when a custom
+     shape is configured, in which case the inline-SVG ghost is hidden instead.
+     The same clip-path techniques (inset for level, an SVG pie clip for
+     angular) are applied to THIS element, so fill modes work identically. */
+  .shape-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    -webkit-mask-repeat: no-repeat;       mask-repeat: no-repeat;
+    -webkit-mask-position: center;        mask-position: center;
+    -webkit-mask-size: contain;           mask-size: contain;
+    clip-path: inset(var(--clip-top, 100%) 0 0 0);
+    transition: clip-path 0.5s ease;
+  }
+  /* Clock custom shape sits in the arc-wrap and is masked the same way. */
+  .arc-wrap .shape-fill { display: none; }
+
   /* arc widget */
   .arc-wrap svg {
     display: block;
@@ -210,6 +230,22 @@
     color: #ff7a5e;
   }
 
+  /* per-widget show-text checkbox + shape file picker in Appearance rows */
+  .text-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: #aaa;
+    cursor: pointer;
+    user-select: none;
+  }
+  .shape-file {
+    font-size: 0.68rem;
+    color: #888;
+    max-width: 150px;
+  }
+
   /* ---- settings rows ---- */
   .setting-row {
     display: flex;
@@ -327,6 +363,7 @@
              M 41,25 L 41,36 L 47,36 L 47,25 Z
              M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
       </svg>
+      <div class="shape-fill" id="sess-shape"></div>
     </div>
     <div class="pct-label" id="sess-pct">—%</div>
     <div class="sub-label" id="sess-when">session</div>
@@ -354,6 +391,7 @@
              M 41,25 L 41,36 L 47,36 L 47,25 Z
              M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
       </svg>
+      <div class="shape-fill" id="week-shape"></div>
     </div>
     <div class="pct-label weekly" id="week-pct">—%</div>
     <div class="sub-label" id="week-when">weekly</div>
@@ -370,6 +408,7 @@
         <text id="arc-text" x="60.5" y="60.5"
               text-anchor="middle" dominant-baseline="central">--</text>
       </svg>
+      <div class="shape-fill" id="clock-shape"></div>
     </div>
     <div class="sub-label" id="arc-sub">time left</div>
   </div>
@@ -442,6 +481,9 @@
         <option value="level">Level</option>
         <option value="angular">Angular</option>
       </select>
+      <label class="text-toggle"><input type="checkbox" id="sess-show-text"/> Text</label>
+      <input type="file" id="sess-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
+      <button class="action-btn" id="sess-shape-reset">Reset shape</button>
       <button class="action-btn" id="sess-appearance-save">Save</button>
     </div>
 
@@ -455,6 +497,9 @@
         <option value="level">Level</option>
         <option value="angular">Angular</option>
       </select>
+      <label class="text-toggle"><input type="checkbox" id="week-show-text"/> Text</label>
+      <input type="file" id="week-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
+      <button class="action-btn" id="week-shape-reset">Reset shape</button>
       <button class="action-btn" id="week-appearance-save">Save</button>
     </div>
 
@@ -468,6 +513,9 @@
         <option value="level">Level</option>
         <option value="angular">Angular</option>
       </select>
+      <label class="text-toggle"><input type="checkbox" id="clock-show-text"/> Text</label>
+      <input type="file" id="clock-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
+      <button class="action-btn" id="clock-shape-reset">Reset shape</button>
       <button class="action-btn" id="clock-appearance-save">Save</button>
     </div>
 
@@ -535,14 +583,107 @@
   // Default values match the Python _WIDGET_DEFAULTS so the page renders
   // correctly before the first /prefs response arrives.
   let _widgetCfg = {
-    session: { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'level' },
-    weekly:  { base_color: '#F5A623', color_stops: '90:#D64E2A', fill_mode: 'level' },
-    clock:   { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'angular' },
+    session: { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'level',   shape: '', show_text: true },
+    weekly:  { base_color: '#F5A623', color_stops: '90:#D64E2A', fill_mode: 'level',   shape: '', show_text: true },
+    clock:   { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'angular', shape: '', show_text: true },
   };
+
+  // Per-widget cache-buster for /shape_image, bumped after each upload so a
+  // re-uploaded shape isn't served stale from the browser cache.
+  const _shapeVer = { session: 0, weekly: 0, clock: 0 };
+
+  // Apply an angular pie-slice clipPath to `fillEl` for the given pct, reusing
+  // one clipPath element per id. Shared by the SVG ghost and the custom-shape
+  // overlay so both fill identically in angular mode. cx/cy/r frame the
+  // element's own box (the masked div is full viewBox, so 60.5/60.5/55-ish).
+  function applyAngularClip(fillEl, pct, clipId, cx, cy, r) {
+    let clipEl = document.getElementById(clipId);
+    if (!clipEl) {
+      const ns = 'http://www.w3.org/2000/svg';
+      // The masked div isn't inside an <svg>, so we host the clipPath in a
+      // hidden inline SVG appended once to the document.
+      let host = document.getElementById('shape-clip-host');
+      if (!host) {
+        host = document.createElementNS(ns, 'svg');
+        host.id = 'shape-clip-host';
+        host.setAttribute('width', '0'); host.setAttribute('height', '0');
+        host.style.position = 'absolute';
+        const defs = document.createElementNS(ns, 'defs');
+        host.appendChild(defs);
+        document.body.appendChild(host);
+      }
+      const defs = host.querySelector('defs');
+      clipEl = document.createElementNS(ns, 'clipPath');
+      clipEl.id = clipId;
+      // objectBoundingBox would distort a non-square box; use userSpaceOnUse
+      // and express the wedge in the element's CSS pixel box instead.
+      clipEl.setAttribute('clipPathUnits', 'userSpaceOnUse');
+      const wedge = document.createElementNS(ns, 'path');
+      wedge.id = clipId + '-wedge';
+      clipEl.appendChild(wedge);
+      defs.appendChild(clipEl);
+    }
+    const wedgeEl = document.getElementById(clipId + '-wedge');
+    let d = '';
+    if (pct >= 99.99) {
+      d = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+    } else if (pct > 0) {
+      const a1 = -Math.PI / 2;
+      const a2 = a1 + 2 * Math.PI * (pct / 100);
+      const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+      const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+      const large = pct > 50 ? 1 : 0;
+      d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+    }
+    if (wedgeEl) wedgeEl.setAttribute('d', d);
+    fillEl.style.clipPath = `url(#${clipId})`;
+  }
+
+  // Drive a custom-shape overlay div: mask it to the uploaded silhouette PNG,
+  // tint it with `color`, and apply the same level/angular fill as the SVG.
+  function setShapeFill(shapeEl, svgEl, pct, color, fillMode, widgetName) {
+    shapeEl.style.display = 'block';
+    if (svgEl) svgEl.style.display = 'none';
+    shapeEl.style.backgroundColor = color;
+    const maskUrl = `url('/shape_image?widget=${widgetName}&t=${_shapeVer[widgetName] || 0}')`;
+    shapeEl.style.webkitMaskImage = maskUrl;
+    shapeEl.style.maskImage = maskUrl;
+    if (fillMode === 'angular') {
+      shapeEl.style.removeProperty('--clip-top');
+      // The overlay div is a square box the size of its wrap; use its own
+      // pixel dimensions so the wedge centres correctly.
+      const w = shapeEl.clientWidth || 121, h = shapeEl.clientHeight || 76;
+      applyAngularClip(shapeEl, pct, 'shape-clip-' + widgetName, w / 2, h / 2,
+                       Math.max(w, h));
+    } else {
+      shapeEl.style.clipPath = '';
+      shapeEl.style.setProperty('--clip-top', (100 - pct) + '%');
+    }
+  }
 
   function setGhost(fillEl, pathEl, pct, widgetName) {
     const cfg = _widgetCfg[widgetName] || {};
     const color = resolveWidgetColor(pct, cfg.base_color || '#2A78D6', cfg.color_stops);
+
+    // Custom shape set? Drive the masked overlay and hide the inline ghost.
+    const shapeEl = document.getElementById(widgetName === 'session'
+      ? 'sess-shape' : widgetName === 'weekly' ? 'week-shape' : 'clock-shape');
+    if (cfg.shape && shapeEl) {
+      const svgEl = fillEl.closest('svg');
+      const outline = svgEl ? svgEl.parentElement.querySelector('.ghost-outline') : null;
+      if (svgEl) svgEl.style.display = 'none';
+      if (outline) outline.style.display = 'none';
+      setShapeFill(shapeEl, null, pct, color, cfg.fill_mode, widgetName);
+      pathEl.setAttribute('fill', color);
+      return;
+    } else if (shapeEl) {
+      // No custom shape: ensure overlay hidden and inline ghost visible.
+      shapeEl.style.display = 'none';
+      const svgEl = fillEl.closest('svg');
+      const outline = svgEl ? svgEl.parentElement.querySelector('.ghost-outline') : null;
+      if (svgEl) svgEl.style.display = '';
+      if (outline) outline.style.display = '';
+    }
 
     if (cfg.fill_mode === 'angular') {
       // Angular fill: use an SVG clipPath containing a pie-slice wedge so
@@ -608,12 +749,36 @@
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
 
+  // Show/hide the arc text honouring the clock's show_text flag. Kept in one
+  // place so every early-return path in updateArc respects the toggle.
+  function setArcText(txt) {
+    const cc = _widgetCfg.clock || {};
+    arcText.style.display = (cc.show_text === false) ? 'none' : '';
+    arcText.textContent = txt;
+  }
+
   function updateArc(sessionStart, sessionEnd) {
     const cx = 60.5, cy = 60.5, r = 54;
+    const cc = _widgetCfg.clock || {};
+    const clockShape = document.getElementById('clock-shape');
+    const arcSvg = arcFill.closest('svg');
+    // Custom clock shape: hide the circle arc + track, drive the masked overlay
+    // by elapsed % via the shared angular pipeline (matches the PIL renderer).
+    const useShape = !!cc.shape && clockShape;
+    if (clockShape) clockShape.style.display = useShape ? 'block' : 'none';
+    if (arcSvg) {
+      const track = document.getElementById('arc-track');
+      if (track) track.style.display = useShape ? 'none' : '';
+      arcFill.style.display = useShape ? 'none' : '';
+    }
+
     if (!sessionStart || !sessionEnd) {
       arcFill.setAttribute('d', '');
-      arcText.textContent = '--';
+      setArcText('--');
       arcSub.textContent  = 'time left';
+      if (useShape) setShapeFill(clockShape, null, 0,
+        resolveWidgetColor(0, cc.base_color || '#2A78D6', cc.color_stops),
+        'angular', 'clock');
       return;
     }
     const now   = Date.now();
@@ -621,8 +786,11 @@
     const end   = new Date(sessionEnd).getTime();
     if (now >= end) {
       arcFill.setAttribute('d', '');
-      arcText.textContent = '--';
+      setArcText('--');
       arcSub.textContent  = 'resetting…';
+      if (useShape) setShapeFill(clockShape, null, 0,
+        resolveWidgetColor(0, cc.base_color || '#2A78D6', cc.color_stops),
+        'angular', 'clock');
       return;
     }
     const total    = end - start;
@@ -630,7 +798,15 @@
     const progress = Math.max(0, Math.min(1, used / total));
     const remain   = Math.max(0, end - now);
 
-    if (progress <= 0) {
+    // Resolve arc colour from the clock widget config. Driver is elapsed %
+    // (matching the PIL renderer) so a "90:#D64E2A" stop triggers at 90%
+    // elapsed (= 10% remaining), mirroring the old alert condition.
+    const elapsedPct = progress * 100;
+    const arcColor = resolveWidgetColor(elapsedPct, cc.base_color || '#2A78D6', cc.color_stops);
+
+    if (useShape) {
+      setShapeFill(clockShape, null, elapsedPct, arcColor, 'angular', 'clock');
+    } else if (progress <= 0) {
       arcFill.setAttribute('d', '');
     } else if (progress >= 0.9999) {
       arcFill.setAttribute('d',
@@ -644,14 +820,8 @@
       arcFill.setAttribute('d',
         `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`);
     }
-    // Resolve arc colour from the clock widget config. Driver is elapsed %
-    // (matching the PIL renderer) so a "90:#D64E2A" stop triggers at 90%
-    // elapsed (= 10% remaining), mirroring the old alert condition.
-    const cc = _widgetCfg.clock || {};
-    const elapsedPct = progress * 100;
-    const arcColor = resolveWidgetColor(elapsedPct, cc.base_color || '#2A78D6', cc.color_stops);
     arcFill.setAttribute('fill', arcColor);
-    arcText.textContent = fmtArcLabel(remain);
+    setArcText(fmtArcLabel(remain));
     arcSub.textContent  = 'time left';
   }
 
@@ -696,15 +866,16 @@
       // Prefill the Appearance section inputs.  The same activeElement guard
       // applies so a user mid-edit isn't interrupted by a background refresh.
       for (const [name, ids] of [
-        ['session', { base: 'sess-base-color',  swatch: 'sess-base-swatch',  stops: 'sess-stops',  fill: 'sess-fill-mode'  }],
-        ['weekly',  { base: 'week-base-color',  swatch: 'week-base-swatch',  stops: 'week-stops',  fill: 'week-fill-mode'  }],
-        ['clock',   { base: 'clock-base-color', swatch: 'clock-base-swatch', stops: 'clock-stops', fill: 'clock-fill-mode' }],
+        ['session', { base: 'sess-base-color',  swatch: 'sess-base-swatch',  stops: 'sess-stops',  fill: 'sess-fill-mode',  text: 'sess-show-text'  }],
+        ['weekly',  { base: 'week-base-color',  swatch: 'week-base-swatch',  stops: 'week-stops',  fill: 'week-fill-mode',  text: 'week-show-text'  }],
+        ['clock',   { base: 'clock-base-color', swatch: 'clock-base-swatch', stops: 'clock-stops', fill: 'clock-fill-mode', text: 'clock-show-text' }],
       ]) {
         const cfg = (p.widgets || {})[name] || {};
         const baseEl   = document.getElementById(ids.base);
         const swatchEl = document.getElementById(ids.swatch);
         const stopsEl  = document.getElementById(ids.stops);
         const fillEl   = document.getElementById(ids.fill);
+        const textEl   = document.getElementById(ids.text);
         _prefill(baseEl,  cfg.base_color  || '');
         // Sync colour picker with the text field when not editing either.
         if (swatchEl && document.activeElement !== swatchEl && cfg.base_color) {
@@ -718,6 +889,10 @@
         _prefill(stopsEl, cfg.color_stops || '');
         if (fillEl && document.activeElement !== fillEl && cfg.fill_mode) {
           fillEl.value = cfg.fill_mode;
+        }
+        // show_text checkbox: default true when the key is absent (back-compat).
+        if (textEl && document.activeElement !== textEl) {
+          textEl.checked = cfg.show_text !== false;
         }
       }
     } catch { /* server blip */ }
@@ -760,13 +935,15 @@
   // ---- Appearance section save buttons ----
   // Each row saves three fields (base_color, color_stops, fill_mode) for one
   // widget with three sequential POSTs; we wait for all before refreshing.
-  async function saveWidgetAppearance(widgetName, baseId, stopsId, fillId, btnId) {
+  async function saveWidgetAppearance(widgetName, baseId, stopsId, fillId, textId, btnId) {
     const btn    = document.getElementById(btnId);
     const base   = document.getElementById(baseId).value.trim();
     const stops  = document.getElementById(stopsId).value.trim();
     const fill   = document.getElementById(fillId).value;
+    const showT  = document.getElementById(textId).checked ? '1' : '0';
     const orig   = btn.textContent;
-    // Three POSTs in sequence; any failure marks the button as invalid.
+    // Four POSTs in sequence (colour, stops, fill, show-text); any failure
+    // marks the button as invalid.
     try {
       const r1 = await fetch('/set_widget_color?widget=' + widgetName +
                              '&value=' + encodeURIComponent(base), { method: 'POST' })
@@ -777,7 +954,10 @@
       const r3 = await fetch('/set_widget_fill?widget=' + widgetName +
                              '&value=' + encodeURIComponent(fill), { method: 'POST' })
                         .then(r => r.json()).catch(() => ({}));
-      btn.textContent = (r1.ok && r2.ok && r3.ok) ? 'Saved' : 'Invalid';
+      const r4 = await fetch('/set_widget_text?widget=' + widgetName +
+                             '&value=' + showT, { method: 'POST' })
+                        .then(r => r.json()).catch(() => ({}));
+      btn.textContent = (r1.ok && r2.ok && r3.ok && r4.ok) ? 'Saved' : 'Invalid';
     } catch {
       btn.textContent = 'Error';
     }
@@ -788,13 +968,64 @@
 
   document.getElementById('sess-appearance-save').addEventListener('click', () =>
     saveWidgetAppearance('session', 'sess-base-color', 'sess-stops', 'sess-fill-mode',
-                         'sess-appearance-save'));
+                         'sess-show-text', 'sess-appearance-save'));
   document.getElementById('week-appearance-save').addEventListener('click', () =>
     saveWidgetAppearance('weekly', 'week-base-color', 'week-stops', 'week-fill-mode',
-                         'week-appearance-save'));
+                         'week-show-text', 'week-appearance-save'));
   document.getElementById('clock-appearance-save').addEventListener('click', () =>
     saveWidgetAppearance('clock', 'clock-base-color', 'clock-stops', 'clock-fill-mode',
-                         'clock-appearance-save'));
+                         'clock-show-text', 'clock-appearance-save'));
+
+  // ---- custom shape upload + reset ----
+  // The file picker POSTs the raw file body with ?widget= and the original
+  // filename in X-Shape-Filename so the server can sniff SVG vs raster. On
+  // success we bump the per-widget cache-buster and refresh so the new shape
+  // shows immediately.
+  async function uploadShape(widgetName, fileEl, btnEl) {
+    const file = fileEl.files && fileEl.files[0];
+    if (!file) return;
+    const orig = btnEl ? btnEl.textContent : '';
+    try {
+      const buf = await file.arrayBuffer();
+      const res = await fetch('/set_widget_shape?widget=' + widgetName, {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-Shape-Filename': file.name,
+        },
+        body: buf,
+      }).then(r => r.json()).catch(() => ({ ok: false, error: 'network error' }));
+      if (!res.ok) {
+        window.alert('Could not use that shape:\n\n' + (res.error || 'unknown error'));
+      } else {
+        _shapeVer[widgetName] = Date.now();  // bust the shape_image cache
+      }
+    } catch (e) {
+      window.alert('Upload failed: ' + e);
+    }
+    fileEl.value = '';  // allow re-selecting the same file
+    await refreshPrefs();
+    await refresh();
+  }
+
+  async function resetShape(widgetName) {
+    await fetch('/reset_widget_shape?widget=' + widgetName, { method: 'POST' })
+      .catch(() => {});
+    _shapeVer[widgetName] = Date.now();
+    await refreshPrefs();
+    await refresh();
+  }
+
+  for (const [name, fileId, resetId] of [
+    ['session', 'sess-shape-file',  'sess-shape-reset'],
+    ['weekly',  'week-shape-file',  'week-shape-reset'],
+    ['clock',   'clock-shape-file', 'clock-shape-reset'],
+  ]) {
+    document.getElementById(fileId).addEventListener('change', e =>
+      uploadShape(name, e.target));
+    document.getElementById(resetId).addEventListener('click', () =>
+      resetShape(name));
+  }
 
   // Sync colour-picker swatches -> text inputs when the swatch changes.
   for (const [swatchId, textId] of [
@@ -851,10 +1082,12 @@
 
       setGhost(sessFill, sessPath, sPct, 'session');
       sessPct.textContent  = Math.round(sPct) + '%';
+      sessPct.style.display = (_widgetCfg.session && _widgetCfg.session.show_text === false) ? 'none' : '';
       sessWhen.textContent = fmtWhen(s.session_end, 'session');
 
       setGhost(weekFill, weekPath, wPct, 'weekly');
       weekPct.textContent  = Math.round(wPct) + '%';
+      weekPct.style.display = (_widgetCfg.weekly && _widgetCfg.weekly.show_text === false) ? 'none' : '';
       weekWhen.textContent = fmtWhen(s.weekly_end, 'weekly');
 
       updateArc(s.session_start, s.session_end);
