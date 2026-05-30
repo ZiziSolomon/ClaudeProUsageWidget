@@ -268,6 +268,35 @@
     border-radius: 6px;
     display: none;
   }
+
+  /* ---- appearance section ---- */
+  .appearance-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .appearance-row-label {
+    font-size: 0.75rem;
+    color: #888;
+    min-width: 90px;
+    text-align: right;
+  }
+
+  /* Native colour picker sized to match text inputs */
+  .color-swatch {
+    width: 36px;
+    height: 28px;
+    border: 1px solid #3a3a3c;
+    border-radius: 6px;
+    padding: 2px;
+    background: #2a2a2c;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -399,6 +428,52 @@
   </div>
 </div>
 
+<div class="section" data-section="appearance">
+  <div class="section-title">Appearance</div>
+  <div class="section-body">
+
+    <!-- Session ghost row -->
+    <div class="appearance-row">
+      <span class="appearance-row-label">Session ghost</span>
+      <input type="color" id="sess-base-swatch"   class="color-swatch" title="Base colour"/>
+      <input type="text"  id="sess-base-color"     class="setting-input narrow" placeholder="#2A78D6"/>
+      <input type="text"  id="sess-stops"          class="setting-input"        placeholder="90:#D64E2A"/>
+      <select id="sess-fill-mode" class="session-select">
+        <option value="level">Level</option>
+        <option value="angular">Angular</option>
+      </select>
+      <button class="action-btn" id="sess-appearance-save">Save</button>
+    </div>
+
+    <!-- Weekly ghost row -->
+    <div class="appearance-row">
+      <span class="appearance-row-label">Weekly ghost</span>
+      <input type="color" id="week-base-swatch"   class="color-swatch" title="Base colour"/>
+      <input type="text"  id="week-base-color"     class="setting-input narrow" placeholder="#F5A623"/>
+      <input type="text"  id="week-stops"          class="setting-input"        placeholder="90:#D64E2A"/>
+      <select id="week-fill-mode" class="session-select">
+        <option value="level">Level</option>
+        <option value="angular">Angular</option>
+      </select>
+      <button class="action-btn" id="week-appearance-save">Save</button>
+    </div>
+
+    <!-- Session clock row -->
+    <div class="appearance-row">
+      <span class="appearance-row-label">Session clock</span>
+      <input type="color" id="clock-base-swatch"  class="color-swatch" title="Base colour"/>
+      <input type="text"  id="clock-base-color"    class="setting-input narrow" placeholder="#2A78D6"/>
+      <input type="text"  id="clock-stops"         class="setting-input"        placeholder="90:#D64E2A"/>
+      <select id="clock-fill-mode" class="session-select">
+        <option value="level">Level</option>
+        <option value="angular">Angular</option>
+      </select>
+      <button class="action-btn" id="clock-appearance-save">Save</button>
+    </div>
+
+  </div>
+</div>
+
 <div class="section" data-section="log">
   <div class="section-title">Widget log</div>
   <div class="section-body">
@@ -425,10 +500,93 @@
   const arcText  = document.getElementById('arc-text');
   const arcSub   = document.getElementById('arc-sub');
 
-  function setGhost(fillEl, pathEl, pct, alertColor) {
-    fillEl.style.setProperty('--clip-top', (100 - pct) + '%');
-    const alert = pct >= 90;
-    pathEl.setAttribute('fill', alert ? '#D64E2A' : alertColor);
+  // ---- colour resolver (mirrors Python resolve_widget_color exactly) ----
+  // Parses "pct:hex[,pct:hex...]" stops CSV; returns [] on bad input.
+  function parseColorStops(raw) {
+    if (!raw || typeof raw !== 'string') return [];
+    const stops = [];
+    for (const part of raw.split(',')) {
+      const t = part.trim();
+      if (!t) continue;
+      const colon = t.indexOf(':');
+      if (colon < 0) continue;
+      const pct = parseInt(t.slice(0, colon).trim(), 10);
+      const hex = t.slice(colon + 1).trim();
+      if (isNaN(pct) || pct < 0 || pct > 100) continue;
+      if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)) continue;
+      stops.push([pct, hex]);
+    }
+    stops.sort((a, b) => a[0] - b[0]);
+    return stops;
+  }
+
+  // Step-resolve: return the hex of the highest stop whose threshold <= pct,
+  // or baseColor when none qualify.  Semantics match Python's resolver.
+  function resolveWidgetColor(pct, baseColor, colorStopsStr) {
+    const stops = parseColorStops(colorStopsStr);
+    let chosen = baseColor;
+    for (const [threshold, hex] of stops) {
+      if (threshold <= pct) chosen = hex;
+    }
+    return chosen;
+  }
+
+  // Widget config fetched from /prefs; populated by refreshPrefs().
+  // Default values match the Python _WIDGET_DEFAULTS so the page renders
+  // correctly before the first /prefs response arrives.
+  let _widgetCfg = {
+    session: { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'level' },
+    weekly:  { base_color: '#F5A623', color_stops: '90:#D64E2A', fill_mode: 'level' },
+    clock:   { base_color: '#2A78D6', color_stops: '90:#D64E2A', fill_mode: 'angular' },
+  };
+
+  function setGhost(fillEl, pathEl, pct, widgetName) {
+    const cfg = _widgetCfg[widgetName] || {};
+    const color = resolveWidgetColor(pct, cfg.base_color || '#2A78D6', cfg.color_stops);
+
+    if (cfg.fill_mode === 'angular') {
+      // Angular fill: use an SVG clipPath containing a pie-slice wedge so
+      // the ghost shape still masks the filled region.
+      fillEl.style.removeProperty('--clip-top');
+      fillEl.style.clipPath = '';  // clear level-mode CSS clip
+      const clipId = 'angular-clip-' + widgetName;
+      let clipEl = document.getElementById(clipId);
+      if (!clipEl) {
+        // Build the clipPath element once and reuse it.
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = fillEl.closest('svg') || fillEl.parentElement.querySelector('svg');
+        const defs = document.createElementNS(ns, 'defs');
+        clipEl = document.createElementNS(ns, 'clipPath');
+        clipEl.id = clipId;
+        const wedge = document.createElementNS(ns, 'path');
+        wedge.id = clipId + '-wedge';
+        clipEl.appendChild(wedge);
+        defs.appendChild(clipEl);
+        (svg || fillEl.parentElement).prepend(defs);
+      }
+      const wedgeEl = document.getElementById(clipId + '-wedge');
+      // Ghost viewBox is 121x76; centre of visible body ~(65, 44).
+      const cx = 65, cy = 44, r = 55;
+      let d = '';
+      if (pct >= 99.99) {
+        d = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+      } else if (pct > 0) {
+        const a1 = -Math.PI / 2;
+        const a2 = a1 + 2 * Math.PI * (pct / 100);
+        const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+        const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+        const large = pct > 50 ? 1 : 0;
+        d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+      }
+      if (wedgeEl) wedgeEl.setAttribute('d', d);
+      fillEl.setAttribute('clip-path', `url(#${clipId})`);
+    } else {
+      // Level fill: existing CSS clip-path bottom-to-top.
+      fillEl.setAttribute('clip-path', '');
+      fillEl.style.setProperty('--clip-top', (100 - pct) + '%');
+    }
+
+    pathEl.setAttribute('fill', color);
   }
 
   function fmtWhen(iso, label) {
@@ -486,13 +644,27 @@
       arcFill.setAttribute('d',
         `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`);
     }
-    const alert = remain / total <= 0.10;
-    arcFill.setAttribute('fill', alert ? '#D64E2A' : '#2A78D6');
+    // Resolve arc colour from the clock widget config. Driver is elapsed %
+    // (matching the PIL renderer) so a "90:#D64E2A" stop triggers at 90%
+    // elapsed (= 10% remaining), mirroring the old alert condition.
+    const cc = _widgetCfg.clock || {};
+    const elapsedPct = progress * 100;
+    const arcColor = resolveWidgetColor(elapsedPct, cc.base_color || '#2A78D6', cc.color_stops);
+    arcFill.setAttribute('fill', arcColor);
     arcText.textContent = fmtArcLabel(remain);
     arcSub.textContent  = 'time left';
   }
 
   // ---- prefs / toggle buttons ----
+
+  // Prefill an input only when the user is not currently editing it (the
+  // existing guard pattern) and the incoming value differs from what's shown,
+  // to avoid janky re-renders mid-type.
+  function _prefill(el, value) {
+    if (el && document.activeElement !== el && el.value !== String(value)) {
+      el.value = value;
+    }
+  }
 
   async function refreshPrefs() {
     try {
@@ -514,6 +686,39 @@
       const delta = document.getElementById('delta-input');
       if (document.activeElement !== delta && p.liveness_delta_pct != null) {
         delta.value = p.liveness_delta_pct;
+      }
+
+      // Update the in-memory widget config so setGhost / updateArc use fresh colours.
+      if (p.widgets && typeof p.widgets === 'object') {
+        _widgetCfg = { ..._widgetCfg, ...p.widgets };
+      }
+
+      // Prefill the Appearance section inputs.  The same activeElement guard
+      // applies so a user mid-edit isn't interrupted by a background refresh.
+      for (const [name, ids] of [
+        ['session', { base: 'sess-base-color',  swatch: 'sess-base-swatch',  stops: 'sess-stops',  fill: 'sess-fill-mode'  }],
+        ['weekly',  { base: 'week-base-color',  swatch: 'week-base-swatch',  stops: 'week-stops',  fill: 'week-fill-mode'  }],
+        ['clock',   { base: 'clock-base-color', swatch: 'clock-base-swatch', stops: 'clock-stops', fill: 'clock-fill-mode' }],
+      ]) {
+        const cfg = (p.widgets || {})[name] || {};
+        const baseEl   = document.getElementById(ids.base);
+        const swatchEl = document.getElementById(ids.swatch);
+        const stopsEl  = document.getElementById(ids.stops);
+        const fillEl   = document.getElementById(ids.fill);
+        _prefill(baseEl,  cfg.base_color  || '');
+        // Sync colour picker with the text field when not editing either.
+        if (swatchEl && document.activeElement !== swatchEl && cfg.base_color) {
+          // Expand #rgb -> #rrggbb for the native colour input.
+          let hex = cfg.base_color.trim();
+          if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+            hex = '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3];
+          }
+          swatchEl.value = hex;
+        }
+        _prefill(stopsEl, cfg.color_stops || '');
+        if (fillEl && document.activeElement !== fillEl && cfg.fill_mode) {
+          fillEl.value = cfg.fill_mode;
+        }
       }
     } catch { /* server blip */ }
   }
@@ -551,6 +756,56 @@
     saveSetting('/set_liveness_delta?pct=' + encodeURIComponent(v),
                 document.getElementById('delta-save'));
   });
+
+  // ---- Appearance section save buttons ----
+  // Each row saves three fields (base_color, color_stops, fill_mode) for one
+  // widget with three sequential POSTs; we wait for all before refreshing.
+  async function saveWidgetAppearance(widgetName, baseId, stopsId, fillId, btnId) {
+    const btn    = document.getElementById(btnId);
+    const base   = document.getElementById(baseId).value.trim();
+    const stops  = document.getElementById(stopsId).value.trim();
+    const fill   = document.getElementById(fillId).value;
+    const orig   = btn.textContent;
+    // Three POSTs in sequence; any failure marks the button as invalid.
+    try {
+      const r1 = await fetch('/set_widget_color?widget=' + widgetName +
+                             '&value=' + encodeURIComponent(base), { method: 'POST' })
+                        .then(r => r.json()).catch(() => ({}));
+      const r2 = await fetch('/set_widget_stops?widget=' + widgetName +
+                             '&value=' + encodeURIComponent(stops), { method: 'POST' })
+                        .then(r => r.json()).catch(() => ({}));
+      const r3 = await fetch('/set_widget_fill?widget=' + widgetName +
+                             '&value=' + encodeURIComponent(fill), { method: 'POST' })
+                        .then(r => r.json()).catch(() => ({}));
+      btn.textContent = (r1.ok && r2.ok && r3.ok) ? 'Saved' : 'Invalid';
+    } catch {
+      btn.textContent = 'Error';
+    }
+    btn.blur();
+    await refreshPrefs();
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  }
+
+  document.getElementById('sess-appearance-save').addEventListener('click', () =>
+    saveWidgetAppearance('session', 'sess-base-color', 'sess-stops', 'sess-fill-mode',
+                         'sess-appearance-save'));
+  document.getElementById('week-appearance-save').addEventListener('click', () =>
+    saveWidgetAppearance('weekly', 'week-base-color', 'week-stops', 'week-fill-mode',
+                         'week-appearance-save'));
+  document.getElementById('clock-appearance-save').addEventListener('click', () =>
+    saveWidgetAppearance('clock', 'clock-base-color', 'clock-stops', 'clock-fill-mode',
+                         'clock-appearance-save'));
+
+  // Sync colour-picker swatches -> text inputs when the swatch changes.
+  for (const [swatchId, textId] of [
+    ['sess-base-swatch',  'sess-base-color'],
+    ['week-base-swatch',  'week-base-color'],
+    ['clock-base-swatch', 'clock-base-color'],
+  ]) {
+    document.getElementById(swatchId).addEventListener('input', e => {
+      document.getElementById(textId).value = e.target.value.toUpperCase();
+    });
+  }
 
   // Only real action buttons carry data-action; the Save buttons reuse the
   // .action-btn look but must not fire a stray /action?name=undefined.
@@ -594,11 +849,11 @@
       const sPct = expired ? 0 : (s.session_pct ?? 0);
       const wPct = s.weekly_pct ?? 0;
 
-      setGhost(sessFill, sessPath, sPct, '#2A78D6');
+      setGhost(sessFill, sessPath, sPct, 'session');
       sessPct.textContent  = Math.round(sPct) + '%';
       sessWhen.textContent = fmtWhen(s.session_end, 'session');
 
-      setGhost(weekFill, weekPath, wPct, '#F5A623');
+      setGhost(weekFill, weekPath, wPct, 'weekly');
       weekPct.textContent  = Math.round(wPct) + '%';
       weekWhen.textContent = fmtWhen(s.weekly_end, 'weekly');
 

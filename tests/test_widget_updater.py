@@ -1397,3 +1397,186 @@ class TestLivenessTriggerSettings:
     def test_delta_floored_at_one(self):
         widget_updater._write_config_value("liveness_delta_pct", 0.1)
         assert widget_updater._liveness_delta_pct() == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Per-widget colour configuration
+# ---------------------------------------------------------------------------
+
+class TestColorStopsParser:
+    """_parse_color_stops: CSV parsing, validation, ordering, garbage tolerance."""
+
+    def test_single_stop(self):
+        stops = widget_updater._parse_color_stops("90:#D64E2A")
+        assert stops == [(90, "#D64E2A")]
+
+    def test_multiple_stops_sorted(self):
+        stops = widget_updater._parse_color_stops("90:#D64E2A,50:#ffcc00")
+        assert stops == [(50, "#ffcc00"), (90, "#D64E2A")]
+
+    def test_spaces_tolerated(self):
+        stops = widget_updater._parse_color_stops("  90 : #D64E2A , 50 : #ffcc00 ")
+        assert stops == [(50, "#ffcc00"), (90, "#D64E2A")]
+
+    def test_three_char_hex_accepted(self):
+        stops = widget_updater._parse_color_stops("50:#abc")
+        assert stops == [(50, "#abc")]
+
+    def test_invalid_hex_dropped(self):
+        stops = widget_updater._parse_color_stops("50:notahex,90:#D64E2A")
+        assert stops == [(90, "#D64E2A")]
+
+    def test_out_of_range_pct_dropped(self):
+        stops = widget_updater._parse_color_stops("-1:#aabbcc,101:#aabbcc,50:#2A78D6")
+        assert stops == [(50, "#2A78D6")]
+
+    def test_missing_colon_dropped(self):
+        stops = widget_updater._parse_color_stops("90:#D64E2A,nodivider")
+        assert stops == [(90, "#D64E2A")]
+
+    def test_empty_string_returns_empty(self):
+        assert widget_updater._parse_color_stops("") == []
+
+    def test_none_returns_empty(self):
+        assert widget_updater._parse_color_stops(None) == []
+
+    def test_all_garbage_returns_empty(self):
+        assert widget_updater._parse_color_stops("abc,xyz,!!") == []
+
+
+class TestResolveWidgetColor:
+    """resolve_widget_color: step resolution semantics, back-compat defaults."""
+
+    def test_below_first_stop_returns_base(self):
+        # pct=30 < 50 → no stop qualifies → base_color
+        color = widget_updater.resolve_widget_color(30, "#2A78D6", "50:#ffcc00,90:#D64E2A")
+        assert color == "#2A78D6"
+
+    def test_at_first_stop_returns_stop_color(self):
+        # pct=50 >= 50 → 50 qualifies, 90 does not → "#ffcc00"
+        color = widget_updater.resolve_widget_color(50, "#2A78D6", "50:#ffcc00,90:#D64E2A")
+        assert color == "#ffcc00"
+
+    def test_between_stops_uses_lower_stop(self):
+        # pct=75 → 50 qualifies, 90 does not → "#ffcc00"
+        color = widget_updater.resolve_widget_color(75, "#2A78D6", "50:#ffcc00,90:#D64E2A")
+        assert color == "#ffcc00"
+
+    def test_at_second_stop_returns_second(self):
+        # pct=90 → both qualify → highest qualifying stop is 90 → "#D64E2A"
+        color = widget_updater.resolve_widget_color(90, "#2A78D6", "50:#ffcc00,90:#D64E2A")
+        assert color == "#D64E2A"
+
+    def test_above_all_stops_returns_highest(self):
+        # pct=100 → all stops qualify → last/highest → "#D64E2A"
+        color = widget_updater.resolve_widget_color(100, "#2A78D6", "50:#ffcc00,90:#D64E2A")
+        assert color == "#D64E2A"
+
+    def test_no_stops_returns_base(self):
+        # Empty stops → base_color always
+        color = widget_updater.resolve_widget_color(95, "#F5A623", "")
+        assert color == "#F5A623"
+
+    def test_none_stops_returns_base(self):
+        color = widget_updater.resolve_widget_color(95, "#F5A623", None)
+        assert color == "#F5A623"
+
+    def test_garbage_stops_returns_base(self):
+        color = widget_updater.resolve_widget_color(95, "#F5A623", "garbage,junk")
+        assert color == "#F5A623"
+
+    def test_single_stop_session_default(self):
+        # Matches the built-in default: 90:#D64E2A threshold, base #2A78D6
+        assert widget_updater.resolve_widget_color(89, "#2A78D6", "90:#D64E2A") == "#2A78D6"
+        assert widget_updater.resolve_widget_color(90, "#2A78D6", "90:#D64E2A") == "#D64E2A"
+        assert widget_updater.resolve_widget_color(99, "#2A78D6", "90:#D64E2A") == "#D64E2A"
+
+    def test_pct_zero_returns_base(self):
+        color = widget_updater.resolve_widget_color(0, "#2A78D6", "90:#D64E2A")
+        assert color == "#2A78D6"
+
+
+class TestWidgetConfigDefaults:
+    """Back-compat: _widget_config returns built-in defaults when config absent."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        # Point at a non-existent config so _read_config returns {}.
+        monkeypatch.setattr(widget_updater, "_config_path",
+                            lambda: tmp_path / "config.json")
+        monkeypatch.setattr(widget_updater, "_bundled_config_path",
+                            lambda: tmp_path / "bundled_config.json")
+
+    def test_session_defaults(self):
+        cfg = widget_updater._widget_config("session")
+        assert cfg["base_color"]   == "#2A78D6"
+        assert cfg["color_stops"]  == "90:#D64E2A"
+        assert cfg["fill_mode"]    == "level"
+
+    def test_weekly_defaults(self):
+        cfg = widget_updater._widget_config("weekly")
+        assert cfg["base_color"]   == "#F5A623"
+        assert cfg["color_stops"]  == "90:#D64E2A"
+        assert cfg["fill_mode"]    == "level"
+
+    def test_clock_defaults(self):
+        cfg = widget_updater._widget_config("clock")
+        assert cfg["base_color"]   == "#2A78D6"
+        assert cfg["color_stops"]  == "90:#D64E2A"
+        assert cfg["fill_mode"]    == "angular"
+
+    def test_partial_override_merges(self, tmp_path, monkeypatch):
+        # When the user has only set base_color, the other keys stay as defaults.
+        p = tmp_path / "config.json"
+        p.write_text(json.dumps({"widgets": {"session": {"base_color": "#ff0000"}}}),
+                     encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: p)
+        cfg = widget_updater._widget_config("session")
+        assert cfg["base_color"]  == "#ff0000"
+        assert cfg["color_stops"] == "90:#D64E2A"   # default preserved
+        assert cfg["fill_mode"]   == "level"         # default preserved
+
+    def test_all_three_widgets_returned(self, tmp_path):
+        result = widget_updater._read_widget_config_all()
+        assert set(result.keys()) == {"session", "weekly", "clock"}
+
+
+class TestWriteWidgetColor:
+    """_write_widget_color: persists individual fields; merges with existing config."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        cfg = tmp_path / "config.json"
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: cfg)
+        self._cfg = cfg
+
+    def test_write_base_color(self):
+        widget_updater._write_widget_color("session", "base_color", "#ff0000")
+        data = json.loads(self._cfg.read_text())
+        assert data["widgets"]["session"]["base_color"] == "#ff0000"
+
+    def test_write_color_stops(self):
+        widget_updater._write_widget_color("weekly", "color_stops", "80:#ff8800,95:#ff0000")
+        data = json.loads(self._cfg.read_text())
+        assert data["widgets"]["weekly"]["color_stops"] == "80:#ff8800,95:#ff0000"
+
+    def test_write_fill_mode(self):
+        widget_updater._write_widget_color("clock", "fill_mode", "angular")
+        data = json.loads(self._cfg.read_text())
+        assert data["widgets"]["clock"]["fill_mode"] == "angular"
+
+    def test_merges_with_existing_config_keys(self):
+        # Existing non-widget keys must not be clobbered.
+        self._cfg.write_text(json.dumps({"org_id": "abc"}), encoding="utf-8")
+        widget_updater._write_widget_color("session", "base_color", "#123456")
+        data = json.loads(self._cfg.read_text())
+        assert data["org_id"] == "abc"
+        assert data["widgets"]["session"]["base_color"] == "#123456"
+
+    def test_unknown_widget_raises(self):
+        with pytest.raises(ValueError, match="unknown widget"):
+            widget_updater._write_widget_color("bogus", "base_color", "#ff0000")
+
+    def test_unknown_field_raises(self):
+        with pytest.raises(ValueError, match="unknown field"):
+            widget_updater._write_widget_color("session", "border_radius", "5px")

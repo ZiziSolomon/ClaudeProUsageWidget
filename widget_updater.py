@@ -319,6 +319,114 @@ def _liveness_delta_pct() -> float:
         print(f"  ignoring invalid liveness_delta_pct={raw!r}")
         return LIVENESS_PCT_DELTA_TRIGGER
 
+# ---------------------------------------------------------------------------
+# Per-widget colour configuration
+# ---------------------------------------------------------------------------
+
+# Default appearance values, used as fallbacks when the config key is absent.
+# These match the hardcoded colours previously scattered across widget.html and
+# tray_widget.py so existing installs behave identically with no config change.
+_WIDGET_DEFAULTS: dict[str, dict] = {
+    "session": {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "level"},
+    "weekly":  {"base_color": "#F5A623", "color_stops": "90:#D64E2A", "fill_mode": "level"},
+    "clock":   {"base_color": "#2A78D6", "color_stops": "90:#D64E2A", "fill_mode": "angular"},
+}
+
+
+def _is_valid_hex(s: str) -> bool:
+    """True when s is a CSS hex colour: #rgb or #rrggbb (case-insensitive)."""
+    s = s.strip()
+    if not s.startswith("#"):
+        return False
+    body = s[1:]
+    return len(body) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in body)
+
+
+def _parse_color_stops(raw: str | None) -> list[tuple[int, str]]:
+    """Parse a stops CSV like "50:#ffcc00,90:#D64E2A" into a sorted list of
+    (pct, hex) pairs. Invalid entries (bad pct, invalid hex, wrong format) are
+    silently dropped so a typo can't break rendering. Returns [] when raw is
+    None/empty or contains nothing parseable."""
+    if not raw or not isinstance(raw, str):
+        return []
+    stops = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ":" not in part:
+            continue
+        pct_s, hex_s = part.split(":", 1)
+        hex_s = hex_s.strip()
+        try:
+            pct = int(float(pct_s.strip()))
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= pct <= 100):
+            continue
+        if not _is_valid_hex(hex_s):
+            continue
+        stops.append((pct, hex_s))
+    stops.sort(key=lambda x: x[0])
+    return stops
+
+
+def resolve_widget_color(pct: float, base_color: str, color_stops: str | None) -> str:
+    """Step-resolver: return the colour hex for the given pct.
+
+    Walks the parsed stops (sorted ascending by threshold) and returns the hex
+    of the HIGHEST stop whose threshold <= current pct.  If no stop qualifies,
+    returns base_color.  Semantics mirror the JS implementation in widget.html
+    exactly so both renderers produce the same result for the same input.
+
+    Example: stops="50:#ffcc00,90:#D64E2A", pct=75 => "#ffcc00" (50 qualifies,
+    90 does not); pct=95 => "#D64E2A" (both qualify, 90 is highest that fits).
+    """
+    stops = _parse_color_stops(color_stops)
+    chosen = base_color
+    for threshold, hex_color in stops:
+        if threshold <= pct:
+            chosen = hex_color
+    return chosen
+
+
+def _widget_config(name: str) -> dict:
+    """Return the per-widget config dict for `name` (session/weekly/clock),
+    merging config-file values over the built-in defaults. Missing keys in
+    config fall back individually so a partial override still works."""
+    defaults = dict(_WIDGET_DEFAULTS.get(name, {}))
+    cfg_widgets = _read_config().get("widgets") or {}
+    overrides   = cfg_widgets.get(name) or {}
+    return {**defaults, **overrides}
+
+
+def _read_widget_config_all() -> dict:
+    """Return the full widgets block as it should appear in /prefs: merges
+    per-user config over defaults for all three widgets."""
+    return {name: _widget_config(name) for name in _WIDGET_DEFAULTS}
+
+
+def _write_widget_color(widget: str, field: str, value: str) -> None:
+    """Persist a single colour/fill field for one widget. Reads the whole
+    'widgets' block, sets the one key, and writes back via _write_config_value
+    so the rest of the config is not disturbed."""
+    if widget not in _WIDGET_DEFAULTS:
+        raise ValueError(f"unknown widget: {widget!r}")
+    if field not in ("base_color", "color_stops", "fill_mode"):
+        raise ValueError(f"unknown field: {field!r}")
+    p = _config_path()
+    try:
+        cfg = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    except Exception as e:
+        print(f"  _write_widget_color: config read error: {e}")
+        cfg = {}
+    widgets = dict(cfg.get("widgets") or {})
+    entry   = dict(widgets.get(widget) or {})
+    entry[field] = value
+    widgets[widget] = entry
+    _write_config_value("widgets", widgets)
+
+
 # A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
 # reassociating). Rather than toast immediately, we retry once after this delay
 # and only declare a disconnect if the retry ALSO fails. See _fetch_with_tracking.
@@ -1792,6 +1900,38 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 self._respond(b'{"ok":false}', "application/json")
                 return
             _write_config_value("liveness_delta_pct", val)
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_widget_color":
+            # Dashboard Appearance section: set base_color for one widget.
+            # Validates: widget name in (session/weekly/clock), valid hex.
+            widget = params.get("widget", [None])[0]
+            value  = params.get("value", [None])[0]
+            if widget not in _WIDGET_DEFAULTS or value is None or not _is_valid_hex(value):
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_widget_color(widget, "base_color", value.strip())
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_widget_stops":
+            # Dashboard Appearance section: set color_stops for one widget.
+            # The stops string is validated by _parse_color_stops; we reject
+            # completely-empty-after-parse strings so the user can't silently
+            # wipe all thresholds by typing garbage (though an empty string is
+            # accepted as "no stops" / always use base_color).
+            widget = params.get("widget", [None])[0]
+            value  = params.get("value", [""])[0]
+            if widget not in _WIDGET_DEFAULTS:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_widget_color(widget, "color_stops", (value or "").strip())
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_widget_fill":
+            # Dashboard Appearance section: set fill_mode for one widget.
+            widget = params.get("widget", [None])[0]
+            value  = params.get("value", [None])[0]
+            if widget not in _WIDGET_DEFAULTS or value not in ("level", "angular"):
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_widget_color(widget, "fill_mode", value)
             self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/chart":
             at = params.get("at", [None])[0]

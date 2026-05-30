@@ -161,6 +161,8 @@ from widget_updater import (
     _poll_interval_minutes,
     _liveness_oneshot_pcts,
     _liveness_delta_pct,
+    _read_widget_config_all,
+    resolve_widget_color,
 )
 
 PREFS_FILE = STATE_FILE.parent / "tray_prefs.json"
@@ -399,8 +401,46 @@ def _body_mask(size: int) -> Image.Image:
     return mask
 
 
-def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR,
-                 alert_fill=ALERT_COLOR) -> Image.Image:
+def _hex_to_rgba(hex_color: str, alpha: int = 255) -> tuple[int, int, int, int]:
+    """Convert a CSS hex colour (#rgb or #rrggbb) to an RGBA tuple.
+
+    Falls back to opaque black on any parse error so a bad config value never
+    crashes the renderer."""
+    s = hex_color.strip().lstrip("#")
+    try:
+        if len(s) == 3:
+            r = int(s[0] * 2, 16)
+            g = int(s[1] * 2, 16)
+            b = int(s[2] * 2, 16)
+        elif len(s) == 6:
+            r, g, b = int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16)
+        else:
+            raise ValueError(f"bad hex: #{s!r}")
+    except Exception as e:
+        print(f"[X] _hex_to_rgba({hex_color!r}): {e}")
+        return (0, 0, 0, alpha)
+    return (r, g, b, alpha)
+
+
+def render_ghost(pct: float, size: int = 64,
+                 base_fill=FILL_COLOR, alert_fill=ALERT_COLOR,
+                 base_color: str | None = None,
+                 color_stops: str | None = None,
+                 fill_mode: str = "level") -> Image.Image:
+    """Render the ghost icon at the given percentage fill.
+
+    Colour precedence: if base_color / color_stops are supplied (from the
+    per-widget config), they are resolved via resolve_widget_color and take
+    priority over the legacy base_fill / alert_fill RGBA tuple arguments.
+    This lets the config-driven path (colour resolver) and the old direct-
+    tuple path coexist during the transition — callers that already pass RGBA
+    tuples keep working unchanged.
+
+    fill_mode:
+      "level"   — existing bottom-to-top linear fill (default).
+      "angular" — clockwise wedge from 12 o'clock, intersected with the body
+                  mask.  Useful when you want the ghost to read like a clock.
+    """
     pct = max(0.0, min(100.0, float(pct or 0)))
     mask = _body_mask(size)
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -408,22 +448,58 @@ def render_ghost(pct: float, size: int = 64, base_fill=FILL_COLOR,
     ghost = Image.new("RGBA", (size, size), GHOST_COLOR)
     img.paste(ghost, mask=mask)
 
-    fill_color = alert_fill if pct >= 90 else base_fill
-    fill_layer = Image.new("RGBA", (size, size), fill_color)
-    # Measure the fill against the ghost's actual vertical extent, not the
-    # full icon height: _scale() centres the body, leaving empty margins
-    # above the head and below the feet. Using `size` here painted low
-    # percentages into the dead band beneath the feet, so anything under
-    # ~23% showed no blue at all. getbbox() gives the true top/bottom.
-    bbox = mask.getbbox()
-    if bbox:
-        top, bottom = bbox[1], bbox[3]
-        cut_top = int(round(bottom - (bottom - top) * (pct / 100)))
-        cut_top = max(top, min(bottom, cut_top))
-        if cut_top < bottom:
-            bottom_mask = Image.new("L", (size, size), 0)
-            bottom_mask.paste(mask.crop((0, cut_top, size, size)), (0, cut_top))
-            img.paste(fill_layer, mask=bottom_mask)
+    # Resolve fill colour: config-driven resolver wins over legacy RGBA tuples.
+    if base_color is not None:
+        hex_color = resolve_widget_color(pct, base_color, color_stops)
+        fill_rgba = _hex_to_rgba(hex_color)
+    else:
+        # Legacy path: alert_fill at 90%+, base_fill otherwise.
+        fill_rgba = alert_fill if pct >= 90 else base_fill
+
+    fill_layer = Image.new("RGBA", (size, size), fill_rgba)
+
+    if fill_mode == "angular":
+        # Angular fill: clockwise wedge from 12 o'clock (like the clock arc),
+        # intersected with the body mask so only ghost pixels are coloured.
+        # Uses ImageDraw.pieslice on a scratch mask then combines with the body
+        # mask via ImageChops.multiply (pure PIL, no numpy needed).
+        from PIL import ImageChops
+        bbox = mask.getbbox()
+        if bbox and pct > 0:
+            wedge_mask = Image.new("L", (size, size), 0)
+            d = ImageDraw.Draw(wedge_mask)
+            # Centre the pie slice on the ghost body's bounding box, and make
+            # the radius large enough to cover the whole body so the wedge
+            # clips entirely at the mask boundary, not at the circle edge.
+            cx = (bbox[0] + bbox[2]) / 2
+            cy = (bbox[1] + bbox[3]) / 2
+            r  = max(bbox[2] - bbox[0], bbox[3] - bbox[1]) / 2
+            pie_box = [cx - r, cy - r, cx + r, cy + r]
+            end_angle = -90 + 360 * (pct / 100)
+            if pct >= 99.99:
+                # Full circle: avoids floating-point gap at exactly 360°.
+                d.pieslice(pie_box, start=-90, end=270, fill=255)
+            else:
+                d.pieslice(pie_box, start=-90, end=end_angle, fill=255)
+            # AND the wedge with the body mask (ImageChops.multiply = min on L).
+            combined_mask = ImageChops.multiply(wedge_mask, mask)
+            img.paste(fill_layer, mask=combined_mask)
+    else:
+        # Level fill: existing bottom-to-top clip on the ghost body.
+        # Measure the fill against the ghost's actual vertical extent, not the
+        # full icon height: _scale() centres the body, leaving empty margins
+        # above the head and below the feet. Using `size` here painted low
+        # percentages into the dead band beneath the feet, so anything under
+        # ~23% showed no blue at all. getbbox() gives the true top/bottom.
+        bbox = mask.getbbox()
+        if bbox:
+            top, bottom = bbox[1], bbox[3]
+            cut_top = int(round(bottom - (bottom - top) * (pct / 100)))
+            cut_top = max(top, min(bottom, cut_top))
+            if cut_top < bottom:
+                bottom_mask = Image.new("L", (size, size), 0)
+                bottom_mask.paste(mask.crop((0, cut_top, size, size)), (0, cut_top))
+                img.paste(fill_layer, mask=bottom_mask)
     return img
 
 
@@ -501,6 +577,10 @@ def render_reset_arc_icon(session_start, session_end,
     The arc represents *elapsed* time: it starts empty and fills clockwise
     until the session resets. So a glance at the icon tells you how close
     you are to a fresh window.
+
+    Arc colour is sourced from the 'clock' widget config (base_color /
+    color_stops). The colour resolver treats elapsed-time % as the pct driver,
+    matching what updateArc() in widget.html does — so both renderers agree.
     """
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d   = ImageDraw.Draw(img)
@@ -536,16 +616,25 @@ def render_reset_arc_icon(session_start, session_end,
     remaining = max(0.0, total - used)
     progress  = 0.0 if total <= 0 else max(0.0, min(1.0, used / total))
 
+    # Resolve arc colour from config. The clock uses elapsed % (progress*100) as
+    # the pct driver so the alert threshold in color_stops (e.g. "90:#D64E2A")
+    # triggers at 90% elapsed — matching the HTML's remaining<=10% condition.
+    from widget_updater import _widget_config
+    cc = _widget_config("clock")
+    elapsed_pct = progress * 100
+    hex_color   = resolve_widget_color(elapsed_pct, cc.get("base_color", "#2A78D6"),
+                                       cc.get("color_stops"))
+    arc_rgba    = _hex_to_rgba(hex_color)
+
     # Track first (the "empty" part), then the pie slice for elapsed time.
     # pieslice angle 0 = east, so -90 puts the start at 12 o'clock.
     d.ellipse(box, fill=ARC_TRACK_COLOR)
     if progress > 0:
-        alert = (remaining / total) <= 0.10 if total > 0 else False
         d.pieslice(
             box,
             start=-90,
             end=-90 + 360 * progress,
-            fill=ARC_ALERT_COLOR if alert else ARC_COLOR,
+            fill=arc_rgba,
         )
 
     # Label on top. White looks crisp on both the blue arc and the dim track.
@@ -784,10 +873,21 @@ class TrayApp:
         s_pct = self._state["session_pct"] or 0
         w_pct = self._state["weekly_pct"]  or 0
         if pref_key == "show_session_ghost":
-            return render_ghost(s_pct, ICON_SIZE, base_fill=FILL_COLOR)
+            # Prefer config-driven colour resolver; fall back to hardcoded RGBA
+            # for back-compat when config is absent.
+            from widget_updater import _widget_config
+            sc = _widget_config("session")
+            return render_ghost(s_pct, ICON_SIZE,
+                                base_color=sc.get("base_color"),
+                                color_stops=sc.get("color_stops"),
+                                fill_mode=sc.get("fill_mode", "level"))
         if pref_key == "show_weekly_ghost":
-            return render_ghost(w_pct, ICON_SIZE, base_fill=WEEKLY_COLOR,
-                                alert_fill=WEEKLY_COLOR)
+            from widget_updater import _widget_config
+            wc = _widget_config("weekly")
+            return render_ghost(w_pct, ICON_SIZE,
+                                base_color=wc.get("base_color"),
+                                color_stops=wc.get("color_stops"),
+                                fill_mode=wc.get("fill_mode", "level"))
         if pref_key == "show_session_pct":
             return render_text_icon(_fmt_pct(self._state["session_pct"]),
                                     (255, 255, 255, 255), TEXT_ICON_SIZE)
@@ -1067,6 +1167,10 @@ def main():
         "poll_interval_minutes": _poll_interval_minutes(),
         "liveness_oneshot_pcts": sorted(_liveness_oneshot_pcts()),
         "liveness_delta_pct": _liveness_delta_pct(),
+        # Per-widget colour/fill config for the Appearance section in the
+        # dashboard.  Merged defaults+config so the JS can always read complete
+        # objects even when the user has only set one or two fields.
+        "widgets": _read_widget_config_all(),
     }
     _WidgetHandler._toggle_callback = tray.web_toggle
     _WidgetHandler._action_callback = tray.web_action
