@@ -201,6 +201,15 @@
     background: #444;
   }
 
+  .action-btn.danger {
+    color: #e06a52;
+  }
+
+  .action-btn.danger:hover {
+    background: #3a2422;
+    color: #ff7a5e;
+  }
+
   /* ---- settings rows ---- */
   .setting-row {
     display: flex;
@@ -385,6 +394,7 @@
       <button class="action-btn" data-action="open_config">Open config folder</button>
       <button class="action-btn" data-action="restart">Restart widget</button>
       <button class="action-btn" data-action="quit">Quit widget</button>
+      <button class="action-btn danger" data-action="uninstall">Uninstall</button>
     </div>
   </div>
 </div>
@@ -546,7 +556,16 @@
   // .action-btn look but must not fire a stray /action?name=undefined.
   document.querySelectorAll('.action-btn[data-action]').forEach(btn => {
     btn.addEventListener('click', () => {
-      fetch('/action?name=' + btn.dataset.action, { method: 'POST' });
+      const action = btn.dataset.action;
+      // Uninstall is destructive and irreversible — gate it behind a confirm.
+      if (action === 'uninstall' && !window.confirm(
+            'Uninstall the Claude Usage widget?\n\n' +
+            'This removes the start-at-login entry and all saved usage data, ' +
+            'then quits. Installed builds also delete the app folder. ' +
+            'This cannot be undone.')) {
+        return;
+      }
+      fetch('/action?name=' + action, { method: 'POST' });
     });
   });
 

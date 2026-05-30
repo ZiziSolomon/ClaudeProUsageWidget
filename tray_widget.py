@@ -99,6 +99,59 @@ lnk.Save()
         except FileNotFoundError:
             pass
 
+
+# PowerShell cleanup that outlives this process: it waits for our PID to exit
+# (so files we hold open are released), removes the Startup shortcut and the
+# user-data folder, and — only when we pass an install dir (frozen builds) —
+# the installed app folder itself, then deletes itself. Running as a detached
+# system-powershell process means it holds no lock on anything it removes.
+_UNINSTALL_PS = r"""
+param([int]$ProcId, [string]$DataDir, [string]$StateRoot,
+      [string]$InstallDir, [string]$StartupLnk)
+Set-Location -LiteralPath $env:TEMP
+try { Wait-Process -Id $ProcId -Timeout 30 -ErrorAction SilentlyContinue } catch {}
+Start-Sleep -Milliseconds 500
+Remove-Item -LiteralPath $StartupLnk -Force -ErrorAction SilentlyContinue
+foreach ($p in @($DataDir, $StateRoot, $InstallDir)) {
+  if ($p -and (Test-Path -LiteralPath $p)) {
+    Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
+Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+"""
+
+
+def _spawn_uninstall_cleanup(install_dir: str | None) -> None:
+    """Launch the detached cleanup script. Deletes the canonical user-data
+    folder always; deletes install_dir only when given (frozen builds — never
+    in a source checkout, so testing can't nuke the repo)."""
+    import tempfile
+
+    local = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    state_root = str(Path(local) / "ClaudeUsage")   # canonical user-data root
+    data_dir = str(STATE_FILE.parent)               # honours CLAUDE_USAGE_DATA_DIR
+
+    f = tempfile.NamedTemporaryFile(
+        "w", suffix=".ps1", delete=False, encoding="utf-8")
+    f.write(_UNINSTALL_PS)
+    f.close()
+
+    DETACHED_PROCESS = 0x00000008
+    CREATE_NEW_PROCESS_GROUP = 0x00000200
+    subprocess.Popen(
+        ["powershell", "-NoProfile", "-NonInteractive",
+         "-ExecutionPolicy", "Bypass", "-File", f.name,
+         "-ProcId", str(os.getpid()),
+         "-DataDir", data_dir,
+         "-StateRoot", state_root,
+         "-InstallDir", install_dir or "",
+         "-StartupLnk", str(_STARTUP_LNK)],
+        creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        close_fds=True,
+        cwd=os.environ.get("TEMP", os.getcwd()),
+    )
+
+
 from widget_updater import (
     PROJECTS_DIR,
     SERVER_PORT,
@@ -916,6 +969,8 @@ class TrayApp:
             self._restart(None, None)
         elif name == "quit":
             self._quit(None, None)
+        elif name == "uninstall":
+            self._uninstall()
 
     def _open_config_folder(self) -> None:
         """Open the per-user config/log folder (where config.json and the run
@@ -932,6 +987,25 @@ class TrayApp:
 
     def _open_dashboard(self, _i, _it):
         webbrowser.open(f"http://127.0.0.1:{SERVER_PORT}/")
+
+    def _uninstall(self):
+        """Full uninstall: drop the Startup entry, hand the rest to a detached
+        cleanup script (it waits for us to exit, then removes user data and —
+        when frozen — the installed app folder), then quit. A source checkout
+        passes no install dir, so the repo is never deleted."""
+        try:
+            _set_startup(False)
+        except Exception as e:
+            print(f"[X] uninstall: removing startup entry failed: "
+                  f"{type(e).__name__}: {e}")
+        frozen = getattr(sys, "frozen", False)
+        install_dir = os.path.dirname(sys.executable) if frozen else None
+        try:
+            _spawn_uninstall_cleanup(install_dir)
+        except Exception as e:
+            print(f"[X] uninstall: launching cleanup failed: "
+                  f"{type(e).__name__}: {e}")
+        self._quit(None, None)
 
     def _quit(self, _icon, _it):
         self._stopping = True
