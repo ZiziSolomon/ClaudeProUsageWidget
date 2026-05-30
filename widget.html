@@ -167,6 +167,45 @@
     background: #444;
   }
 
+  /* ---- settings rows ---- */
+  .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .setting-label {
+    font-size: 0.75rem;
+    color: #888;
+  }
+
+  /* poll-interval presets: same look as toggle buttons, scoped separately
+     so the generic toggle handler (which posts /toggle?key=) ignores them. */
+  .poll-btn {
+    background: #2a2a2c;
+    border: 1px solid transparent;
+    color: #888;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+
+  .poll-btn:hover {
+    background: #333;
+    color: #ccc;
+  }
+
+  .poll-btn.on {
+    background: #2A78D6;
+    color: #fff;
+  }
+
   /* ---- accuracy chart ---- */
   .chart-row {
     display: flex;
@@ -286,10 +325,26 @@
 </div>
 
 <div class="section">
-  <div class="section-title">Settings &amp; actions</div>
+  <div class="section-title">Settings</div>
   <div class="toggles">
     <button class="toggle-btn" data-key="start_at_login">Start at login</button>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label">Check usage every</span>
+    <div class="toggles" id="poll-presets">
+      <button class="poll-btn" data-minutes="5">5m</button>
+      <button class="poll-btn" data-minutes="10">10m</button>
+      <button class="poll-btn" data-minutes="20">20m</button>
+      <button class="poll-btn" data-minutes="60">60m</button>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Actions</div>
+  <div class="toggles">
     <button class="action-btn" data-action="confirm">Confirm usage %</button>
+    <button class="action-btn" data-action="open_config">Open config folder</button>
     <button class="action-btn" data-action="restart">Restart widget</button>
     <button class="action-btn" data-action="quit">Quit widget</button>
   </div>
@@ -395,12 +450,25 @@
         const key = btn.dataset.key;
         btn.classList.toggle('on', !!p[key]);
       });
+      // Highlight whichever poll-interval preset matches the effective value.
+      // No match (e.g. an env override or a custom value) leaves all off.
+      const mins = Number(p.poll_interval_minutes);
+      document.querySelectorAll('.poll-btn').forEach(btn => {
+        btn.classList.toggle('on', Number(btn.dataset.minutes) === mins);
+      });
     } catch { /* server blip */ }
   }
 
   document.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       await fetch('/toggle?key=' + btn.dataset.key, { method: 'POST' });
+      await refreshPrefs();
+    });
+  });
+
+  document.querySelectorAll('.poll-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await fetch('/set_poll?minutes=' + btn.dataset.minutes, { method: 'POST' });
       await refreshPrefs();
     });
   });

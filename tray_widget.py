@@ -105,6 +105,7 @@ from widget_updater import (
     STATE_FILE,
     TranscriptHandler,
     _WidgetHandler,
+    _poll_interval_minutes,
 )
 
 PREFS_FILE = STATE_FILE.parent / "tray_prefs.json"
@@ -907,10 +908,23 @@ class TrayApp:
         """Run a named action, called from the HTTP handler (any thread)."""
         if name == "confirm" and self.refresh_callback:
             threading.Thread(target=self.refresh_callback, daemon=True).start()
+        elif name == "open_config":
+            self._open_config_folder()
         elif name == "restart":
             self._restart(None, None)
         elif name == "quit":
             self._quit(None, None)
+
+    def _open_config_folder(self) -> None:
+        """Open the per-user config/log folder (where config.json and the run
+        logs live) in Explorer. A safe, read-only-by-default action so users
+        can find/edit settings the dashboard doesn't expose yet."""
+        folder = STATE_FILE.parent
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(folder))  # noqa: S606 - Windows-only, fixed path
+        except Exception as e:
+            print(f"[X] open config folder failed: {type(e).__name__}: {e}")
 
     # ------ misc --------------------------------------------------------
 
@@ -971,7 +985,11 @@ def main():
         print(f"[X] SetCurrentProcessExplicitAppUserModelID failed: {type(e).__name__}: {e}")
 
     tray = TrayApp()
-    _WidgetHandler._prefs_getter    = lambda: {**tray._prefs, "start_at_login": _startup_enabled()}
+    _WidgetHandler._prefs_getter    = lambda: {
+        **tray._prefs,
+        "start_at_login": _startup_enabled(),
+        "poll_interval_minutes": _poll_interval_minutes(),
+    }
     _WidgetHandler._toggle_callback = tray.web_toggle
     _WidgetHandler._action_callback = tray.web_action
 

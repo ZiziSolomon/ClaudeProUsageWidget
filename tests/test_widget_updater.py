@@ -1305,3 +1305,43 @@ class TestBudgetLowerBound:
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         assert state["session_budget_lb"] == 0
 
+
+
+# ---------------------------------------------------------------------------
+# Dashboard Settings: poll-interval config write + read-back
+# ---------------------------------------------------------------------------
+
+class TestPollIntervalSetting:
+    """The dashboard's "Check usage every" control writes
+    poll_interval_minutes to the per-user config; _liveness_interval_secs()
+    (and the _poll_interval_minutes display helper) must read it back live."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        # Point the per-user config at a temp file and ensure no env override
+        # masks the config value during these tests.
+        cfg = tmp_path / "config.json"
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: cfg)
+        monkeypatch.delenv("CLAUDE_POLL_INTERVAL_MINUTES", raising=False)
+        self._cfg = cfg
+
+    def test_write_then_read_minutes(self):
+        widget_updater._write_config_value("poll_interval_minutes", 10)
+        assert json.loads(self._cfg.read_text())["poll_interval_minutes"] == 10
+        assert widget_updater._poll_interval_minutes() == 10
+
+    def test_write_merges_with_existing_keys(self):
+        self._cfg.write_text(json.dumps({"org_id": "abc"}))
+        widget_updater._write_config_value("poll_interval_minutes", 5)
+        data = json.loads(self._cfg.read_text())
+        assert data["org_id"] == "abc"  # not clobbered
+        assert data["poll_interval_minutes"] == 5
+
+    def test_default_when_unset(self):
+        # No config, no env -> default LIVENESS_INTERVAL_SECS (1200s = 20m).
+        assert widget_updater._poll_interval_minutes() == 20
+
+    def test_floor_clamp_reflected_in_minutes(self):
+        # Below the 120s floor, the effective value is clamped up to 2m.
+        widget_updater._write_config_value("poll_interval_minutes", 0.5)
+        assert widget_updater._poll_interval_minutes() == 2

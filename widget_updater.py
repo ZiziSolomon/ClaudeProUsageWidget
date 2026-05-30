@@ -149,6 +149,23 @@ def _write_org_id(org_id: str) -> None:
         print(f"  could not save org_id to {p}: {e}")
 
 
+def _write_config_value(key: str, value) -> None:
+    """Persist a single key to the per-user config, merging with whatever is
+    already there. Used by the dashboard's Settings controls (e.g. the poll
+    interval). Mirrors _write_org_id's merge-and-write behaviour."""
+    p = _config_path()
+    try:
+        cfg = {}
+        if p.exists():
+            cfg = json.loads(p.read_text(encoding="utf-8"))
+        cfg[key] = value
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        print(f"  saved {key}={value!r} to {p}")
+    except Exception as e:
+        print(f"  could not save {key} to {p}: {e}")
+
+
 def _configured_org_id() -> str | None:
     """org_id from env or config, WITHOUT triggering discovery. None if unset
     (import must not hard-fail on a missing org_id)."""
@@ -241,6 +258,15 @@ def _liveness_interval_secs() -> int:
     except (TypeError, ValueError):
         print(f"  ignoring invalid poll_interval_minutes={raw!r}")
         return LIVENESS_INTERVAL_SECS
+
+
+def _poll_interval_minutes() -> float:
+    """Effective heartbeat interval in minutes, for display in the dashboard.
+    Derived from _liveness_interval_secs() so the floor clamp and env/config
+    resolution order are the single source of truth. Whole numbers come back
+    as ints (20.0 -> 20) so the dashboard's preset highlight matches cleanly."""
+    mins = _liveness_interval_secs() / 60
+    return int(mins) if mins == int(mins) else round(mins, 2)
 
 # A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
 # reassociating). Rather than toast immediately, we retry once after this delay
@@ -1680,6 +1706,19 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             name = params.get("name", [None])[0]
             if name:
                 _WidgetHandler._action_callback(name)
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_poll":
+            # Dashboard "Check usage every" control. Writes poll_interval_minutes
+            # to the per-user config; _liveness_interval_secs() re-reads config
+            # each poll, so the change takes effect without a restart (an env
+            # override, if set, still wins — by design).
+            raw = params.get("minutes", [None])[0]
+            try:
+                minutes = float(raw)
+            except (TypeError, ValueError):
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_config_value("poll_interval_minutes", minutes)
             self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/chart":
             at = params.get("at", [None])[0]
