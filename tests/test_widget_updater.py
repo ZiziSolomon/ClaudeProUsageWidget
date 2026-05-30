@@ -1177,6 +1177,17 @@ class TestBudgetLowerBound:
         monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
                             lambda self: None)
         monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        # Isolate from the real persisted user state: __init__ calls
+        # _load_state(), which would otherwise pull the live session's anchors
+        # and session_budget_lb into the handler. That made the lb assertions
+        # non-deterministic — the "expect a pristine 0" cases failed outright,
+        # and the running-max cases flickered as the live widget rewrote the
+        # value mid-run. Start every handler from a clean empty state instead.
+        monkeypatch.setattr(
+            widget_updater, "_load_state",
+            lambda: widget_updater._empty_state(
+                datetime(2099, 1, 1, tzinfo=timezone.utc)),
+        )
         return widget_updater.TranscriptHandler()
 
     def _seed_anchor(self, h, pct, io):
