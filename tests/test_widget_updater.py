@@ -319,9 +319,9 @@ class TestPriorBudgetMedian:
     def test_ignores_null_budget_entries(self, tmp_path, monkeypatch):
         f = tmp_path / "calibration.jsonl"
         f.write_text("\n".join([
-            json.dumps({"implied_session_budget": None}),
-            json.dumps({"implied_session_budget": 200000}),
-            json.dumps({"implied_session_budget": 300000}),
+            json.dumps({"implied_session_budget": None,   "budget_source": "live"}),
+            json.dumps({"implied_session_budget": 200000, "budget_source": "live"}),
+            json.dumps({"implied_session_budget": 300000, "budget_source": "live"}),
         ]) + "\n", encoding="utf-8")
         monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
         assert widget_updater._load_prior_budget_median() == 250000
@@ -330,12 +330,41 @@ class TestPriorBudgetMedian:
         # Older absurd value should drop out of the window and not skew the
         # median.
         f = tmp_path / "calibration.jsonl"
-        lines = [json.dumps({"implied_session_budget": 999_999_999})]
-        lines += [json.dumps({"implied_session_budget": 200000})
+        lines = [json.dumps({"implied_session_budget": 999_999_999,
+                              "budget_source": "live"})]
+        lines += [json.dumps({"implied_session_budget": 200000,
+                               "budget_source": "live"})
                   for _ in range(widget_updater.PRIOR_BUDGET_WINDOW)]
         f.write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
         assert widget_updater._load_prior_budget_median() == 200000
+
+    def test_blended_entries_excluded(self, tmp_path, monkeypatch):
+        # "blended" entries are partially derived from the prior itself —
+        # including them creates a feedback loop. Only "live" entries count.
+        f = tmp_path / "calibration.jsonl"
+        lines = [
+            json.dumps({"implied_session_budget": 50000,
+                        "budget_source": "blended"}),  # should be ignored
+            json.dumps({"implied_session_budget": 200000,
+                        "budget_source": "live"}),
+            json.dumps({"implied_session_budget": 300000,
+                        "budget_source": "live"}),
+        ]
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
+        assert widget_updater._load_prior_budget_median() == 250000
+
+    def test_no_live_entries_returns_none(self, tmp_path, monkeypatch):
+        # If every entry is blended (e.g. widget never reached floor pct),
+        # return None rather than a corrupted prior.
+        f = tmp_path / "calibration.jsonl"
+        lines = [json.dumps({"implied_session_budget": 100000,
+                              "budget_source": "blended"})
+                 for _ in range(5)]
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
+        assert widget_updater._load_prior_budget_median() is None
 
 
 class TestLocalEstimate:

@@ -599,8 +599,12 @@ PRIOR_BUDGET_WINDOW = 10
 
 def _load_prior_budget_median() -> int | None:
     """Median implied_session_budget over the last PRIOR_BUDGET_WINDOW
-    above-floor calibration samples. None if we don't have any history yet
+    live-derived calibration samples. None if we don't have any history yet
     (fresh install, or every prior session also stalled below the floor).
+
+    Only "live" entries (above-floor, direct back-derivation) are used.
+    "blended" entries are partially derived from the prior itself, so
+    including them creates a feedback loop that drifts the prior over time.
 
     Reads from calibration.jsonl, which the widget already writes. Same-day
     repeats are fine - they're all valid budget evidence."""
@@ -614,6 +618,8 @@ def _load_prior_budget_median() -> int | None:
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if rec.get("budget_source") != "live":
                 continue
             b = rec.get("implied_session_budget")
             if isinstance(b, (int, float)) and b > 0:
