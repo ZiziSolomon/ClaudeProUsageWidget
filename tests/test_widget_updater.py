@@ -440,6 +440,8 @@ class TestEmergencyRecal:
     def _make_handler(self, monkeypatch):
         monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
                             lambda self: None)
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_maybe_liveness",
+                            lambda self: None)
         monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
         return widget_updater.TranscriptHandler()
 
@@ -711,7 +713,10 @@ class TestOnModifiedAdvancesPct:
     def _make_handler(self, monkeypatch):
         # __init__ calls _startup() (network); neuter it. Also stub _save_state
         # so the test never writes to the real %LOCALAPPDATA% store.
+        # Stub _maybe_liveness so threshold triggers don't fire network calls.
         monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_maybe_liveness",
                             lambda self: None)
         monkeypatch.setattr(widget_updater, "_save_state",
                             lambda *a, **k: None)
@@ -865,6 +870,126 @@ class TestLivenessInterval:
 # to seek to a stored byte offset and only parse new bytes. These tests
 # guard the seek+offset semantics and the multi-MB performance floor.
 # ---------------------------------------------------------------------------
+
+class TestLivenessTriggers:
+    """_maybe_liveness fires on: 20-min heartbeat, 10pp local-estimate delta,
+    and one-shot thresholds at 5%, 10%, 95% (first crossing only)."""
+
+    def _make_handler(self, monkeypatch):
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        h = widget_updater.TranscriptHandler()
+        now = datetime.now(timezone.utc)
+        h.session_start = now - timedelta(hours=1)
+        h.session_end   = now + timedelta(hours=4)
+        h.state["implied_session_budget"] = 200000
+        h.state["anchor_pct"] = 0.0
+        h.state["anchor_io"]  = 0
+        h.state["input_tokens"]  = 0
+        h.state["output_tokens"] = 0
+        h.session_pct = 0
+        h.last_liveness = now   # suppress time trigger
+        return h
+
+    def _stub_fetch(self, monkeypatch, h):
+        """Stub _fetch_with_tracking to record calls and return None (enough
+        to exercise trigger logic without network)."""
+        calls = []
+        monkeypatch.setattr(h, "_fetch_with_tracking",
+                            lambda: calls.append(True) or None)
+        return calls
+
+    def test_delta_trigger_fires_at_10pp(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._liveness_anchor_pct = 20.0
+        h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
+        # est = anchor_pct + 100*(io-anchor_io)/budget = 0 + 100*20000/200000 = 10pp
+        # but we want est = 30 (10pp past anchor of 20), so set tokens accordingly
+        h.state["input_tokens"]  = 60000   # anchor_io=0, so est=60000/200000*100=30
+        h._maybe_liveness()
+        assert len(calls) == 1
+
+    def test_delta_trigger_no_fire_below_10pp(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._liveness_anchor_pct = 20.0
+        h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
+        h.state["input_tokens"] = 56000    # est=28 → 8pp above anchor, < 10
+        h._maybe_liveness()
+        assert len(calls) == 0
+
+    def test_one_shot_fires_at_5pct(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._triggered_thresholds = set()
+        h.state["input_tokens"] = 12000    # est = 6% (above 5)
+        h._maybe_liveness()
+        assert len(calls) == 1
+        assert 5 in h._triggered_thresholds
+
+    def test_one_shot_fires_at_10pct(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._triggered_thresholds = {5}      # 5% already done
+        h.state["input_tokens"] = 22000    # est = 11% (above 10)
+        h._maybe_liveness()
+        assert len(calls) == 1
+        assert 10 in h._triggered_thresholds
+
+    def test_one_shot_fires_at_95pct(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._triggered_thresholds = {5, 10}
+        h.state["input_tokens"] = 192000   # est = 96%
+        h._maybe_liveness()
+        assert len(calls) == 1
+        assert 95 in h._triggered_thresholds
+
+    def test_one_shot_not_refired(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
+        h._liveness_anchor_pct = 50.0
+        h.state["input_tokens"] = 192000   # est=96%, all one-shots done, delta=46pp
+        # Only the delta trigger should fire (96-50=46 >= 10)
+        h._maybe_liveness()
+        assert len(calls) == 1
+        # Firing again shouldn't re-trigger (anchor is now ~96)
+        calls.clear()
+        h._maybe_liveness()
+        assert len(calls) == 0
+
+    def test_anchor_updated_after_poll(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        self._stub_fetch(monkeypatch, h)
+        h._triggered_thresholds = set()
+        h.state["input_tokens"] = 12000    # est=6%, fires 5% one-shot
+        h.session_pct = 6.0
+        h._maybe_liveness()
+        assert h._liveness_anchor_pct == 6.0
+
+    def test_rollover_resets_triggers(self, monkeypatch):
+        h = self._make_handler(monkeypatch)
+        h._triggered_thresholds = set(widget_updater.LIVENESS_ONE_SHOT_PCTS)
+        h._liveness_anchor_pct = 50.0
+        # Expire the session so _roll_over_if_expired actually fires.
+        h.session_end = datetime.now(timezone.utc) - timedelta(seconds=200)
+        h._roll_over_if_expired(datetime.now(timezone.utc))
+        assert h._triggered_thresholds == set()
+        assert h._liveness_anchor_pct is None
+
+    def test_no_trigger_without_estimate(self, monkeypatch):
+        # No budget => est is None => only time trigger can fire.
+        h = self._make_handler(monkeypatch)
+        calls = self._stub_fetch(monkeypatch, h)
+        h.state.pop("implied_session_budget", None)
+        h._triggered_thresholds = set()
+        h._liveness_anchor_pct  = 0.0
+        h._maybe_liveness()   # no time due, no est → nothing
+        assert len(calls) == 0
+
 
 class TestIncrementalProcessFile:
     def _window(self):

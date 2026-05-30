@@ -217,6 +217,15 @@ WATCHDOG_MTIME_GAP_SECS = 30
 # misconfiguration can't hammer the endpoint.
 LIVENESS_INTERVAL_SECS = 1200
 LIVENESS_MIN_SECS = 120
+# Fire an extra liveness poll the first time the local estimate crosses each
+# of these thresholds (one-shot per session). 5% = floor crossing (budget
+# calibration becomes reliable); 10% = meaningful lb evidence; 95% = cap
+# warning so the user isn't surprised by a cutoff.
+LIVENESS_ONE_SHOT_PCTS: frozenset[int] = frozenset({5, 10, 95})
+# Also fire when the local estimate has moved this many pp since the last
+# liveness poll — naturally front-loads early (fast burn) and slackens mid-
+# session without any explicit schedule.
+LIVENESS_PCT_DELTA_TRIGGER = 10
 
 
 def _liveness_interval_secs() -> int:
@@ -912,6 +921,10 @@ class TranscriptHandler(FileSystemEventHandler):
         self.last_event_at    = None
         # Last successful/attempted liveness ping (distinct from calibration).
         self.last_liveness    = None
+        # Pct at the time of the last liveness attempt; delta-trigger baseline.
+        self._liveness_anchor_pct  = None
+        # One-shot thresholds already triggered this session.
+        self._triggered_thresholds: set[int] = set()
         # Most recent status contract value (see STATUS_* constants). Seeded
         # from disk so a restart doesn't briefly report "ok" before the first
         # fetch returns.
@@ -1106,6 +1119,12 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_pct   = pct
         self._set_anchor(pct)
         self._log_estimate()
+        # Sync one-shot threshold state: if restarting mid-session at e.g. 40%,
+        # mark thresholds we've already passed so we don't re-fire them.
+        self._liveness_anchor_pct = pct
+        self._triggered_thresholds = {
+            t for t in LIVENESS_ONE_SHOT_PCTS if pct is not None and pct >= t
+        }
 
         self.last_calibrated = datetime.now(timezone.utc)
         _append_calibration(self.state, pct, self.last_calibrated,
@@ -1346,19 +1365,40 @@ class TranscriptHandler(FileSystemEventHandler):
         return clamp_hit or big_gap
 
     def _maybe_liveness(self) -> None:
-        """Lightweight link check on a ~LIVENESS_INTERVAL_SECS cadence, kept
-        DISTINCT from calibration: it does not consume the calibration budget
-        and its purpose is detecting a dead/disconnected link + refreshing the
-        (lagging) cached pct, not correcting the token model.
+        """Liveness poll: re-anchor the displayed pct against the API and detect
+        a dead/disconnected link. Fires on any of:
 
-        If the ping succeeds it adopts the fresh pct (the cached estimate is
-        known to under-report). On any status change it persists + notifies so
-        the tray reflects a stall promptly."""
+          1. Time: LIVENESS_INTERVAL_SECS (20 min) since the last attempt.
+          2. Delta: local estimate has moved LIVENESS_PCT_DELTA_TRIGGER (10pp)
+             since the last attempt — naturally front-loads early when the budget
+             is burning fast, slackens mid-session without an explicit schedule.
+          3. One-shots: first time the local estimate crosses 5%, 10%, or 95%
+             (LIVENESS_ONE_SHOT_PCTS). 5% = floor crossing; 10% = meaningful lb
+             evidence; 95% = cap warning.
+
+        Does not consume the calibration budget."""
         now = datetime.now(timezone.utc)
         age = ((now - self.last_liveness).total_seconds()
                if self.last_liveness else float("inf"))
-        if age < _liveness_interval_secs():
+        est = _estimate_session_pct(self.state)  # process_file already ran
+
+        time_due  = age >= _liveness_interval_secs()
+        delta_due = (self._liveness_anchor_pct is not None
+                     and est is not None
+                     and abs(est - self._liveness_anchor_pct) >= LIVENESS_PCT_DELTA_TRIGGER)
+        due_shots = (set() if est is None else
+                     {t for t in LIVENESS_ONE_SHOT_PCTS
+                      if est >= t and t not in self._triggered_thresholds})
+
+        if not (time_due or delta_due or due_shots):
             return
+
+        if   due_shots and 5  in due_shots: trigger = "liveness_5pct"
+        elif due_shots and 10 in due_shots: trigger = "liveness_10pct"
+        elif due_shots and 95 in due_shots: trigger = "liveness_95pct"
+        elif delta_due:                     trigger = "liveness_10ppdelta"
+        else:                               trigger = "liveness"
+
         prev_status = self.status
         self._log_estimate()
         raw = self._fetch_with_tracking()  # updates self.status + last_liveness
@@ -1366,7 +1406,7 @@ class TranscriptHandler(FileSystemEventHandler):
             _, _, pct = _parse_session(raw)
             wk_pct, wk_end = _parse_weekly(raw)
             prior = self.session_pct
-            recalibrated = self._adopt_api_pct(pct, now, trigger="liveness")
+            recalibrated = self._adopt_api_pct(pct, now, trigger=trigger)
             self._log_estimate()
             self._check_and_maybe_disconnect("session", prior, pct, now,
                                              suppress_toast=recalibrated)
@@ -1374,6 +1414,14 @@ class TranscriptHandler(FileSystemEventHandler):
             if wk_pct is not None:
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
+
+        # Update trigger tracking after the attempt (regardless of success),
+        # so a persistent API outage can't cause continuous re-polling.
+        # Use the pre-fetch estimate as the new delta baseline: if the fetch
+        # failed, session_pct wasn't updated, but we still attempted at ~est.
+        self._liveness_anchor_pct = est if est is not None else self.session_pct
+        self._triggered_thresholds |= due_shots
+
         if self.status != prev_status or raw is not None:
             _save_state(self.state, self.session_pct, self.session_end,
                         self.weekly_pct, self.weekly_end, status=self.status)
@@ -1403,6 +1451,8 @@ class TranscriptHandler(FileSystemEventHandler):
         # Drop the calibration anchor so the next _maybe_calibrate re-anchors the
         # new window immediately instead of waiting out CALIBRATION_MAX_AGE_SECS.
         self.last_calibrated = None
+        self._liveness_anchor_pct = None
+        self._triggered_thresholds = set()
         _save_state(self.state, self.session_pct, self.session_end,
                     self.weekly_pct, self.weekly_end, status=self.status)
         self._notify()
