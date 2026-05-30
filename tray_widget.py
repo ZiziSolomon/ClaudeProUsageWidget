@@ -445,7 +445,9 @@ def render_ghost(pct: float, size: int = 64,
                  base_color: str | None = None,
                  color_stops: str | None = None,
                  fill_mode: str = "level",
-                 body_mask: Image.Image | None = None) -> Image.Image:
+                 body_mask: Image.Image | None = None,
+                 show_text: bool = False,
+                 label: str | None = None) -> Image.Image:
     """Render the ghost icon at the given percentage fill.
 
     Colour precedence: if base_color / color_stops are supplied (from the
@@ -464,6 +466,11 @@ def render_ghost(pct: float, size: int = 64,
       "level"   — existing bottom-to-top linear fill (default).
       "angular" — clockwise wedge from 12 o'clock, intersected with the body
                   mask.  Useful when you want the ghost to read like a clock.
+
+    show_text / label: when show_text is True and label is non-empty, the label
+    (typically the pct, e.g. "73%") is drawn centred on top of the filled body,
+    mirroring how the clock widget shows its remaining-time number. The text
+    sits above the fill so it stays legible at any fill level.
     """
     pct = max(0.0, min(100.0, float(pct or 0)))
     mask = body_mask if body_mask is not None else _body_mask(size)
@@ -524,6 +531,13 @@ def render_ghost(pct: float, size: int = 64,
                 bottom_mask = Image.new("L", (size, size), 0)
                 bottom_mask.paste(mask.crop((0, cut_top, size, size)), (0, cut_top))
                 img.paste(fill_layer, mask=bottom_mask)
+
+    # Optional centred label (e.g. "73%") on top of the fill. White + bold so it
+    # reads against both the unfilled ghost body and the coloured fill, matching
+    # the clock widget's number styling.
+    if show_text and label:
+        _draw_centered_text(ImageDraw.Draw(img), label, size,
+                            (255, 255, 255, 255), bold=True)
     return img
 
 
@@ -662,29 +676,48 @@ def render_reset_arc_icon(session_start, session_end,
     # triggers at 90% elapsed — matching the HTML's remaining<=10% condition.
     from widget_updater import _widget_config
     cc = _widget_config("clock")
+    fill_mode   = cc.get("fill_mode", "angular")
     elapsed_pct = progress * 100
     hex_color   = resolve_widget_color(elapsed_pct, cc.get("base_color", "#2A78D6"),
                                        cc.get("color_stops"))
     arc_rgba    = _hex_to_rgba(hex_color)
 
     if body_mask is not None:
-        # Custom shape: reuse render_ghost's angular pipeline so the elapsed
-        # wedge is clipped to the silhouette, identical to the ghost widgets in
-        # angular mode. elapsed_pct is the fill driver, matching the HTML.
+        # Custom shape: reuse render_ghost's pipeline so the elapsed-time fill is
+        # clipped to the silhouette, identical to the ghost widgets. elapsed_pct
+        # is the fill driver (matching the HTML) and the clock's own fill_mode
+        # (level or angular) is honoured.
         img = render_ghost(elapsed_pct, size,
                            base_color=cc.get("base_color", "#2A78D6"),
                            color_stops=cc.get("color_stops"),
-                           fill_mode="angular", body_mask=body_mask)
+                           fill_mode=fill_mode, body_mask=body_mask)
         if show_text:
             _draw_centered_text(ImageDraw.Draw(img),
                                 _fmt_remaining_label(remaining), size,
                                 (255, 255, 255, 255), bold=True)
         return img
 
-    # Track first (the "empty" part), then the pie slice for elapsed time.
-    # pieslice angle 0 = east, so -90 puts the start at 12 o'clock.
+    # Default circle. The dim track shows the "empty" portion; the coloured fill
+    # grows with elapsed time. Angular = clockwise pie wedge (clock-face look);
+    # level = bottom-to-top fill of the disc (matches the ghost widgets).
     d.ellipse(box, fill=ARC_TRACK_COLOR)
-    if progress > 0:
+    if progress > 0 and fill_mode == "level":
+        # Build a disc mask, then crop it from the fill line down and paste the
+        # colour through it — same level technique as render_ghost.
+        disc = Image.new("L", (size, size), 0)
+        ImageDraw.Draw(disc).ellipse(box, fill=255)
+        dbbox = disc.getbbox()
+        if dbbox:
+            top, bottom = dbbox[1], dbbox[3]
+            cut_top = int(round(bottom - (bottom - top) * progress))
+            cut_top = max(top, min(bottom, cut_top))
+            if cut_top < bottom:
+                fill_layer  = Image.new("RGBA", (size, size), arc_rgba)
+                bottom_mask = Image.new("L", (size, size), 0)
+                bottom_mask.paste(disc.crop((0, cut_top, size, size)), (0, cut_top))
+                img.paste(fill_layer, mask=bottom_mask)
+    elif progress > 0:
+        # Angular pie slice. pieslice angle 0 = east, so -90 starts at 12 o'clock.
         d.pieslice(
             box,
             start=-90,
@@ -937,7 +970,9 @@ class TrayApp:
                                 base_color=sc.get("base_color"),
                                 color_stops=sc.get("color_stops"),
                                 fill_mode=sc.get("fill_mode", "level"),
-                                body_mask=_load_widget_mask("session", ICON_SIZE))
+                                body_mask=_load_widget_mask("session", ICON_SIZE),
+                                show_text=_widget_show_text("session"),
+                                label=_fmt_pct(self._state["session_pct"]))
         if pref_key == "show_weekly_ghost":
             from widget_updater import _widget_config
             wc = _widget_config("weekly")
@@ -945,7 +980,9 @@ class TrayApp:
                                 base_color=wc.get("base_color"),
                                 color_stops=wc.get("color_stops"),
                                 fill_mode=wc.get("fill_mode", "level"),
-                                body_mask=_load_widget_mask("weekly", ICON_SIZE))
+                                body_mask=_load_widget_mask("weekly", ICON_SIZE),
+                                show_text=_widget_show_text("weekly"),
+                                label=_fmt_pct(self._state["weekly_pct"]))
         if pref_key == "show_session_pct":
             return render_text_icon(_fmt_pct(self._state["session_pct"]),
                                     (255, 255, 255, 255), TEXT_ICON_SIZE)

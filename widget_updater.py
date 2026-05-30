@@ -445,6 +445,28 @@ def _write_widget_field(widget: str, field: str, value) -> None:
     _write_config_value("widgets", widgets)
 
 
+def _reset_widget_appearance(widget: str) -> None:
+    """Revert one widget's appearance to the built-in defaults by deleting its
+    base_color/color_stops/fill_mode/show_text overrides from the config. The
+    'shape' key is left untouched (it has its own reset via /reset_widget_shape),
+    so resetting colours doesn't silently wipe a custom shape. After this,
+    _widget_config falls back to _WIDGET_DEFAULTS for the cleared keys."""
+    if widget not in _WIDGET_DEFAULTS:
+        raise ValueError(f"unknown widget: {widget!r}")
+    p = _config_path()
+    try:
+        cfg = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    except Exception as e:
+        print(f"  _reset_widget_appearance: config read error: {e}")
+        return
+    widgets = dict(cfg.get("widgets") or {})
+    entry   = dict(widgets.get(widget) or {})
+    for k in ("base_color", "color_stops", "fill_mode", "show_text"):
+        entry.pop(k, None)
+    widgets[widget] = entry
+    _write_config_value("widgets", widgets)
+
+
 def _widget_shape_path(widget: str) -> Path | None:
     """Absolute path to the custom mask PNG for `widget`, or None when no shape
     is configured (built-in default) or the recorded file has gone missing.
@@ -1887,15 +1909,33 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif path == "/shape_image":
-            # Serve the stored custom mask PNG for one widget, used by the
-            # dashboard as a CSS mask-image. 404 when no shape is set so the JS
-            # can fall back to the built-in inline SVG. The `?t=` cache-buster
-            # the client appends makes re-uploads show up immediately.
+            # Serve the stored custom mask for one widget, used by the dashboard
+            # as a CSS mask-image. 404 when no shape is set so the JS can fall
+            # back to the built-in inline SVG. The `?t=` cache-buster the client
+            # appends makes re-uploads show up immediately.
+            #
+            # The mask is stored as an L-mode (grayscale) PNG: pixel value = mask,
+            # NO alpha channel. PIL uses that value directly, but CSS mask-image
+            # defaults to ALPHA masking, where a fully-opaque L PNG reads as "show
+            # everything" -> the div renders as a solid rectangle. So we convert
+            # to RGBA with alpha = the mask before serving to the browser. The
+            # stored file and the PIL render path are untouched.
             from urllib.parse import parse_qs
             widget = parse_qs(urlparse(self.path).query).get("widget", [None])[0]
             sp = _widget_shape_path(widget) if widget in _WIDGET_DEFAULTS else None
             if sp is not None:
-                self._respond(sp.read_bytes(), "image/png")
+                try:
+                    from PIL import Image
+                    import io
+                    m = Image.open(sp).convert("L")
+                    rgba = Image.new("RGBA", m.size, (255, 255, 255, 0))
+                    rgba.putalpha(m)  # white fill, alpha = mask (CSS uses alpha)
+                    buf = io.BytesIO()
+                    rgba.save(buf, "PNG")
+                    self._respond(buf.getvalue(), "image/png")
+                except Exception as e:
+                    print(f"  shape_image: convert failed for {widget}: {e}")
+                    self._respond(sp.read_bytes(), "image/png")
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -2014,6 +2054,15 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             except OSError as e:
                 print(f"  reset_widget_shape: could not remove mask: {e}")
             _write_widget_field(widget, "shape", "")
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/reset_widget_appearance":
+            # Revert one widget's colour/stops/fill/show_text to defaults. Shape
+            # is preserved (it has its own reset endpoint).
+            widget = params.get("widget", [None])[0]
+            if widget not in _WIDGET_DEFAULTS:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _reset_widget_appearance(widget)
             self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/chart":
             at = params.get("at", [None])[0]

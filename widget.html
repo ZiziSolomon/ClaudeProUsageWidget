@@ -89,7 +89,33 @@
   /* Clock custom shape sits in the arc-wrap and is masked the same way. */
   .arc-wrap .shape-fill { display: none; }
 
+  /* Centred %-label overlaid on the ghost body, shown only when the widget's
+     show_text flag is on. Mirrors the tray icon, which draws the pct in the
+     centre of the ghost (render_ghost show_text/label). Hidden by default. */
+  .ghost-center {
+    position: absolute;
+    inset: 0;
+    display: none;            /* toggled to flex by setGhost when show_text on */
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: #fff;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
   /* arc widget */
+  /* Must be a sized, positioned box so the clock's custom-shape overlay
+     (.shape-fill, position:absolute inset:0) is constrained to the arc instead
+     of escaping to fill the page. Matches the arc SVG's 121x121 viewBox. */
+  .arc-wrap {
+    position: relative;
+    width: 121px;
+    height: 121px;
+  }
+
   .arc-wrap svg {
     display: block;
   }
@@ -108,6 +134,27 @@
   }
 
   .pct-label.weekly { color: #F5A623; }
+
+  .appearance-hint {
+    font-size: 0.72rem;
+    color: #888;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    max-width: 640px;
+  }
+  .appearance-hint code {
+    background: rgba(255,255,255,0.07);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.95em;
+  }
+  .appearance-status {
+    font-size: 0.72rem;
+    color: #888;
+    margin-left: 6px;
+    min-width: 90px;
+  }
+  .appearance-status.warn { color: #d6a14e; }
 
   .sub-label {
     font-size: 0.7rem;
@@ -364,6 +411,7 @@
              M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
       </svg>
       <div class="shape-fill" id="sess-shape"></div>
+      <div class="ghost-center" id="sess-center"></div>
     </div>
     <div class="pct-label" id="sess-pct">—%</div>
     <div class="sub-label" id="sess-when">session</div>
@@ -392,6 +440,7 @@
              M 83,25 L 83,36 L 89,36 L 89,25 Z"/>
       </svg>
       <div class="shape-fill" id="week-shape"></div>
+      <div class="ghost-center" id="week-center"></div>
     </div>
     <div class="pct-label weekly" id="week-pct">—%</div>
     <div class="sub-label" id="week-when">weekly</div>
@@ -471,12 +520,19 @@
   <div class="section-title">Appearance</div>
   <div class="section-body">
 
+    <div class="appearance-hint">
+      Colour steps: <code>pct:hex</code> pairs separated by commas — e.g.
+      <code>50:#FFCC00,90:#D64E2A</code>. The highest step at or below the
+      current % wins; below the lowest step the base colour is used.
+      <strong>Each pair needs its own colon.</strong>
+    </div>
+
     <!-- Session ghost row -->
     <div class="appearance-row">
       <span class="appearance-row-label">Session ghost</span>
       <input type="color" id="sess-base-swatch"   class="color-swatch" title="Base colour"/>
       <input type="text"  id="sess-base-color"     class="setting-input narrow" placeholder="#2A78D6"/>
-      <input type="text"  id="sess-stops"          class="setting-input"        placeholder="90:#D64E2A"/>
+      <input type="text"  id="sess-stops"          class="setting-input"        placeholder="50:#FFCC00,90:#D64E2A"/>
       <select id="sess-fill-mode" class="session-select">
         <option value="level">Level</option>
         <option value="angular">Angular</option>
@@ -485,6 +541,8 @@
       <input type="file" id="sess-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
       <button class="action-btn" id="sess-shape-reset">Reset shape</button>
       <button class="action-btn" id="sess-appearance-save">Save</button>
+      <button class="action-btn" id="sess-appearance-reset">Reset</button>
+      <span class="appearance-status" id="sess-appearance-status"></span>
     </div>
 
     <!-- Weekly ghost row -->
@@ -492,7 +550,7 @@
       <span class="appearance-row-label">Weekly ghost</span>
       <input type="color" id="week-base-swatch"   class="color-swatch" title="Base colour"/>
       <input type="text"  id="week-base-color"     class="setting-input narrow" placeholder="#F5A623"/>
-      <input type="text"  id="week-stops"          class="setting-input"        placeholder="90:#D64E2A"/>
+      <input type="text"  id="week-stops"          class="setting-input"        placeholder="50:#FFCC00,90:#D64E2A"/>
       <select id="week-fill-mode" class="session-select">
         <option value="level">Level</option>
         <option value="angular">Angular</option>
@@ -501,6 +559,8 @@
       <input type="file" id="week-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
       <button class="action-btn" id="week-shape-reset">Reset shape</button>
       <button class="action-btn" id="week-appearance-save">Save</button>
+      <button class="action-btn" id="week-appearance-reset">Reset</button>
+      <span class="appearance-status" id="week-appearance-status"></span>
     </div>
 
     <!-- Session clock row -->
@@ -508,7 +568,7 @@
       <span class="appearance-row-label">Session clock</span>
       <input type="color" id="clock-base-swatch"  class="color-swatch" title="Base colour"/>
       <input type="text"  id="clock-base-color"    class="setting-input narrow" placeholder="#2A78D6"/>
-      <input type="text"  id="clock-stops"         class="setting-input"        placeholder="90:#D64E2A"/>
+      <input type="text"  id="clock-stops"         class="setting-input"        placeholder="50:#FFCC00,90:#D64E2A"/>
       <select id="clock-fill-mode" class="session-select">
         <option value="level">Level</option>
         <option value="angular">Angular</option>
@@ -517,6 +577,8 @@
       <input type="file" id="clock-shape-file" class="shape-file" accept=".svg,.png,.bmp,.gif,.webp,.jpg,.jpeg,image/*"/>
       <button class="action-btn" id="clock-shape-reset">Reset shape</button>
       <button class="action-btn" id="clock-appearance-save">Save</button>
+      <button class="action-btn" id="clock-appearance-reset">Reset</button>
+      <span class="appearance-status" id="clock-appearance-status"></span>
     </div>
 
   </div>
@@ -727,6 +789,19 @@
       fillEl.style.setProperty('--clip-top', (100 - pct) + '%');
     }
 
+    // Centred pct overlay, mirroring the tray icon. Shown only when show_text
+    // is on (default true); hidden when explicitly false.
+    const centerEl = document.getElementById(widgetName === 'session'
+      ? 'sess-center' : widgetName === 'weekly' ? 'week-center' : null);
+    if (centerEl) {
+      if (cfg.show_text === false) {
+        centerEl.style.display = 'none';
+      } else {
+        centerEl.style.display = 'flex';
+        centerEl.textContent = Math.round(pct) + '%';
+      }
+    }
+
     pathEl.setAttribute('fill', color);
   }
 
@@ -760,6 +835,7 @@
   function updateArc(sessionStart, sessionEnd) {
     const cx = 60.5, cy = 60.5, r = 54;
     const cc = _widgetCfg.clock || {};
+    const fillMode = cc.fill_mode || 'angular';
     const clockShape = document.getElementById('clock-shape');
     const arcSvg = arcFill.closest('svg');
     // Custom clock shape: hide the circle arc + track, drive the masked overlay
@@ -778,7 +854,7 @@
       arcSub.textContent  = 'time left';
       if (useShape) setShapeFill(clockShape, null, 0,
         resolveWidgetColor(0, cc.base_color || '#2A78D6', cc.color_stops),
-        'angular', 'clock');
+        fillMode, 'clock');
       return;
     }
     const now   = Date.now();
@@ -790,7 +866,7 @@
       arcSub.textContent  = 'resetting…';
       if (useShape) setShapeFill(clockShape, null, 0,
         resolveWidgetColor(0, cc.base_color || '#2A78D6', cc.color_stops),
-        'angular', 'clock');
+        fillMode, 'clock');
       return;
     }
     const total    = end - start;
@@ -805,13 +881,26 @@
     const arcColor = resolveWidgetColor(elapsedPct, cc.base_color || '#2A78D6', cc.color_stops);
 
     if (useShape) {
-      setShapeFill(clockShape, null, elapsedPct, arcColor, 'angular', 'clock');
+      setShapeFill(clockShape, null, elapsedPct, arcColor, fillMode, 'clock');
+    } else if (fillMode === 'level') {
+      // Level fill: draw the full disc and clip it bottom-to-top by elapsed %,
+      // mirroring the PIL renderer's level branch. clip-top% hides the top.
+      if (progress <= 0) {
+        arcFill.setAttribute('d', '');
+      } else {
+        arcFill.setAttribute('d',
+          `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`);
+      }
+      arcFill.style.clipPath = `inset(${(100 - elapsedPct).toFixed(2)}% 0 0 0)`;
     } else if (progress <= 0) {
       arcFill.setAttribute('d', '');
+      arcFill.style.clipPath = '';
     } else if (progress >= 0.9999) {
+      arcFill.style.clipPath = '';
       arcFill.setAttribute('d',
         `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`);
     } else {
+      arcFill.style.clipPath = '';
       const a1 = -Math.PI / 2;
       const a2 = a1 + 2 * Math.PI * progress;
       const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
@@ -962,8 +1051,45 @@
       btn.textContent = 'Error';
     }
     btn.blur();
+
+    // Stop-count feedback: report how many steps were accepted vs. how many
+    // non-empty entries were typed, so a malformed step (missing colon, bad
+    // hex) is visible instead of silently vanishing.
+    const prefix = { session: 'sess', weekly: 'week', clock: 'clock' }[widgetName];
+    const statusEl = prefix && document.getElementById(prefix + '-appearance-status');
+    if (statusEl) {
+      const typed    = stops.split(',').map(s => s.trim()).filter(Boolean).length;
+      const accepted = parseColorStops(stops).length;
+      if (typed === 0) {
+        statusEl.textContent = 'no steps';
+        statusEl.classList.remove('warn');
+      } else if (accepted < typed) {
+        statusEl.textContent = `${accepted} of ${typed} steps applied`;
+        statusEl.classList.add('warn');
+      } else {
+        statusEl.textContent = `${accepted} step${accepted === 1 ? '' : 's'} applied`;
+        statusEl.classList.remove('warn');
+      }
+    }
+
     await refreshPrefs();
     setTimeout(() => { btn.textContent = orig; }, 1200);
+  }
+
+  // Full per-widget reset: colour/stops/fill/text AND any custom shape, so one
+  // button returns the widget to its built-in default. The dedicated "Reset
+  // shape" button remains for shape-only reverts.
+  async function resetAppearance(widgetName) {
+    await fetch('/reset_widget_appearance?widget=' + widgetName, { method: 'POST' })
+      .catch(() => {});
+    await fetch('/reset_widget_shape?widget=' + widgetName, { method: 'POST' })
+      .catch(() => {});
+    _shapeVer[widgetName] = Date.now();  // bust the shape_image cache
+    const prefix = { session: 'sess', weekly: 'week', clock: 'clock' }[widgetName];
+    const statusEl = prefix && document.getElementById(prefix + '-appearance-status');
+    if (statusEl) { statusEl.textContent = 'reset to defaults'; statusEl.classList.remove('warn'); }
+    await refreshPrefs();
+    await refresh();
   }
 
   document.getElementById('sess-appearance-save').addEventListener('click', () =>
@@ -975,6 +1101,13 @@
   document.getElementById('clock-appearance-save').addEventListener('click', () =>
     saveWidgetAppearance('clock', 'clock-base-color', 'clock-stops', 'clock-fill-mode',
                          'clock-show-text', 'clock-appearance-save'));
+
+  document.getElementById('sess-appearance-reset').addEventListener('click', () =>
+    resetAppearance('session'));
+  document.getElementById('week-appearance-reset').addEventListener('click', () =>
+    resetAppearance('weekly'));
+  document.getElementById('clock-appearance-reset').addEventListener('click', () =>
+    resetAppearance('clock'));
 
   // ---- custom shape upload + reset ----
   // The file picker POSTs the raw file body with ?widget= and the original
