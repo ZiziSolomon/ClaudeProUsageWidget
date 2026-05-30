@@ -519,6 +519,11 @@ def _empty_state(session_start: datetime | None = None) -> dict:
         "offsets": {},
         "session_start": session_start.isoformat() if session_start else None,
         "calibration_calls_remaining": CALIBRATION_CALLS_PER_SESSION,
+        # Guaranteed lower bound on the true session budget. Reset each session.
+        "session_budget_lb": 0,
+        # All API-confirmed (pct, io) pairs this session, used to find the
+        # widest clean span for the tightest lower bound. See _set_anchor.
+        "session_anchors": [],
     }
 
 
@@ -698,6 +703,15 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         prior = _load_prior_budget_median()
         implied = _blended_sub_floor_budget(total_io, pct, prior)
         budget_source = "blended" if implied is not None else None
+    # Never let the budget fall below the delta-derived lower bound. If the
+    # absolute back-derivation yields a smaller number, it's wrong (the math
+    # guarantees lb ≤ B_true always), so clamp up. Off-laptop contamination
+    # only inflates Δpct, producing a smaller (more conservative) lb — the
+    # max() in _set_anchor ensures we hold the tightest bound we've seen.
+    lb = state.get("session_budget_lb", 0)
+    if lb and implied and implied < lb:
+        print(f"  budget lb clamp: {implied} -> {lb} (delta evidence)")
+        implied = lb
     if implied and update_budget:
         state["implied_session_budget"] = implied
     record   = {
@@ -1107,10 +1121,38 @@ class TranscriptHandler(FileSystemEventHandler):
     def _set_anchor(self, pct: float) -> None:
         """Record the API-confirmed pct and current local io as the extrapolation
         anchor.  _local_estimate then starts from pct and adds delta only, so the
-        display snaps to the API value and drifts only on new local tokens."""
+        display snaps to the API value and drifts only on new local tokens.
+
+        Also updates session_budget_lb by checking the current reading against
+        every prior anchor this session and taking the best lower bound:
+
+          lb = 100 * Δio_local / (Δpct_api + 1)
+
+        The "+1" accounts for worst-case floor rounding (true Δpct can be up to
+        observed + 1 pp). Checking all past anchors, not just the most recent,
+        lets this correction amortize over the widest clean span available: if
+        poll 2 was contaminated (off-laptop inflated Δpct → small lb), pair
+        (1, 3) may still span a large clean Δio relative to Δpct and give a
+        tighter bound. max() across all pairs keeps the best seen."""
+        io_now  = self.state["input_tokens"] + self.state["output_tokens"]
+        anchors = self.state.get("session_anchors") or []
+        if io_now > 0 and anchors:
+            best_lb = 0
+            for prev_pct, prev_io in anchors:
+                d_pct = pct - prev_pct
+                d_io  = io_now - prev_io
+                # Skip negative Δpct (session reset) and non-positive Δio.
+                if d_pct >= 0 and d_io > 0:
+                    lb = int(100 * d_io / (d_pct + 1.0))
+                    if lb > best_lb:
+                        best_lb = lb
+            if best_lb > 0:
+                self.state["session_budget_lb"] = max(
+                    self.state.get("session_budget_lb", 0), best_lb
+                )
+        self.state["session_anchors"] = anchors + [[pct, io_now]]
         self.state["anchor_pct"] = pct
-        self.state["anchor_io"]  = (self.state["input_tokens"]
-                                    + self.state["output_tokens"])
+        self.state["anchor_io"]  = io_now
 
     def _adopt_api_pct(self, pct: float | None, now: datetime,
                        trigger: str = "scheduled") -> bool:

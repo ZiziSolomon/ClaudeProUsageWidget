@@ -696,6 +696,11 @@ class TestOnModifiedAdvancesPct:
         h.state["implied_session_budget"] = 200000
         h.state["input_tokens"] = 40000
         h.state["output_tokens"] = 60000   # 100k => 50%
+        # Clear any real-state anchor so the fallback (total_io/budget) path
+        # runs cleanly rather than using a live anchor that happens to be loaded
+        # from the user's real widget_state.json via _load_state().
+        h.state.pop("anchor_pct", None)
+        h.state.pop("anchor_io", None)
         h.session_pct = 50.0
 
         # Fail loudly if any network fetch is attempted on this path.
@@ -966,4 +971,154 @@ class TestIncrementalProcessFile:
         assert widget_updater.process_file(f, state, start, end) is False
         assert state["offsets"].get(str(f), 0) == 0
         assert state["input_tokens"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Budget lower bound (delta-calibration)
+#
+# Every API-to-API interval gives a guaranteed lower bound on the true budget:
+#   lb = 100 * Δio_local / (Δpct_api + 1)
+# The "+1" accounts for worst-case floor rounding (true Δpct could be up to
+# observed + 1 pp). Off-laptop contamination inflates Δpct, which makes lb
+# smaller (more conservative) — the max() in _set_anchor preserves the
+# tightest bound ever seen this session.
+# ---------------------------------------------------------------------------
+
+class TestBudgetLowerBound:
+    @pytest.fixture(autouse=True)
+    def _isolate_calibration_file(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
+                            tmp_path / "calibration.jsonl")
+
+    def _make_handler(self, monkeypatch):
+        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
+                            lambda self: None)
+        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
+        return widget_updater.TranscriptHandler()
+
+    def _seed_anchor(self, h, pct, io):
+        """Set a clean anchor directly (bypasses lb computation for setup)."""
+        h.state["session_anchors"] = (h.state.get("session_anchors") or []) + [[pct, io]]
+        h.state["anchor_pct"] = pct
+        h.state["anchor_io"]  = io
+        h.state["input_tokens"]  = io
+        h.state["output_tokens"] = 0
+
+    def test_no_lb_on_first_anchor(self, monkeypatch):
+        # First anchor: session_anchors is empty, no prior to diff against.
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        h.state["input_tokens"] = 10000
+        h.state["output_tokens"] = 0
+        h._set_anchor(5.0)
+        assert h.state.get("session_budget_lb", 0) == 0
+
+    def test_lb_computed_on_second_anchor(self, monkeypatch):
+        # 10k tokens, Δpct=5 → denom=6 → lb = 100*10000/6 = 166666
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 5.0, 5000)          # anchor 1, no lb yet
+        h.state["input_tokens"] = 15000           # +10k
+        h._set_anchor(10.0)                       # Δpct=5, Δio=10k
+        assert h.state["session_budget_lb"] == int(100 * 10000 / 6)
+
+    def test_worst_case_rounding_uses_delta_plus_one(self, monkeypatch):
+        # denom must be Δpct+1, not Δpct — the bound must hold even if the
+        # true Δpct was Δpct_api + 0.99 pp (floor rounding worst case).
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 0.0, 0)
+        h.state["input_tokens"] = 20000
+        h._set_anchor(2.0)                        # Δpct=2 → denom=3
+        assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
+        assert h.state["session_budget_lb"] < int(100 * 20000 / 2)  # not naive /2
+
+    def test_zero_delta_pct_gives_lb(self, monkeypatch):
+        # Δpct=0, Δio>0: pct didn't tick so true Δpct < 1 pp → denom=1.
+        # lb = 100 * Δio / 1 = budget ≥ 100 × tokens_used.
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 5.0, 1000)
+        h.state["input_tokens"] = 6000            # +5k, pct still 5
+        h._set_anchor(5.0)                        # Δpct=0 → denom=1
+        assert h.state["session_budget_lb"] == int(100 * 5000 / 1)
+
+    def test_lb_is_running_maximum(self, monkeypatch):
+        # lb grows when a new pair is tighter, stays put when it's looser.
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 0.0, 0)
+
+        # Anchor 2: 20k tokens, Δpct=2 → pair(1,2): lb = 100*20000/3 ≈ 666k
+        h.state["input_tokens"] = 20000
+        h._set_anchor(2.0)
+        lb1 = h.state["session_budget_lb"]
+        assert lb1 == int(100 * 20000 / 3)
+
+        # Anchor 3: contaminated (+2k local, Δpct=5). All pairs involving
+        # anchor 3 have inflated Δpct → smaller lb. max() preserves lb1.
+        h.state["input_tokens"] = 22000
+        h._set_anchor(7.0)
+        assert h.state["session_budget_lb"] == lb1
+
+        # Anchor 4: 30k local tokens, Δpct=1.
+        # pair(3,4): lb = 100*30000/2 = 1500000 — tighter, wins.
+        h.state["input_tokens"] = 52000
+        h._set_anchor(8.0)
+        assert h.state["session_budget_lb"] == int(100 * 30000 / 2)
+
+    def test_full_history_beats_consecutive(self, monkeypatch):
+        # Two clean intervals each with Δpct=1. Consecutive lb = 100*Δio/2.
+        # The full span (anchor1→anchor3) has Δpct=2 → lb = 100*(2*Δio)/3,
+        # which is larger than 100*Δio/2 — the "+1" amortizes over more pcts.
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 0.0, 0)
+
+        h.state["input_tokens"] = 10000
+        h._set_anchor(1.0)                        # pair(1,2): lb=100*10k/2=500k
+        lb_after_2 = h.state["session_budget_lb"]
+
+        h.state["input_tokens"] = 20000
+        h._set_anchor(2.0)
+        # pair(1,3): Δpct=2, Δio=20k → lb=100*20k/3=666k  (full span wins)
+        # pair(2,3): Δpct=1, Δio=10k → lb=100*10k/2=500k
+        assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
+        assert h.state["session_budget_lb"] > lb_after_2
+
+    def test_negative_delta_pct_skipped(self, monkeypatch):
+        # A pct drop signals a session reset — skip to avoid a nonsensical lb.
+        h = self._make_handler(monkeypatch)
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 40.0, 50000)
+        h.state["input_tokens"] = 60000
+        h._set_anchor(5.0)                        # pct dropped — skip
+        assert h.state.get("session_budget_lb", 0) == 0
+
+    def test_append_calibration_clamped_up_to_lb(self, monkeypatch):
+        # If the absolute back-derivation yields a budget below the lb,
+        # _append_calibration must clamp it up.
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 10000
+        state["output_tokens"] = 0
+        # lb says budget ≥ 300k, but 10k tokens at 5% implies only 200k.
+        state["session_budget_lb"] = 300000
+        widget_updater._append_calibration(state, 5.0, datetime.now(timezone.utc))
+        assert state["implied_session_budget"] == 300000
+
+    def test_append_calibration_not_clamped_when_above_lb(self, monkeypatch):
+        # When the derived budget already exceeds lb, no clamping occurs.
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        state["input_tokens"] = 50000
+        state["output_tokens"] = 50000   # 100k at 50% → 200k
+        state["session_budget_lb"] = 100000
+        widget_updater._append_calibration(state, 50.0, datetime.now(timezone.utc))
+        assert state["implied_session_budget"] == 200000
+
+    def test_empty_state_has_zero_lb(self):
+        state = widget_updater._empty_state(
+            datetime(2099, 1, 1, tzinfo=timezone.utc))
+        assert state["session_budget_lb"] == 0
 
