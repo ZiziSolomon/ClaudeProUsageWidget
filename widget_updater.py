@@ -651,9 +651,14 @@ def _blended_sub_floor_budget(total_io: int, pct_live: float,
     when it disagrees with X, especially at pct=0 where X's bounds are wide
     enough to be barely informative.
 
-    Blend: w * X + (1-w) * M, with w linear in pct_live (0.2 at pct=0 ->
-    0.8 at pct=4). At low pct we lean on M because X is uncertain; as the
-    live reading firms up, we lean on X.
+    Blend: w * X + (1-w) * M, where w = pct_live / (pct_live + 1).
+    This follows directly from the floor-rounding uncertainty: at pct=N the
+    true budget is in [100*io/(N+1), 100*io/N], a ratio of (N+1)/N. So:
+      pct=0 → w=0   (entirely prior; local gives no upper bound at all)
+      pct=1 → w=0.5 (factor-of-2 uncertainty; equal weight)
+      pct=2 → w=0.67
+      pct=4 → w=0.8 (25% uncertainty; mostly local)
+    At pct≥5 the main _append_calibration path handles it directly.
 
     Lower-clamp at X/2 only - asymmetric. The symmetric [X/2, 2X] clamp
     would actively cause the off-laptop-contamination overshoot it's
@@ -667,21 +672,15 @@ def _blended_sub_floor_budget(total_io: int, pct_live: float,
     Returns None if we can't form even an X (zero tokens)."""
     if total_io <= 0 or pct_live is None or pct_live >= CALIBRATION_PCT_FLOOR:
         return None
-    # Round-to-nearest at 1% resolution: pct=N => true ∈ [N-0.5, N+0.5].
-    # Clamp the lower edge at 0 (no negative usage).
-    lower_pct = max(pct_live - 0.5, 0.0)
-    upper_pct = pct_live + 0.5
-    midpoint_pct = (lower_pct + upper_pct) / 2
-    # midpoint_pct == 0 only if pct_live <= -0.5, which we've excluded.
-    # For pct_live=0 the midpoint is 0.25%, which keeps X finite.
-    if midpoint_pct <= 0:
-        return None
+    # Floor rounding: pct=N means true pct ∈ [N, N+1) (floor convention).
+    # Midpoint of [N, N+1) is N+0.5; clamped lower edge at 0 for pct=0.
+    lower_pct = max(pct_live, 0.0)
+    midpoint_pct = lower_pct + 0.5
     x = total_io / (midpoint_pct / 100)
     if prior_median is None or prior_median <= 0:
         return int(round(x))
-    # Weight: 0.2 at pct=0, 0.8 at pct=4. Linear; clamped just in case
-    # a future floor change makes pct_live land outside [0, 4].
-    w = max(0.2, min(0.8, 0.2 + 0.15 * pct_live))
+    # w = pct/(pct+1): 0 at pct=0 (entirely prior), 0.8 at pct=4.
+    w = pct_live / (pct_live + 1.0)
     blended = w * x + (1 - w) * prior_median
     # Asymmetric clamp: floor at X/2 to stop M dragging us implausibly low,
     # but no ceiling - M > X is the off-laptop-contamination signature and

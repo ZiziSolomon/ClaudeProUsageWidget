@@ -219,8 +219,8 @@ class TestCalibrationRecordsBudget:
         widget_updater._append_calibration(state, float(pct),
                                            datetime.now(timezone.utc))
         # No prior history -> blend falls back to X alone:
-        # midpoint_pct = (3.5 + 4.5) / 2 = 4.0% => X = 2000 / 0.04 = 50000.
-        assert state["implied_session_budget"] == 50000
+        # floor convention: midpoint = 4 + 0.5 = 4.5% => X = 2000/0.045 ≈ 44444.
+        assert state["implied_session_budget"] == int(round(2000 / 0.045))
 
     def test_at_floor_sets_budget(self):
         # At the floor exactly we DO trust it: 2k io at floor% => 2k/(floor/100).
@@ -239,12 +239,9 @@ class TestBlendedSubFloorBudget:
     going through the calibration file dance."""
 
     def _x(self, total_io, pct):
-        # Mirror the production midpoint: round-to-nearest at 1% means
-        # true_pct in [N-0.5, N+0.5], so midpoint = N (for N>=0.5) or
-        # 0.25% (for N=0).
-        lower = max(pct - 0.5, 0.0)
-        upper = pct + 0.5
-        return total_io / (((lower + upper) / 2) / 100)
+        # Mirror the production midpoint: floor convention means true pct ∈
+        # [N, N+1), so midpoint = N + 0.5.
+        return total_io / ((pct + 0.5) / 100)
 
     def test_no_history_returns_x(self):
         # With no M to blend, we just get X back unchanged.
@@ -254,31 +251,39 @@ class TestBlendedSubFloorBudget:
         assert b == int(round(x))
 
     def test_weight_at_pct_zero(self):
-        # pct=0 => w=0.2 => 0.2*X + 0.8*M, no clamp needed if M close to X.
+        # pct=0 => w=0 => entirely prior (local gives no upper bound).
         total_io, pct = 500, 0.0
-        x = self._x(total_io, pct)             # 500 / 0.0025 = 200000
-        m = 250000                              # close to X
-        expected = 0.2 * x + 0.8 * m
+        m = 250000
+        b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
+        # x = 500/0.005 = 100000; clamp: max(50000, 250000)=250000
+        assert b == 250000
+
+    def test_weight_at_pct_one(self):
+        # pct=1 => w=0.5 => equal weight (factor-of-2 uncertainty).
+        total_io, pct = 1500, 1.0
+        x = self._x(total_io, pct)              # 1500 / 0.015 = 100000
+        m = 200000
+        expected = 0.5 * x + 0.5 * m           # 50000 + 100000 = 150000
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
         assert b == int(round(expected))
 
     def test_weight_at_pct_four(self):
-        # pct=4 (just under the floor) => w=0.8 => 0.8*X + 0.2*M.
+        # pct=4 (just under the floor) => w=4/5=0.8 => 0.8*X + 0.2*M.
         total_io, pct = 8000, 4.0
-        x = self._x(total_io, pct)              # 8000 / 0.04 = 200000
+        x = self._x(total_io, pct)              # 8000 / 0.045 ≈ 177778
         m = 250000
         expected = 0.8 * x + 0.2 * m
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
         assert b == int(round(expected))
 
     def test_lower_clamp_when_m_too_small(self):
-        # M < X/2 would drag the blend below the live reading's plausibility
-        # floor. Clamp to X/2 - this is the asymmetric guard.
-        total_io, pct = 8000, 2.0
-        x = self._x(total_io, pct)              # 8000 / 0.02 = 400000
+        # At pct=0 (w=0), the blend IS the prior. If the prior is absurdly
+        # low the X/2 clamp provides a floor: budget ≥ 100*io (lb math).
+        total_io, pct = 1000, 0.0
+        x = self._x(total_io, pct)              # 1000 / 0.005 = 200000
         m = 1                                    # absurdly small
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
-        assert b == int(round(x * 0.5))
+        assert b == int(round(x * 0.5))         # 100000
 
     def test_no_upper_clamp_when_m_huge(self):
         # M >> X is the off-laptop-contamination signature (local total_io
