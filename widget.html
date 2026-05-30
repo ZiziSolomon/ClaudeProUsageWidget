@@ -258,9 +258,9 @@
     <div class="sub-label" id="week-when">weekly</div>
   </div>
 
-  <!-- Session reset arc -->
+  <!-- Session clock -->
   <div class="widget">
-    <div class="widget-title">Reset</div>
+    <div class="widget-title">Session clock</div>
     <div class="arc-wrap">
       <svg width="121" height="121" viewBox="0 0 121 121">
         <circle id="arc-track" cx="60.5" cy="60.5" r="54"
@@ -270,7 +270,7 @@
               text-anchor="middle" dominant-baseline="central">--</text>
       </svg>
     </div>
-    <div class="sub-label" id="arc-sub">time remaining</div>
+    <div class="sub-label" id="arc-sub">time left</div>
   </div>
 
 </div>
@@ -282,7 +282,7 @@
     <button class="toggle-btn" data-key="show_weekly_ghost">Weekly ghost</button>
     <button class="toggle-btn" data-key="show_session_pct">Session %</button>
     <button class="toggle-btn" data-key="show_weekly_pct">Weekly %</button>
-    <button class="toggle-btn" data-key="show_session_reset">Reset arc</button>
+    <button class="toggle-btn" data-key="show_session_reset">Session clock</button>
   </div>
 </div>
 
@@ -350,7 +350,7 @@
     if (!sessionStart || !sessionEnd) {
       arcFill.setAttribute('d', '');
       arcText.textContent = '--';
-      arcSub.textContent  = 'time remaining';
+      arcSub.textContent  = 'time left';
       return;
     }
     const now   = Date.now();
@@ -384,7 +384,7 @@
     const alert = remain / total <= 0.10;
     arcFill.setAttribute('fill', alert ? '#D64E2A' : '#2A78D6');
     arcText.textContent = fmtArcLabel(remain);
-    arcSub.textContent  = 'time remaining';
+    arcSub.textContent  = 'time left';
   }
 
   // ---- prefs / toggle buttons ----

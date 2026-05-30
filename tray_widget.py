@@ -611,7 +611,7 @@ ICON_SPECS = [
     ("show_weekly_ghost",  "claude-usage-weekly-ghost",  "Show weekly ghost"),
     ("show_session_pct",   "claude-usage-session-pct",   "Show session %"),
     ("show_weekly_pct",    "claude-usage-weekly-pct",    "Show weekly %"),
-    ("show_session_reset", "claude-usage-session-reset", "Show time till session reset"),
+    ("show_session_reset", "claude-usage-session-reset", "Session clock"),
 ]
 
 
