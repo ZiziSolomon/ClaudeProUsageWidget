@@ -961,14 +961,38 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert len(calls) == 0
 
-    def test_anchor_updated_after_poll(self, monkeypatch):
+    def test_anchor_updated_after_successful_poll(self, monkeypatch):
+        # _set_anchor is called inside _adopt_api_pct on a successful fetch;
+        # the new baseline should be the API-returned pct, not the local est.
         h = self._make_handler(monkeypatch)
-        self._stub_fetch(monkeypatch, h)
         h._triggered_thresholds = set()
-        h.state["input_tokens"] = 12000    # est=6%, fires 5% one-shot
-        h.session_pct = 6.0
+        h.state["input_tokens"] = 12000    # local est = 6%
+        # Successful fetch returns pct=7 (API and local may differ slightly)
+        now = datetime.now(timezone.utc)
+        raw = {"five_hour": {"utilization": 7.0,
+                             "resets_at": (now + timedelta(hours=4)).isoformat()},
+               "seven_day": {"utilization": 10.0,
+                             "resets_at": (now + timedelta(days=7)).isoformat()}}
+        monkeypatch.setattr(h, "_fetch_with_tracking", lambda: raw)
+        monkeypatch.setattr(widget_updater, "full_scan", lambda *a, **k: None)
         h._maybe_liveness()
-        assert h._liveness_anchor_pct == 6.0
+        assert h._liveness_anchor_pct == 7.0
+
+    def test_calibration_call_resets_baseline(self, monkeypatch):
+        # Any API call resets the baseline, not just liveness calls.
+        # After a calibration call at pct=30, a liveness delta trigger should
+        # measure from 30, not from the old liveness anchor.
+        h = self._make_handler(monkeypatch)
+        h._liveness_anchor_pct = 10.0
+        h._triggered_thresholds = set(widget_updater.LIVENESS_ONE_SHOT_PCTS)
+        # Simulate _set_anchor being called by a calibration at pct=30
+        h.state["input_tokens"] = 60000
+        h._set_anchor(30.0)
+        assert h._liveness_anchor_pct == 30.0
+        # Now est=30, anchor=30 → delta=0 → no trigger
+        calls = self._stub_fetch(monkeypatch, h)
+        h._maybe_liveness()
+        assert len(calls) == 0
 
     def test_rollover_resets_triggers(self, monkeypatch):
         h = self._make_handler(monkeypatch)

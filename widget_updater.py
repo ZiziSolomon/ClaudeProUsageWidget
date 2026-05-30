@@ -1117,14 +1117,8 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_start = session_start
         self.session_end   = session_end
         self.session_pct   = pct
-        self._set_anchor(pct)
+        self._set_anchor(pct)  # also resets _liveness_anchor_pct + thresholds
         self._log_estimate()
-        # Sync one-shot threshold state: if restarting mid-session at e.g. 40%,
-        # mark thresholds we've already passed so we don't re-fire them.
-        self._liveness_anchor_pct = pct
-        self._triggered_thresholds = {
-            t for t in LIVENESS_ONE_SHOT_PCTS if pct is not None and pct >= t
-        }
 
         self.last_calibrated = datetime.now(timezone.utc)
         _append_calibration(self.state, pct, self.last_calibrated,
@@ -1177,6 +1171,13 @@ class TranscriptHandler(FileSystemEventHandler):
         self.state["session_anchors"] = anchors + [[pct, io_now]]
         self.state["anchor_pct"] = pct
         self.state["anchor_io"]  = io_now
+        # Reset both liveness baselines so the 20-min timer and the 10pp
+        # delta trigger are always measured from the last API read, regardless
+        # of whether it came from calibration, liveness, force_refresh, etc.
+        self._liveness_anchor_pct = pct
+        self._triggered_thresholds |= {
+            t for t in LIVENESS_ONE_SHOT_PCTS if pct >= t
+        }
 
     def _adopt_api_pct(self, pct: float | None, now: datetime,
                        trigger: str = "scheduled") -> bool:
@@ -1415,12 +1416,12 @@ class TranscriptHandler(FileSystemEventHandler):
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
 
-        # Update trigger tracking after the attempt (regardless of success),
-        # so a persistent API outage can't cause continuous re-polling.
-        # Use the pre-fetch estimate as the new delta baseline: if the fetch
-        # failed, session_pct wasn't updated, but we still attempted at ~est.
-        self._liveness_anchor_pct = est if est is not None else self.session_pct
-        self._triggered_thresholds |= due_shots
+        # On success _set_anchor (called inside _adopt_api_pct) already reset
+        # both baselines. On failure, do it here so a persistent API outage
+        # can't cause continuous re-polling on the same triggers.
+        if raw is None:
+            self._liveness_anchor_pct = est if est is not None else self.session_pct
+            self._triggered_thresholds |= due_shots
 
         if self.status != prev_status or raw is not None:
             _save_state(self.state, self.session_pct, self.session_end,
