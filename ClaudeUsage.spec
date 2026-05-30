@@ -42,10 +42,49 @@ exe = EXE(
     version='version_info.txt',
     icon=['claude_usage.ico'],
 )
+
+# Accuracy chart — separate EXE so it can be spawned as a subprocess from the
+# frozen widget (sys.executable in a frozen build is the bootloader, not Python,
+# so the widget cannot run .py scripts directly).
+chart_a = Analysis(
+    ['save_accuracy_chart.py'],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+chart_pyz = PYZ(chart_a.pure)
+chart_exe = EXE(
+    chart_pyz,
+    chart_a.scripts,
+    [],
+    exclude_binaries=True,
+    name='ClaudeUsageChart',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
 coll = COLLECT(
     exe,
     a.binaries,
     a.datas,
+    chart_exe,
+    chart_a.binaries,
+    chart_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],

@@ -146,60 +146,28 @@ def load_api_points(session_start: datetime) -> list[dict]:
 
 
 def load_local_estimates(session_start: datetime) -> list[dict]:
-    """Parse [HH:MM:SS] pct lines that fall in the session window.
-
-    The log only carries HH:MM:SS, not dates. The trick: walk the log
-    BACKWARDS from EOF (which is roughly 'now'), anchoring the most
-    recent line to the log file's mtime date. As we walk up, time goes
-    monotonically backwards in clock terms; whenever we see HMS jump
-    UPWARD (e.g. 23:55 above 00:05) that's a midnight crossing and the
-    inferred date steps back a day.
-
-    This treats every line uniformly across Widget HTTP restart blocks
-    and needs no calibration-log anchoring. Lines older than the session
-    window are dropped."""
+    """Parse [YYYY-MM-DD HH:MM:SS] pct lines that fall in the session window."""
     if not LOG.exists():
         return []
-    all_lines = LOG.read_text(encoding="utf-8", errors="ignore").splitlines()
 
     sess_local_start = to_local_naive(session_start)
     sess_local_end   = sess_local_start + timedelta(hours=SESSION_HOURS)
 
-    line_pat = re.compile(r"^\[(\d{2}):(\d{2}):(\d{2})\].*pct=(\d+(?:\.\d+)?)")
-    matches = []
-    for line in all_lines:
+    line_pat = re.compile(
+        r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*pct=(\d+(?:\.\d+)?)"
+    )
+    results = []
+    for line in LOG.read_text(encoding="utf-8", errors="ignore").splitlines():
         m = line_pat.match(line)
-        if m:
-            matches.append((int(m.group(1)), int(m.group(2)),
-                            int(m.group(3)), float(m.group(4))))
-    if not matches:
-        return []
-
-    # Anchor the LAST line to the log file's mtime. Most-recent line in
-    # an actively-written log is by definition very recent, so the log's
-    # mtime date is the right date for it.
-    log_mtime = datetime.fromtimestamp(LOG.stat().st_mtime)
-    current_date = log_mtime.date()
-
-    # Build (datetime, pct) pairs by walking backwards.
-    dated = []
-    prev_hms = None
-    for h, mi, sec, pct in reversed(matches):
-        hms = (h, mi, sec)
-        if prev_hms is not None and hms > prev_hms:
-            # Walking backwards: an UPWARD HMS jump means we crossed
-            # midnight going back into the previous day.
-            current_date -= timedelta(days=1)
-        prev_hms = hms
-        ts = datetime(current_date.year, current_date.month, current_date.day,
-                      h, mi, sec)
-        dated.append((ts, pct))
-
-    # Restore chronological order and keep only in-window points.
-    dated.reverse()
-    return [{"ts": ts, "pct": pct}
-            for ts, pct in dated
-            if sess_local_start <= ts < sess_local_end]
+        if not m:
+            continue
+        try:
+            ts = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        if sess_local_start <= ts < sess_local_end:
+            results.append({"ts": ts, "pct": float(m.group(2))})
+    return results
 
 
 def main() -> None:

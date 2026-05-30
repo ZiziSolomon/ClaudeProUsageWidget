@@ -668,41 +668,15 @@ class TrayApp:
     # ------ menu --------------------------------------------------------
 
     def _build_menu(self) -> pystray.Menu:
-        # The same menu is attached to every icon, so the user can right-click
-        # whichever one's visible and reach all toggles + Quit.
-        items = [
+        return pystray.Menu(
             pystray.MenuItem(lambda _: self._ghost_tooltip(), None, enabled=False),
             pystray.Menu.SEPARATOR,
-        ]
-        for pref_key, _name, label in ICON_SPECS:
-            items.append(pystray.MenuItem(
-                label,
-                self._make_toggle(pref_key),
-                # Bind pref_key per-iteration via default arg to dodge
-                # Python's late-binding lambda gotcha.
-                checked=lambda _i, k=pref_key: self._prefs[k],
-            ))
-        items += [
-            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Open dashboard", self._open_dashboard, default=True),
             pystray.MenuItem("Confirm usage %", self._confirm_usage),
             pystray.MenuItem("Restart widget", self._restart),
-            pystray.MenuItem(
-                "Don't prompt to restart again today",
-                self._toggle_snooze,
-                checked=lambda _i: self._restart_prompts_snoozed(),
-            ),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem(
-                "Start at login",
-                self._toggle_startup,
-                # State is the presence of the shortcut file — checked on
-                # every menu render so it reflects external changes too.
-                checked=lambda _i: _startup_enabled(),
-            ),
-            pystray.MenuItem("Open dashboard", self._open_dashboard, default=True),
             pystray.MenuItem("Quit", self._quit),
-        ]
-        return pystray.Menu(*items)
+        )
 
     def _make_toggle(self, pref_key: str):
         def handler(_icon, _item):
@@ -774,20 +748,8 @@ class TrayApp:
 
     def _title_for(self, pref_key: str) -> str:
         if not self._status_ok():
-            # All icons show the same explanatory message when disconnected.
             return f"Claude Usage: {self._status_tooltip()}"
-        if pref_key in ("show_session_ghost", "show_weekly_ghost"):
-            # Both ghosts get the full two-line tooltip so the user can read
-            # either window's status from whichever ghost they hover.
-            return self._ghost_tooltip()
-        if pref_key == "show_session_pct":
-            return (f"Session {_fmt_pct(self._state['session_pct'])} "
-                    f"{_fmt_short(self._state['session_end'])}").strip()
-        if pref_key == "show_weekly_pct":
-            return (f"Weekly {_fmt_pct(self._state['weekly_pct'])} "
-                    f"{_fmt_short(self._state['weekly_end'], weekly=True)}").strip()
-        if pref_key == "show_session_reset":
-            return self._ghost_tooltip()
+        return self._ghost_tooltip()
         return ""
 
     # ------ state updates ----------------------------------------------
@@ -812,10 +774,12 @@ class TrayApp:
     def _refresh_all(self):
         if self._stopping:
             return
+        menu = self._build_menu()
         for pref_key, icon in self.icons.items():
             try:
-                icon.icon = self._render_icon_for(pref_key)
+                icon.icon  = self._render_icon_for(pref_key)
                 icon.title = self._title_for(pref_key)
+                icon.menu  = menu
             except Exception as e:
                 print(f"  {pref_key} refresh error: {e}")
 
@@ -945,6 +909,8 @@ class TrayApp:
             threading.Thread(target=self.refresh_callback, daemon=True).start()
         elif name == "restart":
             self._restart(None, None)
+        elif name == "quit":
+            self._quit(None, None)
 
     # ------ misc --------------------------------------------------------
 

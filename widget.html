@@ -167,6 +167,35 @@
   .action-btn:active {
     background: #444;
   }
+
+  /* ---- accuracy chart ---- */
+  .chart-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .session-select {
+    background: #2a2a2c;
+    border: 1px solid #3a3a3c;
+    color: #aaa;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .session-select:focus {
+    border-color: #555;
+  }
+
+  #chart-img {
+    max-width: min(680px, 90vw);
+    border-radius: 6px;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -263,7 +292,19 @@
     <button class="toggle-btn" data-key="start_at_login">Start at login</button>
     <button class="action-btn" data-action="confirm">Confirm usage %</button>
     <button class="action-btn" data-action="restart">Restart widget</button>
+    <button class="action-btn" data-action="quit">Quit widget</button>
   </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Widget log</div>
+  <div class="chart-row">
+    <select id="session-select" class="session-select">
+      <option value="">Loading…</option>
+    </select>
+    <button class="action-btn" id="chart-btn">Generate</button>
+  </div>
+  <img id="chart-img" alt="Accuracy chart"/>
 </div>
 
 <script>
@@ -291,7 +332,9 @@
     if (mins <= 0)  return 'resetting…';
     if (mins < 60)  return `in ${mins}m`;
     const h = Math.floor(mins / 60), m = mins % 60;
-    return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
+    if (h < 24)    return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
+    const d = Math.floor(h / 24), rh = h % 24;
+    return rh > 0 ? `in ${d}d ${rh}h` : `in ${d}d`;
   }
 
   function fmtArcLabel(remainMs) {
@@ -394,6 +437,51 @@
   refreshPrefs();
   setInterval(refresh, 4000);
   setInterval(refreshPrefs, 8000);
+
+  // ---- accuracy chart ----
+
+  async function refreshSessions() {
+    try {
+      const sessions = await fetch('/sessions?t=' + Date.now()).then(r => r.json());
+      const sel = document.getElementById('session-select');
+      if (!sessions.length) {
+        sel.innerHTML = '<option value="">No sessions on file</option>';
+        return;
+      }
+      sel.innerHTML = sessions.map((s, i) =>
+        `<option value="${s.at}">${s.label}${i === 0 ? ' (latest)' : ''}</option>`
+      ).join('');
+    } catch { /* server blip */ }
+  }
+
+  document.getElementById('chart-btn').addEventListener('click', async () => {
+    const btn  = document.getElementById('chart-btn');
+    const at   = document.getElementById('session-select').value;
+    const img  = document.getElementById('chart-img');
+    btn.textContent = 'Generating…';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/chart' + (at ? '?at=' + encodeURIComponent(at) : ''), { method: 'POST' });
+      const { ok } = await res.json();
+      if (ok) {
+        img.src = '/chart_image?t=' + Date.now();
+        img.style.display = 'block';
+      } else {
+        btn.textContent = 'Error — check console';
+        return;
+      }
+    } catch {
+      btn.textContent = 'Error';
+      return;
+    } finally {
+      setTimeout(() => {
+        btn.textContent = 'Generate';
+        btn.disabled = false;
+      }, 1500);
+    }
+  });
+
+  refreshSessions();
 </script>
 </body>
 </html>

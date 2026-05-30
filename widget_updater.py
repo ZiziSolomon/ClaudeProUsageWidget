@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+import subprocess
 import sys
 
 import browser_cookie3
@@ -68,6 +69,7 @@ DATA_DIR          = _data_dir()
 STATE_FILE        = DATA_DIR / "widget_state.json"
 CALIBRATION_FILE  = DATA_DIR / "calibration.jsonl"
 DISCREPANCY_FILE  = DATA_DIR / "discrepancies.jsonl"
+CHART_FILE        = DATA_DIR / "chart_latest.png"
 # Min absolute pp difference between widget's displayed pct and a fresh API
 # reading before we consider it worth logging. Set tight (>1pp) so we
 # capture drift bugs early; the log is silent so noise has no UX cost.
@@ -1040,7 +1042,7 @@ class TranscriptHandler(FileSystemEventHandler):
 
     def _log_estimate(self) -> None:
         if self.session_pct is not None:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
                   f"in={self.state['input_tokens']} "
                   f"out={self.state['output_tokens']} "
                   f"pct={self.session_pct}")
@@ -1401,7 +1403,7 @@ class TranscriptHandler(FileSystemEventHandler):
                         self._maybe_calibrate(force=True)
             _save_state(self.state, self.session_pct, self.session_end,
                         self.weekly_pct, self.weekly_end, status=self.status)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] "
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
                   f"in={self.state['input_tokens']} "
                   f"out={self.state['output_tokens']} "
                   f"pct={self.session_pct}")
@@ -1467,6 +1469,68 @@ class TranscriptHandler(FileSystemEventHandler):
         return True
 
 
+def _list_sessions() -> list[dict]:
+    """Distinct sessions from calibration.jsonl, newest first.
+
+    Each entry has "at" (local datetime string, passable to save_accuracy_chart
+    --at) and "label" (same string for display)."""
+    if not CALIBRATION_FILE.exists():
+        return []
+    seen: set = set()
+    sessions = []
+    for line in CALIBRATION_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ss = r.get("session_start")
+        if not ss:
+            continue
+        try:
+            dt_utc = datetime.fromisoformat(ss)
+        except ValueError:
+            continue
+        key = dt_utc.replace(second=0, microsecond=0)
+        if key in seen:
+            continue
+        seen.add(key)
+        dt_local = datetime.fromtimestamp(key.timestamp())
+        label = dt_local.strftime("%Y-%m-%d %H:%M")
+        sessions.append({"at": label, "label": label})
+    sessions.sort(key=lambda s: s["at"], reverse=True)
+    return sessions
+
+
+def _run_accuracy_chart(at: str | None) -> bool:
+    """Run save_accuracy_chart synchronously; save PNG to CHART_FILE.
+
+    Returns True on success. Blocks for ~1-2 s (matplotlib startup).
+
+    In a frozen build the bundled ClaudeUsageChart.exe is used directly —
+    sys.executable there is the bootloader, not a Python interpreter."""
+    if getattr(sys, "frozen", False):
+        chart_bin = Path(sys.executable).parent / "ClaudeUsageChart.exe"
+        if not chart_bin.exists():
+            print(f"  chart: {chart_bin} not found")
+            return False
+        cmd = [str(chart_bin)]
+    else:
+        script = _BASE / "save_accuracy_chart.py"
+        if not script.exists():
+            print(f"  chart: {script} not found")
+            return False
+        cmd = [sys.executable, str(script)]
+    cmd += ["--no-open", "--out", str(CHART_FILE)]
+    if at:
+        cmd += ["--at", at]
+    flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
+    result = subprocess.run(cmd, creationflags=flags, timeout=30)
+    return result.returncode == 0
+
+
 class _WidgetHandler(BaseHTTPRequestHandler):
     # Wired in by tray_widget.main() after TrayApp is constructed.
     _prefs_getter    = staticmethod(lambda: {})
@@ -1474,11 +1538,21 @@ class _WidgetHandler(BaseHTTPRequestHandler):
     _action_callback = staticmethod(lambda name: None)
 
     def do_GET(self):
-        if self.path.startswith("/state"):
+        from urllib.parse import urlparse
+        path = urlparse(self.path).path
+        if path == "/state":
             body = STATE_FILE.read_bytes() if STATE_FILE.exists() else b"{}"
             self._respond(body, "application/json")
-        elif self.path.startswith("/prefs"):
+        elif path == "/prefs":
             self._respond(json.dumps(_WidgetHandler._prefs_getter()).encode(), "application/json")
+        elif path == "/sessions":
+            self._respond(json.dumps(_list_sessions()).encode(), "application/json")
+        elif path == "/chart_image":
+            if CHART_FILE.exists():
+                self._respond(CHART_FILE.read_bytes(), "image/png")
+            else:
+                self.send_response(404)
+                self.end_headers()
         else:
             body = WIDGET_HTML.read_bytes() if WIDGET_HTML.exists() else b"<h1>widget.html not found</h1>"
             self._respond(body, "text/html")
@@ -1497,6 +1571,10 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             if name:
                 _WidgetHandler._action_callback(name)
             self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/chart":
+            at = params.get("at", [None])[0]
+            ok = _run_accuracy_chart(at)
+            self._respond(json.dumps({"ok": ok}).encode(), "application/json")
         else:
             self.send_response(404)
             self.end_headers()
