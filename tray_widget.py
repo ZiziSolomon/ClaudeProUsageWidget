@@ -106,6 +106,8 @@ from widget_updater import (
     TranscriptHandler,
     _WidgetHandler,
     _poll_interval_minutes,
+    _liveness_oneshot_pcts,
+    _liveness_delta_pct,
 )
 
 PREFS_FILE = STATE_FILE.parent / "tray_prefs.json"
@@ -989,6 +991,8 @@ def main():
         **tray._prefs,
         "start_at_login": _startup_enabled(),
         "poll_interval_minutes": _poll_interval_minutes(),
+        "liveness_oneshot_pcts": sorted(_liveness_oneshot_pcts()),
+        "liveness_delta_pct": _liveness_delta_pct(),
     }
     _WidgetHandler._toggle_callback = tray.web_toggle
     _WidgetHandler._action_callback = tray.web_action

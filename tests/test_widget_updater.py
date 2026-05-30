@@ -1345,3 +1345,44 @@ class TestPollIntervalSetting:
         # Below the 120s floor, the effective value is clamped up to 2m.
         widget_updater._write_config_value("poll_interval_minutes", 0.5)
         assert widget_updater._poll_interval_minutes() == 2
+
+
+class TestLivenessTriggerSettings:
+    """Config-driven one-shot pct list + delta-pct trigger, mirroring the
+    poll-interval pattern."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_config(self, tmp_path, monkeypatch):
+        cfg = tmp_path / "config.json"
+        monkeypatch.setattr(widget_updater, "_config_path", lambda: cfg)
+        monkeypatch.delenv("CLAUDE_LIVENESS_ONESHOT_PCTS", raising=False)
+        monkeypatch.delenv("CLAUDE_LIVENESS_DELTA_PCT", raising=False)
+        self._cfg = cfg
+
+    def test_parse_pct_list_string(self):
+        assert widget_updater._parse_pct_list("5, 10 ,95") == frozenset({5, 10, 95})
+
+    def test_parse_pct_list_drops_out_of_range_and_garbage(self):
+        assert widget_updater._parse_pct_list("0,5,abc,100,50") == frozenset({5, 50})
+
+    def test_oneshot_default_when_unset(self):
+        assert widget_updater._liveness_oneshot_pcts() == widget_updater.LIVENESS_ONE_SHOT_PCTS
+
+    def test_oneshot_from_config(self):
+        widget_updater._write_config_value("liveness_oneshot_pcts", [3, 50])
+        assert widget_updater._liveness_oneshot_pcts() == frozenset({3, 50})
+
+    def test_oneshot_empty_config_falls_back_to_default(self):
+        widget_updater._write_config_value("liveness_oneshot_pcts", "garbage,nope")
+        assert widget_updater._liveness_oneshot_pcts() == widget_updater.LIVENESS_ONE_SHOT_PCTS
+
+    def test_delta_default_when_unset(self):
+        assert widget_updater._liveness_delta_pct() == widget_updater.LIVENESS_PCT_DELTA_TRIGGER
+
+    def test_delta_from_config(self):
+        widget_updater._write_config_value("liveness_delta_pct", 4)
+        assert widget_updater._liveness_delta_pct() == 4.0
+
+    def test_delta_floored_at_one(self):
+        widget_updater._write_config_value("liveness_delta_pct", 0.1)
+        assert widget_updater._liveness_delta_pct() == 1.0

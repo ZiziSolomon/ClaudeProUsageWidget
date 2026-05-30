@@ -268,6 +268,57 @@ def _poll_interval_minutes() -> float:
     mins = _liveness_interval_secs() / 60
     return int(mins) if mins == int(mins) else round(mins, 2)
 
+
+def _parse_pct_list(raw) -> frozenset[int]:
+    """Parse a comma-separated string ("5,10,95") or a list into a set of ints
+    clamped to 1..99. Garbage entries are dropped silently; returns empty if
+    nothing valid parsed (callers fall back to the default)."""
+    if isinstance(raw, str):
+        parts = raw.split(",")
+    elif isinstance(raw, (list, tuple)):
+        parts = raw
+    else:
+        parts = [raw]
+    out = set()
+    for p in parts:
+        try:
+            v = int(float(str(p).strip()))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= v <= 99:
+            out.add(v)
+    return frozenset(out)
+
+
+def _liveness_oneshot_pcts() -> frozenset[int]:
+    """One-shot liveness thresholds, as percentages. Resolution order:
+    env CLAUDE_LIVENESS_ONESHOT_PCTS > config liveness_oneshot_pcts > default
+    (LIVENESS_ONE_SHOT_PCTS). Accepts a comma-separated string or a list. An
+    empty/all-garbage value falls back to the default so the heartbeat never
+    loses its safety pokes entirely."""
+    raw = os.environ.get("CLAUDE_LIVENESS_ONESHOT_PCTS")
+    if raw is None:
+        raw = _read_config().get("liveness_oneshot_pcts")
+    if raw is None:
+        return LIVENESS_ONE_SHOT_PCTS
+    return _parse_pct_list(raw) or LIVENESS_ONE_SHOT_PCTS
+
+
+def _liveness_delta_pct() -> float:
+    """Delta-trigger threshold in pp. env CLAUDE_LIVENESS_DELTA_PCT > config
+    liveness_delta_pct > default (LIVENESS_PCT_DELTA_TRIGGER). Floored at 1pp
+    so a misconfig can't fire a poll on essentially every tick."""
+    raw = os.environ.get("CLAUDE_LIVENESS_DELTA_PCT")
+    if raw is None:
+        raw = _read_config().get("liveness_delta_pct")
+    if raw is None:
+        return LIVENESS_PCT_DELTA_TRIGGER
+    try:
+        return max(1.0, float(raw))
+    except (TypeError, ValueError):
+        print(f"  ignoring invalid liveness_delta_pct={raw!r}")
+        return LIVENESS_PCT_DELTA_TRIGGER
+
 # A single failed live fetch is often a momentary blip (laptop waking, Wi-Fi
 # reassociating). Rather than toast immediately, we retry once after this delay
 # and only declare a disconnect if the retry ALSO fails. See _fetch_with_tracking.
@@ -1202,7 +1253,7 @@ class TranscriptHandler(FileSystemEventHandler):
         # of whether it came from calibration, liveness, force_refresh, etc.
         self._liveness_anchor_pct = pct
         self._triggered_thresholds |= {
-            t for t in LIVENESS_ONE_SHOT_PCTS if pct >= t
+            t for t in _liveness_oneshot_pcts() if pct >= t
         }
 
     def _adopt_api_pct(self, pct: float | None, now: datetime,
@@ -1412,9 +1463,9 @@ class TranscriptHandler(FileSystemEventHandler):
         time_due  = age >= _liveness_interval_secs()
         delta_due = (self._liveness_anchor_pct is not None
                      and est is not None
-                     and abs(est - self._liveness_anchor_pct) >= LIVENESS_PCT_DELTA_TRIGGER)
+                     and abs(est - self._liveness_anchor_pct) >= _liveness_delta_pct())
         due_shots = (set() if est is None else
-                     {t for t in LIVENESS_ONE_SHOT_PCTS
+                     {t for t in _liveness_oneshot_pcts()
                       if est >= t and t not in self._triggered_thresholds})
 
         if not (time_due or delta_due or due_shots):
@@ -1719,6 +1770,28 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 self._respond(b'{"ok":false}', "application/json")
                 return
             _write_config_value("poll_interval_minutes", minutes)
+            self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_liveness_pcts":
+            # Comma-separated one-shot liveness thresholds, e.g. "5,10,95".
+            # Parsed/clamped to 1..99; an empty result is rejected so the user
+            # can't accidentally wipe all safety pokes (default still applies
+            # via _liveness_oneshot_pcts when the key is absent).
+            raw = params.get("pcts", [""])[0]
+            pcts = sorted(_parse_pct_list(raw))
+            if not pcts:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_config_value("liveness_oneshot_pcts", pcts)
+            self._respond(json.dumps({"ok": True, "pcts": pcts}).encode(),
+                          "application/json")
+        elif parsed.path == "/set_liveness_delta":
+            raw = params.get("pct", [None])[0]
+            try:
+                val = max(1.0, float(raw))
+            except (TypeError, ValueError):
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            _write_config_value("liveness_delta_pct", val)
             self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/chart":
             at = params.get("at", [None])[0]
