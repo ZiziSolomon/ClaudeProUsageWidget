@@ -1472,12 +1472,14 @@ class TranscriptHandler(FileSystemEventHandler):
 def _list_sessions() -> list[dict]:
     """Distinct sessions from calibration.jsonl, newest first.
 
-    Each entry has "at" (local datetime string, passable to save_accuracy_chart
-    --at) and "label" (same string for display)."""
+    Session_starts within 5 minutes of each other are merged into one entry
+    (handles drift from widget restarts re-deriving session_start = resets_at - 5h).
+    Each entry has "at" (local datetime string, passable to save_accuracy_chart --at)
+    and "label" (same string for display)."""
     if not CALIBRATION_FILE.exists():
         return []
-    seen: set = set()
-    sessions = []
+
+    trunc_starts = []
     for line in CALIBRATION_FILE.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -1493,14 +1495,24 @@ def _list_sessions() -> list[dict]:
             dt_utc = datetime.fromisoformat(ss)
         except ValueError:
             continue
-        key = dt_utc.replace(second=0, microsecond=0)
-        if key in seen:
-            continue
-        seen.add(key)
-        dt_local = datetime.fromtimestamp(key.timestamp())
+        trunc_starts.append(dt_utc.replace(second=0, microsecond=0))
+
+    if not trunc_starts:
+        return []
+
+    distinct = sorted(set(trunc_starts))
+    canonicals = []
+    current = None
+    for s in distinct:
+        if current is None or (s - current).total_seconds() > 300:
+            current = s
+            canonicals.append(current)
+
+    sessions = []
+    for c in reversed(canonicals):
+        dt_local = datetime.fromtimestamp(c.timestamp())
         label = dt_local.strftime("%Y-%m-%d %H:%M")
         sessions.append({"at": label, "label": label})
-    sessions.sort(key=lambda s: s["at"], reverse=True)
     return sessions
 
 

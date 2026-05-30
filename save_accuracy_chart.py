@@ -43,23 +43,22 @@ def to_local_naive(dt: datetime) -> datetime:
     return datetime.fromtimestamp(dt.timestamp())
 
 
-def _session_key(dt: datetime) -> datetime:
-    """Group session_starts that belong to the same real 5h window.
-
-    Every widget restart recomputes session_start = session_end - 5h from
-    the API's resets_at, which carries microseconds; this drifts the
-    stored session_start by milliseconds across restarts even within the
-    same real window. Rounding down to the minute collapses those drifts
-    without losing the ability to distinguish adjacent real sessions
-    (which are 5h apart by construction)."""
-    return dt.replace(second=0, microsecond=0)
+# Maximum gap between two session_starts that are still considered the same
+# real session. Widget restarts re-derive session_start = resets_at - SESSION_HOURS;
+# if resets_at drifts across restarts the stored start shifts too. 5 minutes is
+# safely below the minimum real gap between sessions (SESSION_HOURS = 5h).
+SESSION_MERGE_SECS = 300
 
 
 def _load_all_records() -> list[dict]:
-    """All calibration records with a parseable session_start. The list is
-    naturally in time order because calibration.jsonl is append-only."""
+    """All calibration records with a parseable session_start, session keys
+    clustered so restarts with slightly different session_starts are merged.
+
+    Each record gets _session_key: the canonical (earliest) minute-truncated
+    session_start for its cluster."""
     if not JSONL.exists():
         sys.exit(f"calibration.jsonl not found at {JSONL}")
+
     records = []
     for line in JSONL.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -76,8 +75,25 @@ def _load_all_records() -> list[dict]:
         except ValueError:
             continue
         r["_session_start_dt"] = ss
-        r["_session_key"] = _session_key(ss)
+        r["_trunc"] = ss.replace(second=0, microsecond=0)
         records.append(r)
+
+    if not records:
+        return records
+
+    # Build cluster mapping: sort distinct truncated starts, fold any start
+    # within SESSION_MERGE_SECS of the running canonical into that canonical.
+    distinct = sorted({r["_trunc"] for r in records})
+    canonical_map: dict[datetime, datetime] = {}
+    current: datetime | None = None
+    for s in distinct:
+        if current is None or (s - current).total_seconds() > SESSION_MERGE_SECS:
+            current = s
+        canonical_map[s] = current
+
+    for r in records:
+        r["_session_key"] = canonical_map[r["_trunc"]]
+
     return records
 
 
@@ -100,8 +116,6 @@ def _resolve_session(args) -> datetime:
         target_utc = target_local.astimezone(timezone.utc) if target_local.tzinfo \
                      else target_local.astimezone().astimezone(timezone.utc)
         window = timedelta(hours=SESSION_HOURS)
-        # Distinct session keys only (minute-rounded so restart-drift
-        # doesn't fragment one real session into many).
         seen = set()
         for r in records:
             key = r["_session_key"]
