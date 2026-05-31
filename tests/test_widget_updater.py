@@ -611,6 +611,42 @@ class TestAdoptApiPct:
         assert calls["update_budget"] is False
         assert h.session_pct == 3                             # display still adopts
 
+    def test_below_floor_no_budget_bootstraps(self, monkeypatch):
+        # With no budget yet, a sub-floor reading still derives one (blended)
+        # so the live estimate can display early instead of freezing.
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = None
+        h.state.pop("implied_session_budget", None)
+        h.state["input_tokens"], h.state["output_tokens"] = 2000, 0
+        h._adopt_api_pct(3, datetime.now(timezone.utc))   # below floor
+        assert calls["update_budget"] is True
+
+    def test_provisional_budget_upgrades_at_floor(self, monkeypatch):
+        # A provisional sub-floor budget is replaced by a live derivation the
+        # first time the API reports at/above the floor, even with a small diff.
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = 5
+        h.state["implied_session_budget"] = 180000
+        h.state["budget_source"] = "blended"          # provisional
+        h.state["input_tokens"], h.state["output_tokens"] = 12000, 0
+        assert h._adopt_api_pct(6, datetime.now(timezone.utc)) is True  # 1pp diff
+        assert calls["update_budget"] is True
+        assert h.state["implied_session_budget"] == round(12000 / 0.06)
+
+    def test_live_budget_small_diff_not_upgraded(self, monkeypatch):
+        # A non-provisional (live) budget is left alone on a small diff, even
+        # at/above the floor -- provisional upgrade must not weaken that gate.
+        h = self._make_handler(monkeypatch)
+        calls = self._capture(monkeypatch)
+        h.session_pct = 50
+        h.state["implied_session_budget"] = 200000
+        h.state["budget_source"] = "live"
+        assert h._adopt_api_pct(52, datetime.now(timezone.utc)) is False  # 2pp
+        assert calls["update_budget"] is False
+        assert h.state["implied_session_budget"] == 200000
+
     def test_sets_anchor(self, monkeypatch):
         # _adopt_api_pct must record anchor_pct + anchor_io so subsequent
         # _local_estimate calls start from the API value, not total_io/budget.

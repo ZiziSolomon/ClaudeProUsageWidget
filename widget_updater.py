@@ -973,6 +973,10 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         implied = lb
     if implied and update_budget:
         state["implied_session_budget"] = implied
+        # Remember whether this budget is a live derivation or a provisional
+        # sub-floor blend, so _adopt_api_pct knows to upgrade a provisional one
+        # the first time we clear the floor.
+        state["budget_source"] = budget_source
     record   = {
         "scraped_at":              scraped_at.isoformat(),
         "session_pct":             pct,
@@ -1437,7 +1441,14 @@ class TranscriptHandler(FileSystemEventHandler):
         prior     = self.session_pct
         no_budget = not self.state.get("implied_session_budget")
         big_diff  = prior is not None and abs(pct - prior) > RECAL_DISCREPANCY_PP
-        recalibrate = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
+        # Below the floor we still bootstrap a provisional (blended) budget when
+        # we hold none, so the live estimate can display from the first reading
+        # instead of freezing at the sub-floor API pct. A provisional budget is
+        # upgraded to a live derivation, and an ordinary disagreement re-derives,
+        # only once we've cleared the floor.
+        provisional = self.state.get("budget_source") == "blended"
+        recalibrate = no_budget or ((big_diff or provisional)
+                                    and pct >= CALIBRATION_PCT_FLOOR)
         self.session_pct  = pct
         self.last_api_pct = pct
         # Re-scan from disk before deriving the budget so it's computed against
@@ -1793,7 +1804,9 @@ class TranscriptHandler(FileSystemEventHandler):
         if pct is not None:
             no_budget   = not self.state.get("implied_session_budget")
             big_diff    = prior is not None and abs(pct - prior) > RECAL_DISCREPANCY_PP
-            recalibrated = (no_budget or big_diff) and pct >= CALIBRATION_PCT_FLOOR
+            provisional = self.state.get("budget_source") == "blended"
+            recalibrated = no_budget or ((big_diff or provisional)
+                                         and pct >= CALIBRATION_PCT_FLOOR)
             # A fresh window already full_scanned from empty, so there's no
             # missed-token baseline to check; only re-scan otherwise.
             if recalibrated and not reset:
