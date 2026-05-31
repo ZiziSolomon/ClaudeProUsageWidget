@@ -66,6 +66,31 @@ pytestmark = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
+# Global isolation from the real user data files
+# ---------------------------------------------------------------------------
+# Any test that builds a TranscriptHandler or calls _append_calibration will,
+# unless redirected, read/write the user's real %LOCALAPPDATA% state and
+# calibration logs. That leaked synthetic rows into calibration.jsonl (e.g. a
+# (pct=7, io=12000) liveness sample from TestLivenessTriggers) which then
+# showed up as a bogus mid-session dip in the accuracy chart. Pin BOTH files
+# to tmp for every test, module-wide, so no single class can forget the guard.
+#
+# Redirecting STATE_FILE to a non-existent path also means _load_state() falls
+# back to _empty_state(), so handlers start with an empty by_model instead of
+# inheriting the live session's token tallies. Per-test overrides (e.g.
+# TestPriorBudgetMedian pointing CALIBRATION_FILE at its own tmp file) still
+# win because their monkeypatch.setattr runs after this fixture.
+@pytest.fixture(autouse=True)
+def _isolate_user_data_files(tmp_path, monkeypatch):
+    if not _IMPORT_OK:
+        return
+    monkeypatch.setattr(widget_updater, "STATE_FILE",
+                        tmp_path / "widget_state.json")
+    monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
+                        tmp_path / "calibration.jsonl")
+
+
+# ---------------------------------------------------------------------------
 # _parse_session
 # ---------------------------------------------------------------------------
 
