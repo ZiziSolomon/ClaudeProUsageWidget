@@ -45,63 +45,80 @@ _STARTUP_LNK    = _STARTUP_FOLDER / "Claude Usage.lnk"
 _START_MENU_LNK = _STARTUP_FOLDER.parent / "Claude Usage.lnk"
 
 
+def _shortcut_target_args() -> "tuple[str, str]":
+    """(TargetPath, Arguments) the shortcuts should point at. Frozen build: the
+    ClaudeUsage.exe itself, no args. Source checkout: the Python interpreter
+    plus this script. Centralised so every shortcut we create is consistent -
+    the historic divergence here is exactly what left a stale Start-menu .lnk."""
+    if getattr(sys, "frozen", False):
+        return sys.executable, ""
+    return sys.executable, f'"{os.path.abspath(__file__)}"'
+
+
+def _write_shortcut(lnk_path: Path, *, icon: bool = False) -> None:
+    """Create/overwrite a .lnk pointing at the widget.
+
+    WindowStyle 7 = start minimized (straight to the tray, no flashing window).
+    Driven through PowerShell's WScript.Shell COM object so we carry no
+    win32com runtime dependency. Always overwrites, so toggling a shortcut off
+    then on regenerates it cleanly - self-healing against any stale shortcut.
+    """
+    target, args = _shortcut_target_args()
+    working_dir = os.path.dirname(os.path.abspath(__file__))
+    lnk_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "$wsh = New-Object -ComObject WScript.Shell",
+        f"$lnk = $wsh.CreateShortcut('{lnk_path}')",
+        f"$lnk.TargetPath = '{target}'",
+        f"$lnk.Arguments = '{args}'",
+        f"$lnk.WorkingDirectory = '{working_dir}'",
+        "$lnk.WindowStyle = 7",
+        "$lnk.Description = 'Claude session usage tray widget'",
+    ]
+    if icon and getattr(sys, "frozen", False):
+        # The frozen exe has the widget icon embedded; point the shortcut at it
+        # so the Start-menu tile shows the Claude icon, not a generic one.
+        lines.append(f"$lnk.IconLocation = '{target},0'")
+    lines.append("$lnk.Save()")
+    subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+         "; ".join(lines)],
+        capture_output=True,
+    )
+
+
+def _remove_shortcut(lnk_path: Path) -> None:
+    try:
+        lnk_path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 def _startup_enabled() -> bool:
     """True if our startup shortcut is present in the Startup folder."""
     return _STARTUP_LNK.exists()
 
 
 def _set_startup(enabled: bool) -> None:
-    """Create or remove the Startup-folder shortcut."""
+    """Create or remove the Startup-folder ("Start at login") shortcut."""
     if enabled:
-        # Determine the exe / script target (same logic as install_start_menu.ps1).
-        if getattr(sys, "frozen", False):
-            target = sys.executable  # PyInstaller: ClaudeUsage.exe
-        else:
-            target = sys.executable  # python.exe ...
-            # We'll pass the script as an argument via Arguments field.
-        script = os.path.abspath(__file__)
-
-        _STARTUP_FOLDER.mkdir(parents=True, exist_ok=True)
-        wsh_script = f"""
-import os, sys
-import win32com.client
-wsh = win32com.client.Dispatch('WScript.Shell')
-lnk = wsh.CreateShortcut(r'{_STARTUP_LNK}')
-lnk.TargetPath = r'{target}'
-lnk.Arguments  = '' if {getattr(sys, 'frozen', False)} else r'"{script}"'
-lnk.WorkingDirectory = r'{os.path.dirname(script)}'
-lnk.WindowStyle = 7
-lnk.Description = 'Claude session usage tray widget'
-lnk.Save()
-"""
-        # Use subprocess + powershell WScript.Shell so we don't need win32com.
-        frozen = getattr(sys, "frozen", False)
-        if frozen:
-            args_field = ""
-        else:
-            script_path = os.path.abspath(__file__)
-            args_field = f'"{script_path}"'
-        working_dir = os.path.dirname(os.path.abspath(__file__))
-
-        ps = (
-            f"$wsh = New-Object -ComObject WScript.Shell; "
-            f"$lnk = $wsh.CreateShortcut('{_STARTUP_LNK}'); "
-            f"$lnk.TargetPath = '{target}'; "
-            f"$lnk.Arguments = '{args_field}'; "
-            f"$lnk.WorkingDirectory = '{working_dir}'; "
-            f"$lnk.WindowStyle = 7; "
-            f"$lnk.Description = 'Claude session usage tray widget'; "
-            f"$lnk.Save()"
-        )
-        subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True,
-        )
+        _write_shortcut(_STARTUP_LNK)
     else:
-        try:
-            _STARTUP_LNK.unlink()
-        except FileNotFoundError:
-            pass
+        _remove_shortcut(_STARTUP_LNK)
+
+
+def _start_menu_enabled() -> bool:
+    """True if the Start-menu shortcut is present."""
+    return _START_MENU_LNK.exists()
+
+
+def _set_start_menu(enabled: bool) -> None:
+    """Create or remove the Start-menu shortcut. Toggling on regenerates a
+    clean shortcut, which is how a user fixes a stale one from the dashboard."""
+    if enabled:
+        _write_shortcut(_START_MENU_LNK, icon=True)
+    else:
+        _remove_shortcut(_START_MENU_LNK)
 
 
 # PowerShell cleanup that outlives this process: it waits for our PID to exit
@@ -1152,6 +1169,9 @@ class TrayApp:
         if key == "start_at_login":
             _set_startup(not _startup_enabled())
             return
+        if key == "start_menu_shortcut":
+            _set_start_menu(not _start_menu_enabled())
+            return
         if key not in self._prefs:
             return
         currently_on = self._prefs[key]
@@ -1343,6 +1363,7 @@ def main():
     _WidgetHandler._prefs_getter    = lambda: {
         **tray._prefs,
         "start_at_login": _startup_enabled(),
+        "start_menu_shortcut": _start_menu_enabled(),
         "poll_interval_minutes": _poll_interval_minutes(),
         "liveness_oneshot_pcts": sorted(_liveness_oneshot_pcts()),
         "liveness_delta_pct": _liveness_delta_pct(),
