@@ -9,7 +9,9 @@ dist/
 *.bak
 drift_analysis.png
 .claude/
-# Scratch accuracy charts; keep only the README sample.
+# Scratch accuracy charts; keep only README assets.
 docs/*
 !docs/accuracy_sample.png
+!docs/dashboard_*.png
+!docs/tray_icons.png
 ClaudeUsage-win64.zip
