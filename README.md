@@ -4,7 +4,7 @@
 
 A lightweight tray widget for Claude Pro/Max users that shows your session and weekly usage *live* — updating as you send messages, not just when you open a browser tab.
 
-![Tray icons showing session %, weekly %, and session clock](docs/tray_icons.png)
+![Tray icons showing session %, weekly %, and session clock](docs/readmeImages/tray_icons.png)
 
 > **Unofficial — not affiliated with Anthropic.** Reads your usage via an undocumented `claude.ai` endpoint. See [Risks](#risks) before using.
 
@@ -25,7 +25,7 @@ Most usage trackers poll the API on a timer and show you a number. This one:
 
 ### System tray
 
-![Three tray icons: session ghost, weekly ghost, session clock](docs/tray_icons.png)
+![Three tray icons: session ghost, weekly ghost, session clock](docs/readmeImages/tray_icons.png)
 
 Left to right: session usage (ghost fill), weekly usage (ghost fill), time left in session (arc). All three update live.
 
@@ -33,12 +33,12 @@ Left to right: session usage (ghost fill), weekly usage (ghost fill), time left 
 
 Open the HTML dashboard by right-clicking any tray icon → **Open dashboard** (or navigate to `http://localhost:7433` while the widget is running).
 
-![Dashboard — all sections collapsed](docs/dashboard_collapsed.png)
+![Dashboard — all sections collapsed](docs/readmeImages/dashboard_collapsed.png)
 
 <details>
 <summary>Show in taskbar</summary>
 
-![Show in taskbar section](docs/dashboard_taskbar.png)
+![Show in taskbar section](docs/readmeImages/dashboard_taskbar.png)
 
 Toggle which icons appear in your tray. You can hide any you don't use.
 </details>
@@ -46,7 +46,7 @@ Toggle which icons appear in your tray. You can hide any you don't use.
 <details>
 <summary>Settings</summary>
 
-![Settings section](docs/dashboard_settings.png)
+![Settings section](docs/readmeImages/dashboard_settings.png)
 
 - **Start at login** — adds a Startup shortcut so the widget launches with Windows.
 - **Start menu shortcut** — optional shortcut in the Windows Start menu.
@@ -58,7 +58,7 @@ Toggle which icons appear in your tray. You can hide any you don't use.
 <details>
 <summary>Actions</summary>
 
-![Actions section](docs/dashboard_actions.png)
+![Actions section](docs/readmeImages/dashboard_actions.png)
 
 - **Confirm usage %** — force an immediate poll and re-anchor the estimate.
 - **Open config folder** — opens the folder containing `config.json` and the usage logs in Explorer.
@@ -70,7 +70,7 @@ Toggle which icons appear in your tray. You can hide any you don't use.
 <details>
 <summary>Appearance</summary>
 
-![Appearance section](docs/dashboard_appearance.png)
+![Appearance section](docs/readmeImages/dashboard_appearance.png)
 
 Per-widget controls for all three icons:
 
@@ -84,11 +84,11 @@ Per-widget controls for all three icons:
 <details>
 <summary>Widget log</summary>
 
-![Widget log section](docs/dashboard_widgetlog.png)
+![Widget log section](docs/readmeImages/dashboard_widgetlog.png)
 
 Select a past session from the dropdown and hit **Generate** to plot the local estimate against API calibration points for that session. Useful for checking how closely the widget tracked your actual usage.
 
-![Widget log chart — local estimate vs API calibration points](docs/dashboard_widgetlog_chart.png)
+![Widget log chart — local estimate vs API calibration points](docs/readmeImages/dashboard_widgetlog_chart.png)
 </details>
 
 ---
@@ -150,7 +150,7 @@ The widget combines two sources:
 
 A typical session on a single device looks like this:
 
-![Accuracy chart — local estimate vs API truth](docs/accuracy_sample.png)
+![Accuracy chart — local estimate vs API truth](docs/readmeImages/accuracy_sample.png)
 
 The dots are API-confirmed readings; the line is the live estimate in between. The estimate usually tracks within a few percentage points. The widget logs every comparison to `calibration.jsonl` — run `plot_drift.py` to visualise your own sessions.
 
