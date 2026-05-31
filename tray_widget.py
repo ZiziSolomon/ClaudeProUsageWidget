@@ -1287,6 +1287,33 @@ def _acquire_single_instance() -> bool:
         return True
 
 
+def _notify_already_running() -> None:
+    """Pop a message box when a second launch is blocked, instead of exiting
+    silently. Someone who has lost track of the running widget (e.g. its tray
+    icons are hidden in the overflow flyout) and relaunches would otherwise see
+    nothing happen and assume it's broken. We tell them it's already running and
+    offer to open its dashboard so they can find/manage it."""
+    MB_YESNO           = 0x0004
+    MB_ICONINFORMATION = 0x0040
+    MB_SETFOREGROUND   = 0x10000
+    MB_TOPMOST         = 0x40000
+    IDYES              = 6
+    try:
+        resp = ctypes.windll.user32.MessageBoxW(
+            0,
+            "Claude Usage is already running.\n\n"
+            "Its icons live in the system tray - check the up-arrow "
+            "'hidden icons' flyout. Open its dashboard now?",
+            "Claude Usage",
+            MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST,
+        )
+        if resp == IDYES:
+            webbrowser.open(f"http://127.0.0.1:{SERVER_PORT}/")
+    except Exception as e:
+        print(f"[X] already-running notification failed: "
+              f"{type(e).__name__}: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Entry point.
 # ---------------------------------------------------------------------------
@@ -1302,6 +1329,7 @@ def main():
 
     if not _acquire_single_instance():
         print("Another Claude Usage widget is already running; exiting.")
+        _notify_already_running()
         sys.exit(0)
 
     try:
