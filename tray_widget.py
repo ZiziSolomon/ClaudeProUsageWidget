@@ -187,6 +187,7 @@ from widget_updater import (
     _read_widget_config_all,
     _widget_shape_path,
     _widget_show_text,
+    _save_state,
     resolve_widget_color,
 )
 
@@ -1160,10 +1161,6 @@ class TrayApp:
             return
         self._quit(_icon, _item)
 
-    def _toggle_startup(self, _icon, _item):
-        """Toggle "Start at login" by creating or removing the Startup shortcut."""
-        _set_startup(not _startup_enabled())
-
     def web_toggle(self, key: str) -> None:
         """Toggle a pref key or start_at_login, called from the HTTP handler."""
         if key == "start_at_login":
@@ -1471,6 +1468,10 @@ def main():
                 if est is not None and handler._estimate_is_suspect(est, now):
                     handler.last_forced_recal = now
                     handler._maybe_calibrate(force=True)
+                    _save_state(handler.state, handler.session_pct,
+                                handler.session_end, handler.weekly_pct,
+                                handler.weekly_end, status=handler.status)
+                    handler._notify()
             except Exception as e:
                 print(f"  suspect-estimate check error: {e}")
             tray.tick()

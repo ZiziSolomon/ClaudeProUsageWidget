@@ -737,6 +737,27 @@ def _parse_session(raw: dict) -> tuple[datetime | None, datetime | None, float |
     return session_start, session_end, pct
 
 
+_SESSION_JITTER_SECS = 30
+
+
+def _snap_session_start(stored_iso: str | None, new_start: datetime) -> datetime:
+    """Return the stored start if it's within jitter tolerance of the API value,
+    otherwise return new_start unchanged.
+
+    The API derives session_start from resets_at, which can jitter by a second
+    or two between calls. Snapping to the already-recorded start prevents a
+    spurious state reset on every poll."""
+    if not stored_iso:
+        return new_start
+    try:
+        stored = datetime.fromisoformat(stored_iso)
+    except ValueError:
+        return new_start
+    if abs((stored - new_start).total_seconds()) <= _SESSION_JITTER_SECS:
+        return stored
+    return new_start
+
+
 def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
     """Returns (weekly_pct, weekly_reset) from the seven_day bucket."""
     seven = (raw or {}).get("seven_day") or {}
@@ -1358,6 +1379,7 @@ class TranscriptHandler(FileSystemEventHandler):
             return
 
         stored_start = self.state.get("session_start")
+        session_start = _snap_session_start(stored_start, session_start)
         if stored_start != session_start.isoformat():
             print(f"  New session detected, resetting state.")
             self.state = _empty_state(session_start)
@@ -1790,6 +1812,7 @@ class TranscriptHandler(FileSystemEventHandler):
         reset = False
         if session_start is not None:
             stored_start = self.state.get("session_start")
+            session_start = _snap_session_start(stored_start, session_start)
             if stored_start != session_start.isoformat():
                 self.state = _empty_state(session_start)
                 full_scan(self.state, session_start, session_end)

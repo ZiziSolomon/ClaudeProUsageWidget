@@ -94,12 +94,13 @@
      centre of the ghost (render_ghost show_text/label). Hidden by default. */
   .ghost-center {
     position: absolute;
-    inset: 0;
-    display: none;            /* toggled to flex by setGhost when show_text on */
-    align-items: center;
-    justify-content: center;
+    /* Ghost body centre: x=65 y=36 in the 121×76 viewBox */
+    top: 36px;
+    left: 65px;
+    transform: translate(-50%, -50%);
+    display: none;            /* toggled to block by setGhost when show_text on */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 20px;
     color: #fff;
     pointer-events: none;
@@ -123,7 +124,7 @@
   #arc-text {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 800;
     fill: #fff;
   }
 
@@ -525,7 +526,6 @@
       Colour steps: <code>pct:hex</code> pairs separated by commas — e.g.
       <code>50:#FFCC00,90:#D64E2A</code>. The highest step at or below the
       current % wins; below the lowest step the base colour is used.
-      <strong>Each pair needs its own colon.</strong>
     </div>
 
     <!-- Session ghost row -->
@@ -798,7 +798,7 @@
       if (cfg.show_text === false) {
         centerEl.style.display = 'none';
       } else {
-        centerEl.style.display = 'flex';
+        centerEl.style.display = 'block';
         centerEl.textContent = Math.round(pct) + '%';
       }
     }
@@ -1216,12 +1216,10 @@
 
       setGhost(sessFill, sessPath, sPct, 'session');
       sessPct.textContent  = Math.round(sPct) + '%';
-      sessPct.style.display = (_widgetCfg.session && _widgetCfg.session.show_text === false) ? 'none' : '';
       sessWhen.textContent = fmtWhen(s.session_end, 'session');
 
       setGhost(weekFill, weekPath, wPct, 'weekly');
       weekPct.textContent  = Math.round(wPct) + '%';
-      weekPct.style.display = (_widgetCfg.weekly && _widgetCfg.weekly.show_text === false) ? 'none' : '';
       weekWhen.textContent = fmtWhen(s.weekly_end, 'weekly');
 
       updateArc(s.session_start, s.session_end);

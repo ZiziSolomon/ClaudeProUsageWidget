@@ -1851,3 +1851,44 @@ class TestShapeShowTextWrite:
             widget_updater._write_widget_field("session", "shape", "shape_session.png")
             p = widget_updater._widget_shape_path("session")
             assert p is not None and p.name == "shape_session.png"
+
+
+# ---------------------------------------------------------------------------
+# _snap_session_start — jitter tolerance
+# ---------------------------------------------------------------------------
+
+class TestSnapSessionStart:
+    """_snap_session_start returns stored start when within 30s, new start otherwise."""
+
+    def _make(self, iso: str) -> "datetime":
+        from datetime import datetime
+        return datetime.fromisoformat(iso)
+
+    def test_exact_match_returns_stored(self):
+        stored = "2026-05-31T10:00:00+00:00"
+        new = self._make(stored)
+        assert widget_updater._snap_session_start(stored, new).isoformat() == stored
+
+    def test_within_jitter_returns_stored(self):
+        stored = "2026-05-31T10:00:00+00:00"
+        new = self._make("2026-05-31T10:00:01.500000+00:00")  # 1.5s later
+        assert widget_updater._snap_session_start(stored, new).isoformat() == stored
+
+    def test_at_boundary_returns_stored(self):
+        stored = "2026-05-31T10:00:00+00:00"
+        new = self._make("2026-05-31T10:00:30+00:00")  # exactly 30s
+        assert widget_updater._snap_session_start(stored, new).isoformat() == stored
+
+    def test_beyond_boundary_returns_new(self):
+        stored = "2026-05-31T10:00:00+00:00"
+        new = self._make("2026-05-31T10:00:31+00:00")  # 31s — genuinely new session
+        result = widget_updater._snap_session_start(stored, new)
+        assert result == new
+
+    def test_no_stored_returns_new(self):
+        new = self._make("2026-05-31T10:00:00+00:00")
+        assert widget_updater._snap_session_start(None, new) == new
+
+    def test_bad_stored_returns_new(self):
+        new = self._make("2026-05-31T10:00:00+00:00")
+        assert widget_updater._snap_session_start("not-a-date", new) == new
