@@ -39,6 +39,10 @@ from watchdog.observers import Observer
 # ---------------------------------------------------------------------------
 _STARTUP_FOLDER = Path(os.environ.get("APPDATA", "")) / r"Microsoft\Windows\Start Menu\Programs\Startup"
 _STARTUP_LNK    = _STARTUP_FOLDER / "Claude Usage.lnk"
+# Start-menu shortcut created by install_start_menu.ps1 (Programs known folder
+# == the Startup folder's parent). Uninstall must remove this too, or a dead
+# entry pointing at the deleted exe is left behind.
+_START_MENU_LNK = _STARTUP_FOLDER.parent / "Claude Usage.lnk"
 
 
 def _startup_enabled() -> bool:
@@ -107,11 +111,12 @@ lnk.Save()
 # system-powershell process means it holds no lock on anything it removes.
 _UNINSTALL_PS = r"""
 param([int]$ProcId, [string]$DataDir, [string]$StateRoot,
-      [string]$InstallDir, [string]$StartupLnk)
+      [string]$InstallDir, [string]$StartupLnk, [string]$StartMenuLnk)
 Set-Location -LiteralPath $env:TEMP
 try { Wait-Process -Id $ProcId -Timeout 30 -ErrorAction SilentlyContinue } catch {}
 Start-Sleep -Milliseconds 500
 Remove-Item -LiteralPath $StartupLnk -Force -ErrorAction SilentlyContinue
+if ($StartMenuLnk) { Remove-Item -LiteralPath $StartMenuLnk -Force -ErrorAction SilentlyContinue }
 foreach ($p in @($DataDir, $StateRoot, $InstallDir)) {
   if ($p -and (Test-Path -LiteralPath $p)) {
     Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
@@ -145,7 +150,8 @@ def _spawn_uninstall_cleanup(install_dir: str | None) -> None:
          "-DataDir", data_dir,
          "-StateRoot", state_root,
          "-InstallDir", install_dir or "",
-         "-StartupLnk", str(_STARTUP_LNK)],
+         "-StartupLnk", str(_STARTUP_LNK),
+         "-StartMenuLnk", str(_START_MENU_LNK)],
         creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
         close_fds=True,
         cwd=os.environ.get("TEMP", os.getcwd()),
@@ -1238,6 +1244,50 @@ class TrayApp:
 
 
 # ---------------------------------------------------------------------------
+# Single-instance guard.
+# ---------------------------------------------------------------------------
+# A named mutex is the canonical Windows mechanism. We deliberately do NOT key
+# off the HTTP port: on Windows SO_REUSEADDR lets two processes bind the same
+# 127.0.0.1 port without error, so a slow Startup-folder auto-start racing a
+# manual Start-menu launch silently stacks a *second* visible widget instead of
+# failing. The mutex detects the existing instance so the latecomer exits
+# quietly.
+_ERROR_ALREADY_EXISTS = 183
+_single_instance_handle = None  # held open for the process lifetime
+
+
+def _acquire_single_instance() -> bool:
+    """True if we are the only instance; False if one is already running.
+
+    On success the mutex handle is parked in a module global so it stays open
+    (and the named object stays alive) for as long as the process runs. Any
+    failure to probe fails *open* - we'd rather risk a rare duplicate than
+    block the widget from ever starting in an odd environment.
+    """
+    global _single_instance_handle
+    try:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.restype  = wintypes.HANDLE
+        kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL,
+                                          wintypes.LPCWSTR]
+        # Plain (no-backslash) name => session-local: one widget per interactive
+        # logon session, which is exactly the granularity we want.
+        handle = kernel32.CreateMutexW(None, False,
+                                       "ClaudeUsageWidget_SingleInstance")
+        last_error = kernel32.GetLastError()
+        if not handle:
+            return True
+        if last_error == _ERROR_ALREADY_EXISTS:
+            return False
+        _single_instance_handle = handle
+        return True
+    except Exception as e:
+        print(f"[X] single-instance check failed, starting anyway: "
+              f"{type(e).__name__}: {e}")
+        return True
+
+
+# ---------------------------------------------------------------------------
 # Entry point.
 # ---------------------------------------------------------------------------
 
@@ -1249,6 +1299,10 @@ def main():
     _log_fh = open(log_path, "a", encoding="utf-8", buffering=1)
     sys.stdout = _log_fh
     sys.stderr = _log_fh
+
+    if not _acquire_single_instance():
+        print("Another Claude Usage widget is already running; exiting.")
+        sys.exit(0)
 
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
