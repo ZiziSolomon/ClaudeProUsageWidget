@@ -11,7 +11,6 @@ A lightweight tray widget for Claude Pro/Max users — uses live Claude Code tra
 ## Why this one
 
 - **Live between polls** — token counts from your local Claude Code transcripts drive a live estimate that updates as each response arrives, not just when the widget polls claude.ai.
-- **No Electron** — a small Python process with system tray icons; lighter than the Electron-based alternatives.
 - **CLI access** — `usage_check.py` gives you the current reading from any terminal or script, useful for Claude Code hooks and mid-task checks.
 - **HTML dashboard** — a local browser UI for settings, icon customisation, and a usage graph.
 
