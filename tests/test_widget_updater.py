@@ -17,6 +17,8 @@ import os
 import sys
 import json
 import importlib
+import unittest.mock as mock
+from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
 import pytest
 
@@ -88,6 +90,51 @@ def _isolate_user_data_files(tmp_path, monkeypatch):
                         tmp_path / "widget_state.json")
     monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
                         tmp_path / "calibration.jsonl")
+
+
+@pytest.fixture
+def make_handler(monkeypatch):
+    """Canonical factory for TranscriptHandler in tests.
+
+    Stubs all external I/O by default. Raise-on-unmocked network means tests
+    that call the API must explicitly provide a return value — drift can't hide
+    behind a silent None. Pass stub_maybe_liveness=False for classes that test
+    _maybe_liveness directly. h._io exposes the mock objects for assertions.
+
+    The io attribute names (fetch_usage, write_state, scan_projects, …) are
+    intentionally the same names a future IOAdapter class would use, so the
+    test fakes can be reused as-is when that refactor happens.
+    """
+    W = widget_updater
+
+    def _make(*, stub_maybe_liveness=True):
+        monkeypatch.setattr(W.TranscriptHandler, "_startup", lambda self: None)
+        if stub_maybe_liveness:
+            monkeypatch.setattr(W.TranscriptHandler, "_maybe_liveness",
+                                lambda self: None)
+
+        io = SimpleNamespace(
+            write_state=mock.Mock(),
+            fetch_usage=mock.Mock(
+                side_effect=AssertionError(
+                    "unmocked _fetch_usage_status — pass fetch_usage=mock.Mock(...)"
+                )
+            ),
+            scan_projects=mock.Mock(),
+            append_calibration=mock.Mock(),
+            read_config=mock.Mock(return_value={}),
+        )
+        monkeypatch.setattr(W, "_save_state", io.write_state)
+        monkeypatch.setattr(W, "_fetch_usage_status", io.fetch_usage)
+        monkeypatch.setattr(W, "full_scan", io.scan_projects)
+        monkeypatch.setattr(W, "_append_calibration", io.append_calibration)
+        monkeypatch.setattr(W, "_read_config", io.read_config)
+
+        h = W.TranscriptHandler()
+        h._io = io
+        return h
+
+    return _make
 
 
 # ---------------------------------------------------------------------------
@@ -202,15 +249,6 @@ def _assistant_line(msg_id: str, inp: int, out: int, ts: datetime) -> str:
 
 
 class TestCalibrationRecordsBudget:
-    # Every _append_calibration call writes to CALIBRATION_FILE. Without the
-    # monkeypatch these tests would (and did) pollute the real user log with
-    # synthetic 2099 session_start records, confusing tools like
-    # save_accuracy_chart.py. Pin to a tmp file in every test.
-    @pytest.fixture(autouse=True)
-    def _isolate_calibration_file(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
-                            tmp_path / "calibration.jsonl")
-
     def test_append_calibration_stores_implied_budget(self):
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
@@ -462,16 +500,8 @@ class TestEmergencyRecal:
     (pegged at the 100% clamp, or sprinted FORCE_RECAL_GAP_PP past the last API
     truth), on_modified spends one cooldown-gated API call to re-anchor."""
 
-    def _make_handler(self, monkeypatch):
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_maybe_liveness",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        return widget_updater.TranscriptHandler()
-
-    def test_clamp_hit_is_suspect(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_clamp_hit_is_suspect(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 100000
         h.state["input_tokens"] = 80000
@@ -479,8 +509,8 @@ class TestEmergencyRecal:
         h.last_api_pct = 40
         assert h._estimate_is_suspect(100, now) is True
 
-    def test_big_gap_is_suspect(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_big_gap_is_suspect(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 200000
         h.state["input_tokens"] = 40000
@@ -488,8 +518,8 @@ class TestEmergencyRecal:
         h.last_api_pct = 5                 # 30pp ahead of truth >= 25
         assert h._estimate_is_suspect(35, now) is True
 
-    def test_small_gap_not_suspect(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_small_gap_not_suspect(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 200000
         h.state["input_tokens"] = 12000
@@ -497,8 +527,8 @@ class TestEmergencyRecal:
         h.last_api_pct = 10                # 2pp gap < FORCE_RECAL_GAP_PP, not clamped
         assert h._estimate_is_suspect(12, now) is False
 
-    def test_cooldown_suppresses(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_cooldown_suppresses(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 100000
         h.state["input_tokens"] = 120000
@@ -507,14 +537,14 @@ class TestEmergencyRecal:
         h.last_forced_recal = now - timedelta(seconds=10)  # inside cooldown
         assert h._estimate_is_suspect(100, now) is False
 
-    def test_no_budget_not_suspect(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_no_budget_not_suspect(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.state.pop("implied_session_budget", None)
         assert h._estimate_is_suspect(100, now) is False
 
-    def test_on_modified_forces_recal_when_clamped(self, monkeypatch, tmp_path):
-        h = self._make_handler(monkeypatch)
+    def test_on_modified_forces_recal_when_clamped(self, make_handler, monkeypatch, tmp_path):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.session_start = now - timedelta(hours=1)
         h.session_end   = now + timedelta(hours=4)
@@ -548,12 +578,6 @@ class TestAdoptApiPct:
     re-derives the budget when it disagrees with what we showed by more than
     RECAL_DISCREPANCY_PP (or there's no budget yet) and clears the pct floor."""
 
-    def _make_handler(self, monkeypatch):
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        return widget_updater.TranscriptHandler()
-
     def _capture(self, monkeypatch):
         # Stub _append_calibration so the test neither writes to the real
         # calibration log nor depends on it -- just records the gate decision
@@ -571,8 +595,8 @@ class TestAdoptApiPct:
         monkeypatch.setattr(widget_updater, "full_scan", lambda *a, **k: None)
         return calls
 
-    def test_big_diff_recalibrates(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_big_diff_recalibrates(self, make_handler, monkeypatch):
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -582,8 +606,8 @@ class TestAdoptApiPct:
         assert h.session_pct == 80 and h.last_api_pct == 80
         assert h.state["implied_session_budget"] == 50000   # 40k / (80/100)
 
-    def test_small_diff_keeps_budget(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_small_diff_keeps_budget(self, make_handler, monkeypatch):
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -593,8 +617,8 @@ class TestAdoptApiPct:
         assert h.session_pct == 53                            # display adopts
         assert h.state["implied_session_budget"] == 200000    # budget untouched
 
-    def test_no_budget_recalibrates(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_no_budget_recalibrates(self, make_handler, monkeypatch):
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = None
         h.state.pop("implied_session_budget", None)
@@ -602,8 +626,8 @@ class TestAdoptApiPct:
         assert h._adopt_api_pct(10, datetime.now(timezone.utc)) is True
         assert calls["update_budget"] is True
 
-    def test_below_floor_no_recalibrate(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_below_floor_no_recalibrate(self, make_handler, monkeypatch):
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -611,10 +635,10 @@ class TestAdoptApiPct:
         assert calls["update_budget"] is False
         assert h.session_pct == 3                             # display still adopts
 
-    def test_below_floor_no_budget_bootstraps(self, monkeypatch):
+    def test_below_floor_no_budget_bootstraps(self, make_handler, monkeypatch):
         # With no budget yet, a sub-floor reading still derives one (blended)
         # so the live estimate can display early instead of freezing.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = None
         h.state.pop("implied_session_budget", None)
@@ -622,10 +646,10 @@ class TestAdoptApiPct:
         h._adopt_api_pct(3, datetime.now(timezone.utc))   # below floor
         assert calls["update_budget"] is True
 
-    def test_provisional_budget_upgrades_at_floor(self, monkeypatch):
+    def test_provisional_budget_upgrades_at_floor(self, make_handler, monkeypatch):
         # A provisional sub-floor budget is replaced by a live derivation the
         # first time the API reports at/above the floor, even with a small diff.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = 5
         h.state["implied_session_budget"] = 180000
@@ -635,10 +659,10 @@ class TestAdoptApiPct:
         assert calls["update_budget"] is True
         assert h.state["implied_session_budget"] == round(12000 / 0.06)
 
-    def test_live_budget_small_diff_not_upgraded(self, monkeypatch):
+    def test_live_budget_small_diff_not_upgraded(self, make_handler, monkeypatch):
         # A non-provisional (live) budget is left alone on a small diff, even
         # at/above the floor -- provisional upgrade must not weaken that gate.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         calls = self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -647,10 +671,10 @@ class TestAdoptApiPct:
         assert calls["update_budget"] is False
         assert h.state["implied_session_budget"] == 200000
 
-    def test_sets_anchor(self, monkeypatch):
+    def test_sets_anchor(self, make_handler, monkeypatch):
         # _adopt_api_pct must record anchor_pct + anchor_io so subsequent
         # _local_estimate calls start from the API value, not total_io/budget.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -659,10 +683,10 @@ class TestAdoptApiPct:
         assert h.state["anchor_pct"] == 53
         assert h.state["anchor_io"]  == 60000   # 40k + 20k at time of call
 
-    def test_local_estimate_uses_anchor_immediately(self, monkeypatch):
+    def test_local_estimate_uses_anchor_immediately(self, make_handler, monkeypatch):
         # After _adopt_api_pct, _local_estimate returns exactly the API pct when
         # no new tokens have been written (delta = 0).
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
@@ -678,11 +702,8 @@ class TestWatcherStuck:
     been silent for WATCHER_STUCK_SILENCE_SECS, it's stuck -> prompt restart.
     Off-laptop usage leaves no local-disk tokens, so it never trips this."""
 
-    def _make_handler(self, monkeypatch):
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        h = widget_updater.TranscriptHandler()
+    def _make_seeded_handler(self, make_handler):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         h.session_start = now - timedelta(hours=1)
         h.session_end   = now + timedelta(hours=4)
@@ -705,8 +726,8 @@ class TestWatcherStuck:
         monkeypatch.setattr(widget_updater.threading, "Timer", _FakeTimer)
         return armed
 
-    def test_silent_with_missed_tokens_arms_then_warns(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_silent_with_missed_tokens_arms_then_warns(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(
             seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
@@ -722,8 +743,8 @@ class TestWatcherStuck:
         armed["fn"](*armed["args"])
         assert warned                                     # now it warns
 
-    def test_ping_in_grace_window_cancels_warning(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_ping_in_grace_window_cancels_warning(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(
             seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
@@ -738,8 +759,8 @@ class TestWatcherStuck:
         armed["fn"](*armed["args"])
         assert not warned                                 # watcher was alive
 
-    def test_recent_events_no_recheck(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_recent_events_no_recheck(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(seconds=30)     # events flowing
         self._scan_adds(monkeypatch, 5000)
@@ -747,8 +768,8 @@ class TestWatcherStuck:
         assert h._rescan_and_check_watcher(now) == 5000   # still healed
         assert not armed                                  # no re-check armed
 
-    def test_no_missed_tokens_no_recheck(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_no_missed_tokens_no_recheck(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         now = datetime.now(timezone.utc)
         h.last_event_at = now - timedelta(
             seconds=widget_updater.WATCHER_STUCK_SILENCE_SECS + 60)
@@ -757,8 +778,8 @@ class TestWatcherStuck:
         assert h._rescan_and_check_watcher(now) == 0
         assert not armed
 
-    def test_never_saw_event_no_recheck(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_never_saw_event_no_recheck(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         now = datetime.now(timezone.utc)
         h.last_event_at = None
         self._scan_adds(monkeypatch, 5000)
@@ -771,20 +792,8 @@ class TestOnModifiedAdvancesPct:
     """Integration guard: on_modified must move session_pct from local token
     growth when no calibration fires. This is the exact path that froze."""
 
-    def _make_handler(self, monkeypatch):
-        # __init__ calls _startup() (network); neuter it. Also stub _save_state
-        # so the test never writes to the real %LOCALAPPDATA% store.
-        # Stub _maybe_liveness so threshold triggers don't fire network calls.
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_maybe_liveness",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state",
-                            lambda *a, **k: None)
-        return widget_updater.TranscriptHandler()
-
-    def test_pct_advances_without_api_call(self, monkeypatch, tmp_path):
-        h = self._make_handler(monkeypatch)
+    def test_pct_advances_without_api_call(self, make_handler, monkeypatch, tmp_path):
+        h = make_handler()
         now = datetime.now(timezone.utc)
         # Live session window, calibrated already, budget known, budget spent so
         # _maybe_calibrate won't fire; liveness recently done so it won't ping.
@@ -832,17 +841,9 @@ class TestSessionRollover:
     0%; noticed late => pending '--' (None) until the API/transcript confirms.
     """
 
-    def _make_handler(self, monkeypatch):
-        # __init__ calls _startup() (network) and _save_state (writes to the
-        # real store); neuter both.
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        return widget_updater.TranscriptHandler()
-
-    def _expired_handler(self, monkeypatch, end):
+    def _expired_handler(self, make_handler, end):
         """Handler holding a non-trivial reading for a window ending at `end`."""
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.session_start = end - timedelta(hours=widget_updater.SESSION_HOURS)
         h.session_end = end
         h.session_pct = 74
@@ -853,17 +854,17 @@ class TestSessionRollover:
         h.state["seen_ids"] = {"msg_old"}
         return h
 
-    def test_no_rollover_before_expiry(self, monkeypatch):
+    def test_no_rollover_before_expiry(self, make_handler):
         now = datetime.now(timezone.utc)
-        h = self._expired_handler(monkeypatch, now + timedelta(hours=1))
+        h = self._expired_handler(make_handler, now + timedelta(hours=1))
         assert h._roll_over_if_expired(now) is False
         assert h.session_pct == 74          # untouched
         assert h.session_end is not None
 
-    def test_caught_live_snaps_to_zero(self, monkeypatch):
+    def test_caught_live_snaps_to_zero(self, make_handler):
         now = datetime.now(timezone.utc)
         # Boundary 5s ago — inside the grace window => we were watching.
-        h = self._expired_handler(monkeypatch, now - timedelta(seconds=5))
+        h = self._expired_handler(make_handler, now - timedelta(seconds=5))
         assert h._roll_over_if_expired(now) is True
         assert h.session_pct == 0
         assert h.session_start is None and h.session_end is None
@@ -875,18 +876,18 @@ class TestSessionRollover:
         # calibration anchor dropped so the next calibrate re-anchors at once
         assert h.last_calibrated is None
 
-    def test_noticed_late_blanks_to_pending(self, monkeypatch):
+    def test_noticed_late_blanks_to_pending(self, make_handler):
         now = datetime.now(timezone.utc)
         # Boundary an hour ago — well past grace => widget wasn't watching.
-        h = self._expired_handler(monkeypatch, now - timedelta(hours=1))
+        h = self._expired_handler(make_handler, now - timedelta(hours=1))
         assert h._roll_over_if_expired(now) is True
         assert h.session_pct is None        # '--', not a fabricated 0
         assert h.session_start is None
 
-    def test_grace_boundary_is_inclusive(self, monkeypatch):
+    def test_grace_boundary_is_inclusive(self, make_handler):
         now = datetime.now(timezone.utc)
         end = now - timedelta(seconds=widget_updater.ROLLOVER_GRACE_SECS)
-        h = self._expired_handler(monkeypatch, end)   # exactly at the grace edge
+        h = self._expired_handler(make_handler, end)   # exactly at the grace edge
         assert h._roll_over_if_expired(now) is True
         assert h.session_pct == 0           # still counts as live
 
@@ -936,11 +937,9 @@ class TestLivenessTriggers:
     """_maybe_liveness fires on: 20-min heartbeat, 10pp local-estimate delta,
     and one-shot thresholds at 5%, 10%, 95% (first crossing only)."""
 
-    def _make_handler(self, monkeypatch):
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        h = widget_updater.TranscriptHandler()
+    def _make_seeded_handler(self, make_handler):
+        # stub_maybe_liveness=False: these tests exercise the real _maybe_liveness.
+        h = make_handler(stub_maybe_liveness=False)
         now = datetime.now(timezone.utc)
         h.session_start = now - timedelta(hours=1)
         h.session_end   = now + timedelta(hours=4)
@@ -961,8 +960,8 @@ class TestLivenessTriggers:
                             lambda: calls.append(True) or None)
         return calls
 
-    def test_delta_trigger_fires_at_10pp(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_delta_trigger_fires_at_10pp(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._liveness_anchor_pct = 20.0
         h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
@@ -972,8 +971,8 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert len(calls) == 1
 
-    def test_delta_trigger_no_fire_below_10pp(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_delta_trigger_no_fire_below_10pp(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._liveness_anchor_pct = 20.0
         h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
@@ -981,8 +980,8 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert len(calls) == 0
 
-    def test_one_shot_fires_at_5pct(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_one_shot_fires_at_5pct(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._triggered_thresholds = set()
         h.state["input_tokens"] = 12000    # est = 6% (above 5)
@@ -990,8 +989,8 @@ class TestLivenessTriggers:
         assert len(calls) == 1
         assert 5 in h._triggered_thresholds
 
-    def test_one_shot_fires_at_10pct(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_one_shot_fires_at_10pct(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._triggered_thresholds = {5}      # 5% already done
         h.state["input_tokens"] = 22000    # est = 11% (above 10)
@@ -999,8 +998,8 @@ class TestLivenessTriggers:
         assert len(calls) == 1
         assert 10 in h._triggered_thresholds
 
-    def test_one_shot_fires_at_95pct(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_one_shot_fires_at_95pct(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._triggered_thresholds = {5, 10}
         h.state["input_tokens"] = 192000   # est = 96%
@@ -1008,8 +1007,8 @@ class TestLivenessTriggers:
         assert len(calls) == 1
         assert 95 in h._triggered_thresholds
 
-    def test_one_shot_not_refired(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_one_shot_not_refired(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
         h._liveness_anchor_pct = 50.0
@@ -1022,10 +1021,10 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert len(calls) == 0
 
-    def test_anchor_updated_after_successful_poll(self, monkeypatch):
+    def test_anchor_updated_after_successful_poll(self, make_handler, monkeypatch):
         # _set_anchor is called inside _adopt_api_pct on a successful fetch;
         # the new baseline should be the API-returned pct, not the local est.
-        h = self._make_handler(monkeypatch)
+        h = self._make_seeded_handler(make_handler)
         h._triggered_thresholds = set()
         h.state["input_tokens"] = 12000    # local est = 6%
         # Successful fetch returns pct=7 (API and local may differ slightly)
@@ -1039,11 +1038,11 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert h._liveness_anchor_pct == 7.0
 
-    def test_calibration_call_resets_baseline(self, monkeypatch):
+    def test_calibration_call_resets_baseline(self, make_handler, monkeypatch):
         # Any API call resets the baseline, not just liveness calls.
         # After a calibration call at pct=30, a liveness delta trigger should
         # measure from 30, not from the old liveness anchor.
-        h = self._make_handler(monkeypatch)
+        h = self._make_seeded_handler(make_handler)
         h._liveness_anchor_pct = 10.0
         h._triggered_thresholds = set(widget_updater.LIVENESS_ONE_SHOT_PCTS)
         # Simulate _set_anchor being called by a calibration at pct=30
@@ -1055,8 +1054,8 @@ class TestLivenessTriggers:
         h._maybe_liveness()
         assert len(calls) == 0
 
-    def test_rollover_resets_triggers(self, monkeypatch):
-        h = self._make_handler(monkeypatch)
+    def test_rollover_resets_triggers(self, make_handler, monkeypatch):
+        h = self._make_seeded_handler(make_handler)
         h._triggered_thresholds = set(widget_updater.LIVENESS_ONE_SHOT_PCTS)
         h._liveness_anchor_pct = 50.0
         # Expire the session so _roll_over_if_expired actually fires.
@@ -1065,9 +1064,9 @@ class TestLivenessTriggers:
         assert h._triggered_thresholds == set()
         assert h._liveness_anchor_pct is None
 
-    def test_no_trigger_without_estimate(self, monkeypatch):
+    def test_no_trigger_without_estimate(self, make_handler, monkeypatch):
         # No budget => est is None => only time trigger can fire.
-        h = self._make_handler(monkeypatch)
+        h = self._make_seeded_handler(make_handler)
         calls = self._stub_fetch(monkeypatch, h)
         h.state.pop("implied_session_budget", None)
         h._triggered_thresholds = set()
@@ -1229,27 +1228,9 @@ class TestIncrementalProcessFile:
 # ---------------------------------------------------------------------------
 
 class TestBudgetLowerBound:
-    @pytest.fixture(autouse=True)
-    def _isolate_calibration_file(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE",
-                            tmp_path / "calibration.jsonl")
-
-    def _make_handler(self, monkeypatch):
-        monkeypatch.setattr(widget_updater.TranscriptHandler, "_startup",
-                            lambda self: None)
-        monkeypatch.setattr(widget_updater, "_save_state", lambda *a, **k: None)
-        # Isolate from the real persisted user state: __init__ calls
-        # _load_state(), which would otherwise pull the live session's anchors
-        # and session_budget_lb into the handler. That made the lb assertions
-        # non-deterministic — the "expect a pristine 0" cases failed outright,
-        # and the running-max cases flickered as the live widget rewrote the
-        # value mid-run. Start every handler from a clean empty state instead.
-        monkeypatch.setattr(
-            widget_updater, "_load_state",
-            lambda: widget_updater._empty_state(
-                datetime(2099, 1, 1, tzinfo=timezone.utc)),
-        )
-        return widget_updater.TranscriptHandler()
+    # _isolate_user_data_files (autouse) redirects STATE_FILE to a non-existent
+    # tmp path, so _load_state() falls back to _empty_state() automatically —
+    # no explicit _load_state stub needed here.
 
     def _seed_anchor(self, h, pct, io):
         """Set a clean anchor directly (bypasses lb computation for setup)."""
@@ -1259,28 +1240,28 @@ class TestBudgetLowerBound:
         h.state["input_tokens"]  = io
         h.state["output_tokens"] = 0
 
-    def test_no_lb_on_first_anchor(self, monkeypatch):
+    def test_no_lb_on_first_anchor(self, make_handler):
         # First anchor: session_anchors is empty, no prior to diff against.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         h.state["input_tokens"] = 10000
         h.state["output_tokens"] = 0
         h._set_anchor(5.0)
         assert h.state.get("session_budget_lb", 0) == 0
 
-    def test_lb_computed_on_second_anchor(self, monkeypatch):
+    def test_lb_computed_on_second_anchor(self, make_handler):
         # 10k tokens, Δpct=5 → denom=6 → lb = 100*10000/6 = 166666
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 5.0, 5000)          # anchor 1, no lb yet
         h.state["input_tokens"] = 15000           # +10k
         h._set_anchor(10.0)                       # Δpct=5, Δio=10k
         assert h.state["session_budget_lb"] == int(100 * 10000 / 6)
 
-    def test_worst_case_rounding_uses_delta_plus_one(self, monkeypatch):
+    def test_worst_case_rounding_uses_delta_plus_one(self, make_handler):
         # denom must be Δpct+1, not Δpct — the bound must hold even if the
         # true Δpct was Δpct_api + 0.99 pp (floor rounding worst case).
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 0.0, 0)
         h.state["input_tokens"] = 20000
@@ -1288,19 +1269,19 @@ class TestBudgetLowerBound:
         assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
         assert h.state["session_budget_lb"] < int(100 * 20000 / 2)  # not naive /2
 
-    def test_zero_delta_pct_gives_lb(self, monkeypatch):
+    def test_zero_delta_pct_gives_lb(self, make_handler):
         # Δpct=0, Δio>0: pct didn't tick so true Δpct < 1 pp → denom=1.
         # lb = 100 * Δio / 1 = budget ≥ 100 × tokens_used.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 5.0, 1000)
         h.state["input_tokens"] = 6000            # +5k, pct still 5
         h._set_anchor(5.0)                        # Δpct=0 → denom=1
         assert h.state["session_budget_lb"] == int(100 * 5000 / 1)
 
-    def test_lb_is_running_maximum(self, monkeypatch):
+    def test_lb_is_running_maximum(self, make_handler):
         # lb grows when a new pair is tighter, stays put when it's looser.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 0.0, 0)
 
@@ -1322,11 +1303,11 @@ class TestBudgetLowerBound:
         h._set_anchor(8.0)
         assert h.state["session_budget_lb"] == int(100 * 30000 / 2)
 
-    def test_full_history_beats_consecutive(self, monkeypatch):
+    def test_full_history_beats_consecutive(self, make_handler):
         # Two clean intervals each with Δpct=1. Consecutive lb = 100*Δio/2.
         # The full span (anchor1→anchor3) has Δpct=2 → lb = 100*(2*Δio)/3,
         # which is larger than 100*Δio/2 — the "+1" amortizes over more pcts.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 0.0, 0)
 
@@ -1341,9 +1322,9 @@ class TestBudgetLowerBound:
         assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
         assert h.state["session_budget_lb"] > lb_after_2
 
-    def test_negative_delta_pct_skipped(self, monkeypatch):
+    def test_negative_delta_pct_skipped(self, make_handler):
         # A pct drop signals a session reset — skip to avoid a nonsensical lb.
-        h = self._make_handler(monkeypatch)
+        h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 40.0, 50000)
         h.state["input_tokens"] = 60000
@@ -1892,3 +1873,25 @@ class TestSnapSessionStart:
     def test_bad_stored_returns_new(self):
         new = self._make("2026-05-31T10:00:00+00:00")
         assert widget_updater._snap_session_start("not-a-date", new) == new
+
+
+# ---------------------------------------------------------------------------
+# API response contract
+#
+# Pins _make_raw (used by test fakes) to the shape the real parsers accept.
+# If the fake drifts from the real API format, these tests fail here rather
+# than silently returning None through the parsers.
+# ---------------------------------------------------------------------------
+
+class TestAPIResponseContract:
+    def test_make_raw_parseable_by_session_parser(self):
+        raw = _make_raw()
+        start, end, pct = widget_updater._parse_session(raw)
+        assert pct is not None, "_parse_session returned None — _make_raw shape drifted"
+        assert start is not None
+        assert end is not None
+
+    def test_make_raw_parseable_by_weekly_parser(self):
+        raw = _make_raw()
+        pct, end = widget_updater._parse_weekly(raw)
+        assert pct is not None, "_parse_weekly returned None — _make_raw shape drifted"
