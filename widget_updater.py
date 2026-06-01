@@ -1694,12 +1694,16 @@ class TranscriptHandler(FileSystemEventHandler):
                 self.weekly_pct = wk_pct
                 self.weekly_end = wk_end
 
-        # On success _set_anchor (called inside _adopt_api_pct) already reset
-        # both baselines. On failure, do it here so a persistent API outage
-        # can't cause continuous re-polling on the same triggers.
+        # Always mark due_shots as triggered so one-shot thresholds don't re-fire
+        # even when the API returns a lower pct than the threshold that triggered
+        # the call. _set_anchor only marks thresholds <= api_pct, so e.g. the
+        # 10% one-shot that caused a call returning api_pct=5 would never get
+        # marked and would fire again on every subsequent poll.
+        self._triggered_thresholds |= due_shots
+        # On failure, also reset the delta baseline (on success _set_anchor
+        # inside _adopt_api_pct already handles it).
         if raw is None:
             self._liveness_anchor_pct = est if est is not None else self.session_pct
-            self._triggered_thresholds |= due_shots
 
         if self.status != prev_status or raw is not None:
             _save_state(self.state, self.session_pct, self.session_end,

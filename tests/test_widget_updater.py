@@ -1074,6 +1074,34 @@ class TestLivenessTriggers:
         h._maybe_liveness()   # no time due, no est → nothing
         assert len(calls) == 0
 
+    def test_one_shot_not_refired_when_api_returns_below_threshold(
+            self, make_handler, monkeypatch):
+        # Regression: if the 10% one-shot fires and the API returns 5%,
+        # _set_anchor only marks thresholds <= 5 as triggered. Without
+        # also marking due_shots, the 10% one-shot would fire again on
+        # the next poll because est is still above 10%.
+        h = self._make_seeded_handler(make_handler)
+        h._triggered_thresholds = set()         # 10% not yet triggered
+        h.state["input_tokens"] = 22000         # est = 11% → crosses 10%
+
+        now = datetime.now(timezone.utc)
+        raw = {"five_hour": {"utilization": 5.0,  # API says only 5%
+                             "resets_at": (now + timedelta(hours=4)).isoformat()},
+               "seven_day": {"utilization": 10.0,
+                             "resets_at": (now + timedelta(days=7)).isoformat()}}
+        monkeypatch.setattr(h, "_fetch_with_tracking", lambda: raw)
+        monkeypatch.setattr(widget_updater, "full_scan", lambda *a, **k: None)
+
+        h._maybe_liveness()
+        assert 10 in h._triggered_thresholds    # must be marked even though api < 10%
+
+        # Second call: est is still above 10% but threshold already marked → no refetch.
+        fetch_calls = []
+        monkeypatch.setattr(h, "_fetch_with_tracking",
+                            lambda: fetch_calls.append(True) or None)
+        h._maybe_liveness()
+        assert len(fetch_calls) == 0
+
 
 class TestIncrementalProcessFile:
     def _window(self):
