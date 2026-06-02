@@ -1,0 +1,2 @@
+# Generated artifacts containing personal usage data - regenerate via build_token_csvs.py
+*.csv
