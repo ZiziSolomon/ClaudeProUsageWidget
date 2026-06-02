@@ -777,6 +777,10 @@ def _load_state() -> dict:
     try:
         s = json.loads(STATE_FILE.read_text())
         s["seen_ids"] = set(s.get("seen_ids", []))
+        # Backfill cache counters for state written before they existed, so the
+        # incremental accumulation below never hits a missing key.
+        for k in ("cache_write_1h", "cache_write_5m", "cache_read"):
+            s.setdefault(k, 0)
         return s
     except Exception as e:
         print(f"[X] _load_state failed, starting fresh: {type(e).__name__}: {e}")
@@ -788,6 +792,14 @@ def _empty_state(session_start: datetime | None = None) -> dict:
         "seen_ids": set(),
         "input_tokens": 0,
         "output_tokens": 0,
+        # Cache token accounting, captured for weight calibration. NOT yet used
+        # by the live budget math - the displayed estimate still keys off
+        # input+output only. Cumulative per session, reset on rollover. Claude
+        # Code writes 1h ephemeral cache, so cache_write_1h dominates; 5m is
+        # kept separate because the two carry different cost weights.
+        "cache_write_1h": 0,
+        "cache_write_5m": 0,
+        "cache_read": 0,
         "by_model": {},
         # Per-file byte offsets for incremental JSONL parsing. See process_file.
         # Cleared on session reset so the new session counts from scratch.
@@ -1007,6 +1019,10 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         "transcript_input_tokens": state["input_tokens"],
         "transcript_output_tokens":state["output_tokens"],
         "transcript_io_total":     total_io,
+        # Cache token vector for weight calibration (cumulative this session).
+        "transcript_cache_write_1h": state.get("cache_write_1h", 0),
+        "transcript_cache_write_5m": state.get("cache_write_5m", 0),
+        "transcript_cache_read":     state.get("cache_read", 0),
         "implied_session_budget":  implied,
         "budget_source":           budget_source,
         "by_model":                state["by_model"],
@@ -1140,6 +1156,16 @@ def process_file(path: Path, state: dict, session_start: datetime, session_end: 
             entry["output"]         += usage.get("output_tokens", 0)
             state["input_tokens"]   += usage.get("input_tokens", 0)
             state["output_tokens"]  += usage.get("output_tokens", 0)
+            # Cache tokens (for weight calibration; not yet in the budget math).
+            # Prefer the 1h/5m split; fall back to the flat total (older records
+            # lack the nested breakdown) attributed to 1h, Claude Code's default.
+            cc = usage.get("cache_creation") or {}
+            if cc:
+                state["cache_write_1h"] += cc.get("ephemeral_1h_input_tokens", 0)
+                state["cache_write_5m"] += cc.get("ephemeral_5m_input_tokens", 0)
+            else:
+                state["cache_write_1h"] += usage.get("cache_creation_input_tokens", 0)
+            state["cache_read"]     += usage.get("cache_read_input_tokens", 0)
             changed = True
         except Exception as e:
             # Loud: an assistant/usage record failed downstream accounting.

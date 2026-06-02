@@ -1133,6 +1133,52 @@ class TestIncrementalProcessFile:
         assert state["output_tokens"] == 275
         assert state["offsets"][str(f)] > first_off
 
+    def _cache_line(self, msg_id, ts, *, inp=0, out=0, c1h=0, c5m=0, cread=0,
+                    nested=True):
+        usage = {"input_tokens": inp, "output_tokens": out,
+                 "cache_read_input_tokens": cread}
+        if nested:
+            usage["cache_creation"] = {"ephemeral_1h_input_tokens": c1h,
+                                       "ephemeral_5m_input_tokens": c5m}
+        else:
+            # Older record shape: flat total, no 1h/5m breakdown.
+            usage["cache_creation_input_tokens"] = c1h
+        return json.dumps({"type": "assistant", "timestamp": ts.isoformat(),
+                           "message": {"id": msg_id, "model": "claude-opus-4-8",
+                                       "usage": usage}})
+
+    def test_cache_tokens_accumulated_and_logged(self, tmp_path, monkeypatch):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        # Fresh state starts the cache counters at zero.
+        assert (state["cache_write_1h"], state["cache_write_5m"],
+                state["cache_read"]) == (0, 0, 0)
+
+        f = tmp_path / "t.jsonl"
+        f.write_text(self._cache_line("m1", now, inp=2, out=500,
+                                      c1h=3958, c5m=0, cread=13707) + "\n",
+                     encoding="utf-8")
+        widget_updater.process_file(f, state, start, end)
+        assert state["cache_write_1h"] == 3958
+        assert state["cache_read"] == 13707
+
+        # A record without the nested split falls back to the flat total -> 1h.
+        with f.open("a", encoding="utf-8") as h:
+            h.write(self._cache_line("m2", now, c1h=1000, cread=200,
+                                     nested=False) + "\n")
+        widget_updater.process_file(f, state, start, end)
+        assert state["cache_write_1h"] == 4958
+        assert state["cache_read"] == 13907
+
+        # The calibration record carries the cache vector for later weight fits.
+        calib = tmp_path / "calibration.jsonl"
+        monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", calib)
+        widget_updater._append_calibration(state, 50.0, now, update_budget=False)
+        rec = json.loads(calib.read_text(encoding="utf-8").splitlines()[-1])
+        assert rec["transcript_cache_write_1h"] == 4958
+        assert rec["transcript_cache_write_5m"] == 0
+        assert rec["transcript_cache_read"] == 13907
+
     def test_partial_trailing_line_held_for_next_read(self, tmp_path):
         start, end, now = self._window()
         state = widget_updater._empty_state(start)
