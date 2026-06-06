@@ -253,10 +253,11 @@ class TestCalibrationRecordsBudget:
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 40000
-        state["output_tokens"] = 60000  # 100k io total
-        # 100k tokens reported as 50% => implied budget 200k.
+        state["output_tokens"] = 60000  # 100k raw io
+        # Budget is back-derived from the WEIGHTED token count now, not raw io.
+        expected = round(widget_updater._weighted_io(state) / 0.5)
         widget_updater._append_calibration(state, 50.0, datetime.now(timezone.utc))
-        assert state["implied_session_budget"] == 200000
+        assert state["implied_session_budget"] == expected
 
     def test_zero_pct_does_not_set_budget(self):
         state = widget_updater._empty_state(
@@ -277,13 +278,14 @@ class TestCalibrationRecordsBudget:
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 1000
-        state["output_tokens"] = 1000  # 2k io total
+        state["output_tokens"] = 1000
+        wio = widget_updater._weighted_io(state)   # weighted, not raw 2k
         pct = widget_updater.CALIBRATION_PCT_FLOOR - 1  # 4%
         widget_updater._append_calibration(state, float(pct),
                                            datetime.now(timezone.utc))
         # No prior history -> blend falls back to X alone:
-        # floor convention: midpoint = 4 + 0.5 = 4.5% => X = 2000/0.045 ≈ 44444.
-        assert state["implied_session_budget"] == int(round(2000 / 0.045))
+        # floor convention: midpoint = 4 + 0.5 = 4.5% => X = wio/0.045.
+        assert state["implied_session_budget"] == int(round(wio / 0.045))
 
     def test_at_floor_sets_budget(self):
         # At the floor exactly we DO trust it: 2k io at floor% => 2k/(floor/100).
@@ -291,9 +293,10 @@ class TestCalibrationRecordsBudget:
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 1000
         state["output_tokens"] = 1000
+        wio = widget_updater._weighted_io(state)
         floor = widget_updater.CALIBRATION_PCT_FLOOR
         widget_updater._append_calibration(state, float(floor), datetime.now(timezone.utc))
-        assert state["implied_session_budget"] == round(2000 / (floor / 100))
+        assert state["implied_session_budget"] == round(wio / (floor / 100))
 
 
 class TestBlendedSubFloorBudget:
@@ -386,10 +389,11 @@ class TestPriorBudgetMedian:
 
     def test_ignores_null_budget_entries(self, tmp_path, monkeypatch):
         f = tmp_path / "calibration.jsonl"
+        u = widget_updater.IO_UNIT
         f.write_text("\n".join([
-            json.dumps({"implied_session_budget": None,   "budget_source": "live"}),
-            json.dumps({"implied_session_budget": 200000, "budget_source": "live"}),
-            json.dumps({"implied_session_budget": 300000, "budget_source": "live"}),
+            json.dumps({"implied_session_budget": None,   "budget_source": "live", "budget_unit": u}),
+            json.dumps({"implied_session_budget": 200000, "budget_source": "live", "budget_unit": u}),
+            json.dumps({"implied_session_budget": 300000, "budget_source": "live", "budget_unit": u}),
         ]) + "\n", encoding="utf-8")
         monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
         assert widget_updater._load_prior_budget_median() == 250000
@@ -398,10 +402,11 @@ class TestPriorBudgetMedian:
         # Older absurd value should drop out of the window and not skew the
         # median.
         f = tmp_path / "calibration.jsonl"
+        u = widget_updater.IO_UNIT
         lines = [json.dumps({"implied_session_budget": 999_999_999,
-                              "budget_source": "live"})]
+                              "budget_source": "live", "budget_unit": u})]
         lines += [json.dumps({"implied_session_budget": 200000,
-                               "budget_source": "live"})
+                               "budget_source": "live", "budget_unit": u})
                   for _ in range(widget_updater.PRIOR_BUDGET_WINDOW)]
         f.write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
@@ -411,13 +416,14 @@ class TestPriorBudgetMedian:
         # "blended" entries are partially derived from the prior itself —
         # including them creates a feedback loop. Only "live" entries count.
         f = tmp_path / "calibration.jsonl"
+        u = widget_updater.IO_UNIT
         lines = [
             json.dumps({"implied_session_budget": 50000,
-                        "budget_source": "blended"}),  # should be ignored
+                        "budget_source": "blended", "budget_unit": u}),  # ignored: blended
             json.dumps({"implied_session_budget": 200000,
-                        "budget_source": "live"}),
+                        "budget_source": "live", "budget_unit": u}),
             json.dumps({"implied_session_budget": 300000,
-                        "budget_source": "live"}),
+                        "budget_source": "live", "budget_unit": u}),
         ]
         f.write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.setattr(widget_updater, "CALIBRATION_FILE", f)
@@ -441,18 +447,19 @@ class TestLocalEstimate:
         assert widget_updater._estimate_session_pct(state) is None
 
     def test_extrapolates_from_tokens(self):
-        state = {"input_tokens": 30000, "output_tokens": 30000,
-                 "implied_session_budget": 200000}  # 60k / 200k = 30%
-        assert widget_updater._estimate_session_pct(state) == 30
+        state = {"input_tokens": 30000, "output_tokens": 30000}
+        # budget = 4x the weighted token count => estimate 25% (weight-agnostic).
+        state["implied_session_budget"] = widget_updater._weighted_io(state) * 4
+        assert widget_updater._estimate_session_pct(state) == 25
 
     def test_rises_as_tokens_grow(self):
-        state = {"input_tokens": 50000, "output_tokens": 50000,
-                 "implied_session_budget": 200000}
-        before = widget_updater._estimate_session_pct(state)  # 50%
-        state["output_tokens"] += 40000                       # +40k => 70%
+        state = {"input_tokens": 50000, "output_tokens": 50000}
+        state["implied_session_budget"] = widget_updater._weighted_io(state) * 4  # 25%
+        before = widget_updater._estimate_session_pct(state)
+        state["output_tokens"] += 40000                       # more weighted tokens
         after = widget_updater._estimate_session_pct(state)
-        assert before == 50
-        assert after == 70
+        assert before == 25
+        assert after > before
 
     def test_clamps_at_100(self):
         # A too-small budget (locked early or contaminated) must not overshoot.
@@ -467,9 +474,9 @@ class TestLocalEstimate:
         state = {
             "input_tokens": 30000, "output_tokens": 30000,
             "implied_session_budget": 200000,
-            "anchor_pct": 28.5,   # API said 28.5% when io was 60k
-            "anchor_io":  60000,  # same as current => delta = 0
+            "anchor_pct": 28.5,   # API said 28.5% at this weighted io
         }
+        state["anchor_io"] = widget_updater._weighted_io(state)  # == current => delta 0
         assert widget_updater._estimate_session_pct(state) == 28.5
 
     def test_anchor_delta_adds_from_anchor(self):
@@ -478,11 +485,12 @@ class TestLocalEstimate:
             "input_tokens": 30000, "output_tokens": 30000,
             "implied_session_budget": 200000,
             "anchor_pct": 28.5,
-            "anchor_io":  60000,
         }
-        state["output_tokens"] += 20000  # +20k delta => +10pp
-        # 28.5 + 100 * (20000 / 200000) = 28.5 + 10.0 = 38.5
-        assert widget_updater._estimate_session_pct(state) == 38.5
+        state["anchor_io"] = widget_updater._weighted_io(state)
+        state["output_tokens"] += 20000  # delta is weighted (output weight applies)
+        delta_w = 20000 * widget_updater.TOKEN_WEIGHTS["output"]
+        expected = round(28.5 + 100 * delta_w / 200000, 1)
+        assert widget_updater._estimate_session_pct(state) == expected
 
     def test_anchor_clamps_at_100(self):
         state = {
@@ -681,7 +689,8 @@ class TestAdoptApiPct:
         h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
         h._adopt_api_pct(53, datetime.now(timezone.utc))
         assert h.state["anchor_pct"] == 53
-        assert h.state["anchor_io"]  == 60000   # 40k + 20k at time of call
+        # anchor_io is the WEIGHTED total at call time, not raw 40k+20k.
+        assert h.state["anchor_io"] == widget_updater._weighted_io(h.state)
 
     def test_local_estimate_uses_anchor_immediately(self, make_handler, monkeypatch):
         # After _adopt_api_pct, _local_estimate returns exactly the API pct when
@@ -802,9 +811,10 @@ class TestOnModifiedAdvancesPct:
         h.last_calibrated = now
         h.last_liveness = now
         h.state["calibration_calls_remaining"] = 0
-        h.state["implied_session_budget"] = 200000
         h.state["input_tokens"] = 40000
-        h.state["output_tokens"] = 60000   # 100k => 50%
+        h.state["output_tokens"] = 60000
+        # budget = 2x the seed weighted count => seed reads 50%.
+        h.state["implied_session_budget"] = widget_updater._weighted_io(h.state) * 2
         # Clear any real-state anchor so the fallback (total_io/budget) path
         # runs cleanly rather than using a live anchor that happens to be loaded
         # from the user's real widget_state.json via _load_state().
@@ -827,8 +837,12 @@ class TestOnModifiedAdvancesPct:
 
         h.on_modified(_Evt())
 
-        # 100k + 40k = 140k / 200k = 70%. Must have RISEN, not frozen at 50.
-        assert h.session_pct == 70
+        # msg_new adds weighted tokens, so pct must RISE above the 50% seed
+        # (not freeze); exact value follows the weighted formula.
+        exp = min(100, round(100 * widget_updater._weighted_io(h.state)
+                             / h.state["implied_session_budget"], 1))
+        assert h.session_pct == exp
+        assert h.session_pct > 50
 
 
 class TestSessionRollover:
@@ -1422,10 +1436,11 @@ class TestBudgetLowerBound:
         state = widget_updater._empty_state(
             datetime(2099, 1, 1, tzinfo=timezone.utc))
         state["input_tokens"] = 50000
-        state["output_tokens"] = 50000   # 100k at 50% → 200k
-        state["session_budget_lb"] = 100000
+        state["output_tokens"] = 50000
+        expected = round(widget_updater._weighted_io(state) / 0.5)
+        state["session_budget_lb"] = 100000   # below expected => no clamp
         widget_updater._append_calibration(state, 50.0, datetime.now(timezone.utc))
-        assert state["implied_session_budget"] == 200000
+        assert state["implied_session_budget"] == expected
 
     def test_empty_state_has_zero_lb(self):
         state = widget_updater._empty_state(

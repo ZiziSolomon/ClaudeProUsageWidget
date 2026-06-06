@@ -773,6 +773,42 @@ def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
 # State persistence
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Weighted token accounting. The live budget/estimate runs on a CALIBRATED
+# weighted token count, not raw input+output: cache_write_1h is a large hidden
+# consumer and output costs several input-equivalents, so input+output alone
+# under-counts the meter. Weights are per-type costs toward the 5h session
+# meter, normalised to input = 1, from the calibration in analysis/ (write-heavy
+# NNLS + interval-constraint LP, 2026-06-03):
+#   output ~6x input, cache_write_1h ~0.65x, cache_read ~0 (huge volume, ~free),
+#   cache_write_5m unobserved in Claude Code (emits 1h only) -> published-ratio guess.
+# Tune here as calibration improves; bump IO_UNIT whenever TOKEN_WEIGHTS change so
+# budgets/anchors derived under the old basis are invalidated (persisted state and
+# prior-median history), forcing a clean re-derivation.
+# ---------------------------------------------------------------------------
+TOKEN_WEIGHTS = {
+    "input":          1.0,
+    "output":         6.0,
+    "cache_write_1h": 0.65,
+    "cache_write_5m": 0.41,   # ~ published cw5m:cw1h (1.25/2.0) * our cw1h; ≈0 volume in CC
+    "cache_read":     0.0,
+}
+IO_UNIT = "weighted_v1"   # basis tag for budgets/anchors; change with TOKEN_WEIGHTS
+
+
+def _weighted_io(state: dict) -> int:
+    """Calibrated weighted token total (input-equivalent units) that the live
+    budget math runs on. Raw input+output is retained only for logging and the
+    calibration capture, not for the displayed estimate."""
+    return round(
+        state.get("input_tokens", 0)     * TOKEN_WEIGHTS["input"]
+        + state.get("output_tokens", 0)  * TOKEN_WEIGHTS["output"]
+        + state.get("cache_write_1h", 0) * TOKEN_WEIGHTS["cache_write_1h"]
+        + state.get("cache_write_5m", 0) * TOKEN_WEIGHTS["cache_write_5m"]
+        + state.get("cache_read", 0)     * TOKEN_WEIGHTS["cache_read"]
+    )
+
+
 def _load_state() -> dict:
     try:
         s = json.loads(STATE_FILE.read_text())
@@ -781,6 +817,15 @@ def _load_state() -> dict:
         # incremental accumulation below never hits a missing key.
         for k in ("cache_write_1h", "cache_write_5m", "cache_read"):
             s.setdefault(k, 0)
+        # If the weighting basis changed (or this state predates weighting),
+        # drop budgets/anchors derived under the old unit so the next live
+        # reading re-derives cleanly. Raw token counters are unit-free and stay.
+        if s.get("io_unit") != IO_UNIT:
+            for k in ("implied_session_budget", "budget_source",
+                      "anchor_pct", "anchor_io", "session_budget_lb"):
+                s.pop(k, None)
+            s["session_anchors"] = []
+            s["io_unit"] = IO_UNIT
         return s
     except Exception as e:
         print(f"[X] _load_state failed, starting fresh: {type(e).__name__}: {e}")
@@ -792,14 +837,16 @@ def _empty_state(session_start: datetime | None = None) -> dict:
         "seen_ids": set(),
         "input_tokens": 0,
         "output_tokens": 0,
-        # Cache token accounting, captured for weight calibration. NOT yet used
-        # by the live budget math - the displayed estimate still keys off
-        # input+output only. Cumulative per session, reset on rollover. Claude
-        # Code writes 1h ephemeral cache, so cache_write_1h dominates; 5m is
-        # kept separate because the two carry different cost weights.
+        # Cache token accounting. Now folded into the live budget math via
+        # _weighted_io / TOKEN_WEIGHTS (cache_write_1h is a large hidden
+        # consumer). Cumulative per session, reset on rollover. Claude Code
+        # writes 1h ephemeral cache, so cache_write_1h dominates; 5m is kept
+        # separate because the two carry different cost weights.
         "cache_write_1h": 0,
         "cache_write_5m": 0,
         "cache_read": 0,
+        # Weighting basis this state's budget/anchors were derived under.
+        "io_unit": IO_UNIT,
         "by_model": {},
         # Per-file byte offsets for incremental JSONL parsing. See process_file.
         # Cleared on session reset so the new session counts from scratch.
@@ -908,6 +955,11 @@ def _load_prior_budget_median() -> int | None:
                 continue
             if rec.get("budget_source") != "live":
                 continue
+            # Only budgets derived under the current weighting basis are
+            # comparable; skip legacy/other-unit records so the median isn't
+            # a mix of raw-io and weighted budgets.
+            if rec.get("budget_unit") != IO_UNIT:
+                continue
             b = rec.get("implied_session_budget")
             if isinstance(b, (int, float)) and b > 0:
                 budgets.append(int(b))
@@ -980,7 +1032,8 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
                         update_budget: bool = True,
                         stale_pct: float | None = None,
                         trigger: str = "scheduled") -> None:
-    total_io = state["input_tokens"] + state["output_tokens"]
+    raw_io   = state["input_tokens"] + state["output_tokens"]
+    total_io = _weighted_io(state)   # budget math runs on calibrated weighted tokens
     # Above-floor: back-derive the budget straight from the live pct. Below
     # the floor, integer-rounding swamps a direct back-derivation, so we
     # blend a live-reading midpoint with the user's historical median (see
@@ -1018,21 +1071,23 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         "session_start":           state.get("session_start"),
         "transcript_input_tokens": state["input_tokens"],
         "transcript_output_tokens":state["output_tokens"],
-        "transcript_io_total":     total_io,
+        "transcript_io_total":     raw_io,          # raw input+output (calibration continuity)
+        "transcript_weighted_io":  total_io,        # calibrated weighted total (budget basis)
         # Cache token vector for weight calibration (cumulative this session).
         "transcript_cache_write_1h": state.get("cache_write_1h", 0),
         "transcript_cache_write_5m": state.get("cache_write_5m", 0),
         "transcript_cache_read":     state.get("cache_read", 0),
         "implied_session_budget":  implied,
         "budget_source":           budget_source,
+        "budget_unit":             IO_UNIT,          # weighting basis for implied_session_budget
         "by_model":                state["by_model"],
         "source":                  "widget",
     }
     CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     with CALIBRATION_FILE.open("a") as f:
         f.write(json.dumps(record) + "\n")
-    print(f"  calibration: {pct}% = {total_io} tokens => budget ~{implied} "
-          f"({budget_source})")
+    print(f"  calibration: {pct}% = {raw_io} raw / {total_io} weighted => "
+          f"budget ~{implied} ({budget_source})")
 
 
 # ---------------------------------------------------------------------------
@@ -1054,7 +1109,7 @@ def _estimate_session_pct(state: dict) -> float | None:
     budget = state.get("implied_session_budget")
     if not budget:
         return None
-    io_total   = state["input_tokens"] + state["output_tokens"]
+    io_total   = _weighted_io(state)
     anchor_pct = state.get("anchor_pct")
     anchor_io  = state.get("anchor_io", 0)
     if anchor_pct is not None:
@@ -1449,7 +1504,7 @@ class TranscriptHandler(FileSystemEventHandler):
         poll 2 was contaminated (off-laptop inflated Δpct → small lb), pair
         (1, 3) may still span a large clean Δio relative to Δpct and give a
         tighter bound. max() across all pairs keeps the best seen."""
-        io_now  = self.state["input_tokens"] + self.state["output_tokens"]
+        io_now  = _weighted_io(self.state)
         anchors = self.state.get("session_anchors") or []
         if io_now > 0 and anchors:
             best_lb = 0
