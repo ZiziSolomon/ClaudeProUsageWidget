@@ -1,2 +1,10 @@
 # Generated artifacts containing personal usage data - regenerate via build_token_csvs.py
 *.csv
+
+# Calibration burn harness — internal only, do NOT publish: it auto-drives an
+# interactive Claude Code window via AutoHotkey (dangerous to ship; ToS-adjacent).
+burn/
+
+# Per-run / fitted artifacts (personal usage data or machine-specific output)
+solution*.json
+solution_report.txt

@@ -57,6 +57,11 @@ def weighted(i, c5, c1, cr, o):
 
 # --- 1. transcript entries ---------------------------------------------------
 def load_transcript_entries():
+    # Deduplicate by (session_id, message_id) — the widget uses msg.get("id")
+    # to avoid double-counting. Each API call produces multiple jsonl lines
+    # (one per content block), each carrying the full usage dict. Without
+    # dedup the per-session sums are inflated ~2-3x.
+    seen = set()  # (session_id, message_id)
     rows = []
     for f in glob.glob(os.path.join(PROJECTS, "**", "*.jsonl"), recursive=True):
         for line in open(f, encoding="utf-8"):
@@ -68,9 +73,16 @@ def load_transcript_entries():
                 continue
             if r.get("type") != "assistant":
                 continue
-            u = (r.get("message") or {}).get("usage")
-            if not u:
+            msg = r.get("message") or {}
+            u   = msg.get("usage")
+            mid = msg.get("id")
+            if not u or not mid:
                 continue
+            sid = r.get("sessionId", "")
+            key = (sid, mid)
+            if key in seen:
+                continue
+            seen.add(key)
             t = _ts(r.get("timestamp"))
             if t is None:
                 continue
@@ -83,8 +95,9 @@ def load_transcript_entries():
             rows.append({
                 "timestamp":       t.isoformat(),
                 "project":         os.path.basename(os.path.dirname(f)),
-                "session_id":      r.get("sessionId", ""),
-                "model":           (r.get("message") or {}).get("model", ""),
+                "session_id":      sid,
+                "message_id":      mid,
+                "model":           msg.get("model", ""),
                 "input":           i,
                 "cache_write_5m":  c5,
                 "cache_write_1h":  c1,
