@@ -778,34 +778,97 @@ def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
 # weighted token count, not raw input+output: cache_write_1h is a large hidden
 # consumer and output costs several input-equivalents, so input+output alone
 # under-counts the meter. Weights are per-type costs toward the 5h session
-# meter, normalised to input = 1, from the calibration in analysis/ (write-heavy
-# NNLS + interval-constraint LP, 2026-06-03):
-#   output ~6x input, cache_write_1h ~0.65x, cache_read ~0 (huge volume, ~free),
+# meter, normalised to input = 1, from the calibration in analysis/burn/
+# (two-non-colinear-burn direct solve, solve_ratio.py, 2026-06-07): the orun
+# (output-light) and B-run (output-heavy) halves of one session pin the unique
+# (o, B) where both halves agree on B, eliminating the circular o<->B feedback.
+# In the burn basis (cw1h:=1) that gives input=1.5, output(o)=8.1, so the
+# robust invariant is output:cw1h = 8.1. Normalised to input=1 (divide by 1.5):
+#   output 5.4x input, cache_write_1h 0.667x, cache_read ~0 (huge volume, ~free),
 #   cache_write_5m unobserved in Claude Code (emits 1h only) -> published-ratio guess.
 # Tune here as calibration improves; bump IO_UNIT whenever TOKEN_WEIGHTS change so
 # budgets/anchors derived under the old basis are invalidated (persisted state and
 # prior-median history), forcing a clean re-derivation.
 # ---------------------------------------------------------------------------
-TOKEN_WEIGHTS = {
-    "input":          1.0,
-    "output":         6.0,
-    "cache_write_1h": 0.65,
-    "cache_write_5m": 0.41,   # ~ published cw5m:cw1h (1.25/2.0) * our cw1h; ≈0 volume in CC
-    "cache_read":     0.0,
+# PER-MODEL weights, in the cw1h_Om basis (Opus-Medium cache_write_1h := 1), from
+# the typed-prose burns + 5-week historic clean-session validation (NOT the
+# all-Read --ratio family, which inflates output ~1.65x via a per-turn cost folded
+# into o). A session mixes models — an Opus chat running Sonnet agents, a Sonnet
+# chat running Haiku agents — and each model's tokens hit the SAME 5h meter at a
+# different rate, so we weight per-model and sum (subagent transcripts are already
+# captured account-wide). See analysis/burn/SESSIONFACTOR-DESIGN.md.
+#   output (o): Opus 7.5 (burn 8.1 / history 7, meet-point), Sonnet 6.34 (typed-prose
+#     burn 2026-06-08), Haiku 8.75 PROVISIONAL (all-Read 29 /1.65 = o≈17.5 in
+#     cw1h_haiku units, x cw1h_haiku≈0.5 -> 8.75 in cw1h_Om units). Haiku is
+#     provisional-on-provisional until a typed-prose Haiku burn.
+#   cw1h cross-model: cw1h_opus:=1 (gauge), cw1h_sonnet≈1 and cw1h_haiku≈0.5 ASSUMED
+#     from the all-Read matrix (the open cross-model gap; ±10-15% on mixed sessions).
+#   input ≈ 1.5*cw1h per model (weakly identified, <5% cost); cread ≈ 0 (confirmed
+#     B-free); cw5m ≈ 0.625*cw1h (≈0 volume in Claude Code). Tune as burns improve;
+#   bump IO_UNIT whenever any weight changes so old-basis budgets/anchors invalidate.
+MODEL_WEIGHTS = {
+    "opus":   {"input": 1.5,  "output": 7.5,  "cache_write_1h": 1.0, "cache_write_5m": 0.625, "cache_read": 0.0},
+    "sonnet": {"input": 1.5,  "output": 6.34, "cache_write_1h": 1.0, "cache_write_5m": 0.625, "cache_read": 0.0},
+    "haiku":  {"input": 0.75, "output": 8.75, "cache_write_1h": 0.5, "cache_write_5m": 0.31,  "cache_read": 0.0},
 }
-IO_UNIT = "weighted_v1"   # basis tag for budgets/anchors; change with TOKEN_WEIGHTS
+DEFAULT_WEIGHTS = MODEL_WEIGHTS["opus"]   # unknown model -> Opus (the commonest chat model)
+# Back-compat alias: the fallback path and existing tests use a single weight set.
+TOKEN_WEIGHTS = DEFAULT_WEIGHTS
+IO_UNIT = "weighted_v3"   # basis tag for budgets/anchors; change with any weight
+
+# Component key -> the cumulative global-counter key in state. Global counters are
+# kept (alongside the per-model split) for the calibration capture + raw-io logging.
+_GLOBAL_KEY = {
+    "input":          "input_tokens",
+    "output":         "output_tokens",
+    "cache_write_1h": "cache_write_1h",
+    "cache_write_5m": "cache_write_5m",
+    "cache_read":     "cache_read",
+}
+
+
+def _model_class(model: str) -> str:
+    """Map a transcript model id (e.g. 'claude-sonnet-4-6') to a weight class."""
+    m = (model or "").lower()
+    if "haiku" in m:
+        return "haiku"
+    if "sonnet" in m:
+        return "sonnet"
+    return "opus"   # opus + anything unknown
 
 
 def _weighted_io(state: dict) -> int:
-    """Calibrated weighted token total (input-equivalent units) that the live
-    budget math runs on. Raw input+output is retained only for logging and the
-    calibration capture, not for the displayed estimate."""
+    """Calibrated weighted token total (cw1h_Om units) the live budget math runs
+    on. Per-model when by_model carries the cache components (live path); falls
+    back to default (Opus) weights on the global counters for old state / tests.
+    Raw input+output is kept only for logging + the calibration capture."""
+    bm = state.get("by_model") or {}
+    # Per-model path requires by_model to (a) carry the cache vector (old-style
+    # entries had only input/output) AND (b) fully account for the global
+    # counters — process_file updates both together, so in real operation they
+    # match exactly. If they diverge (e.g. counters seeded without a matching
+    # by_model, as in some tests, or mid-migration), fall back to the global
+    # counters so nothing is silently dropped.
+    bm_io = sum(v.get("input", 0) + v.get("output", 0) for v in bm.values())
+    global_io = state.get("input_tokens", 0) + state.get("output_tokens", 0)
+    if (bm and bm_io == global_io
+            and all("cache_write_1h" in v for v in bm.values())):
+        total = 0.0
+        for model, v in bm.items():
+            w = MODEL_WEIGHTS.get(_model_class(model), DEFAULT_WEIGHTS)
+            total += (v.get("input", 0)          * w["input"]
+                      + v.get("output", 0)         * w["output"]
+                      + v.get("cache_write_1h", 0) * w["cache_write_1h"]
+                      + v.get("cache_write_5m", 0) * w["cache_write_5m"]
+                      + v.get("cache_read", 0)     * w["cache_read"])
+        return round(total)
+    # Fallback: global counters x default weights (back-compat / pre-migration).
     return round(
-        state.get("input_tokens", 0)     * TOKEN_WEIGHTS["input"]
-        + state.get("output_tokens", 0)  * TOKEN_WEIGHTS["output"]
-        + state.get("cache_write_1h", 0) * TOKEN_WEIGHTS["cache_write_1h"]
-        + state.get("cache_write_5m", 0) * TOKEN_WEIGHTS["cache_write_5m"]
-        + state.get("cache_read", 0)     * TOKEN_WEIGHTS["cache_read"]
+        state.get("input_tokens", 0)     * DEFAULT_WEIGHTS["input"]
+        + state.get("output_tokens", 0)  * DEFAULT_WEIGHTS["output"]
+        + state.get("cache_write_1h", 0) * DEFAULT_WEIGHTS["cache_write_1h"]
+        + state.get("cache_write_5m", 0) * DEFAULT_WEIGHTS["cache_write_5m"]
+        + state.get("cache_read", 0)     * DEFAULT_WEIGHTS["cache_read"]
     )
 
 
@@ -825,6 +888,16 @@ def _load_state() -> dict:
                       "anchor_pct", "anchor_io", "session_budget_lb"):
                 s.pop(k, None)
             s["session_anchors"] = []
+            # weighted_v3 is per-model and needs the cache vector split BY model.
+            # Pre-v3 by_model only held input/output, so reset the token
+            # accumulation (counters + dedup + file offsets + by_model) and let
+            # the next full_scan re-read this session's transcripts into the new
+            # per-model shape. session_start + history are preserved.
+            s["seen_ids"] = set()
+            s["offsets"] = {}
+            s["by_model"] = {}
+            for gk in _GLOBAL_KEY.values():
+                s[gk] = 0
             s["io_unit"] = IO_UNIT
         return s
     except Exception as e:
@@ -1206,21 +1279,32 @@ def process_file(path: Path, state: dict, session_start: datetime, session_end: 
                 continue
             state["seen_ids"].add(mid)
             model = msg.get("model", "unknown")
-            entry = state["by_model"].setdefault(model, {"input": 0, "output": 0})
-            entry["input"]          += usage.get("input_tokens", 0)
-            entry["output"]         += usage.get("output_tokens", 0)
-            state["input_tokens"]   += usage.get("input_tokens", 0)
-            state["output_tokens"]  += usage.get("output_tokens", 0)
-            # Cache tokens (for weight calibration; not yet in the budget math).
-            # Prefer the 1h/5m split; fall back to the flat total (older records
-            # lack the nested breakdown) attributed to 1h, Claude Code's default.
+            # Compute this message's component vector once. Prefer the 1h/5m
+            # split; fall back to the flat total (older records lack the nested
+            # breakdown) attributed to 1h, Claude Code's default.
             cc = usage.get("cache_creation") or {}
             if cc:
-                state["cache_write_1h"] += cc.get("ephemeral_1h_input_tokens", 0)
-                state["cache_write_5m"] += cc.get("ephemeral_5m_input_tokens", 0)
+                cw1h = cc.get("ephemeral_1h_input_tokens", 0)
+                cw5m = cc.get("ephemeral_5m_input_tokens", 0)
             else:
-                state["cache_write_1h"] += usage.get("cache_creation_input_tokens", 0)
-            state["cache_read"]     += usage.get("cache_read_input_tokens", 0)
+                cw1h = usage.get("cache_creation_input_tokens", 0)
+                cw5m = 0
+            vec = {
+                "input":          usage.get("input_tokens", 0),
+                "output":         usage.get("output_tokens", 0),
+                "cache_write_1h": cw1h,
+                "cache_write_5m": cw5m,
+                "cache_read":     usage.get("cache_read_input_tokens", 0),
+            }
+            # Per-model accumulation drives the per-model weighted budget math
+            # (_weighted_io): a session mixes models (e.g. Opus chat + Sonnet
+            # agents) on one meter. The global counters below are kept for the
+            # calibration capture + raw-io logging.
+            entry = state["by_model"].setdefault(
+                model, {k: 0 for k in vec})
+            for k, n in vec.items():
+                entry[k] = entry.get(k, 0) + n
+                state[_GLOBAL_KEY[k]] += n
             changed = True
         except Exception as e:
             # Loud: an assistant/usage record failed downstream accounting.

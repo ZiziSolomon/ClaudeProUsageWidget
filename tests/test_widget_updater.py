@@ -481,15 +481,17 @@ class TestLocalEstimate:
 
     def test_anchor_delta_adds_from_anchor(self):
         # Tokens written after the anchor grow estimate from anchor_pct, not zero.
+        # Budget kept large so the delta-from-anchor math is what's exercised,
+        # not the 100% clamp (the calibrated output weight is several x input).
         state = {
             "input_tokens": 30000, "output_tokens": 30000,
-            "implied_session_budget": 200000,
+            "implied_session_budget": 2000000,
             "anchor_pct": 28.5,
         }
         state["anchor_io"] = widget_updater._weighted_io(state)
         state["output_tokens"] += 20000  # delta is weighted (output weight applies)
         delta_w = 20000 * widget_updater.TOKEN_WEIGHTS["output"]
-        expected = round(28.5 + 100 * delta_w / 200000, 1)
+        expected = round(28.5 + 100 * delta_w / 2000000, 1)
         assert widget_updater._estimate_session_pct(state) == expected
 
     def test_anchor_clamps_at_100(self):
@@ -979,9 +981,10 @@ class TestLivenessTriggers:
         calls = self._stub_fetch(monkeypatch, h)
         h._liveness_anchor_pct = 20.0
         h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
-        # est = anchor_pct + 100*(io-anchor_io)/budget = 0 + 100*20000/200000 = 10pp
-        # but we want est = 30 (10pp past anchor of 20), so set tokens accordingly
-        h.state["input_tokens"]  = 60000   # anchor_io=0, so est=60000/200000*100=30
+        # want est = 30 (exactly 10pp past the anchor of 20) to hit the trigger
+        # boundary. input weight applies: 40000 * 1.5 = 60000 weighted =>
+        # est = 100 * 60000 / 200000 = 30.
+        h.state["input_tokens"]  = 40000
         h._maybe_liveness()
         assert len(calls) == 1
 
@@ -990,7 +993,9 @@ class TestLivenessTriggers:
         calls = self._stub_fetch(monkeypatch, h)
         h._liveness_anchor_pct = 20.0
         h._triggered_thresholds = widget_updater.LIVENESS_ONE_SHOT_PCTS.copy()
-        h.state["input_tokens"] = 56000    # est=28 → 8pp above anchor, < 10
+        # input weight applies: 37000 * 1.5 = 55500 weighted => est=27.75,
+        # ~7.75pp above the 20.0 anchor, still < the 10pp delta trigger.
+        h.state["input_tokens"] = 37000
         h._maybe_liveness()
         assert len(calls) == 0
 
@@ -1321,12 +1326,15 @@ class TestBudgetLowerBound:
     # no explicit _load_state stub needed here.
 
     def _seed_anchor(self, h, pct, io):
-        """Set a clean anchor directly (bypasses lb computation for setup)."""
-        h.state["session_anchors"] = (h.state.get("session_anchors") or []) + [[pct, io]]
-        h.state["anchor_pct"] = pct
-        h.state["anchor_io"]  = io
+        """Set a clean anchor directly (bypasses lb computation for setup).
+        `io` is a raw input-token count; anchors are stored in WEIGHTED-io units
+        (the input weight applies) to match what _set_anchor records live."""
         h.state["input_tokens"]  = io
         h.state["output_tokens"] = 0
+        wio = widget_updater._weighted_io(h.state)
+        h.state["session_anchors"] = (h.state.get("session_anchors") or []) + [[pct, wio]]
+        h.state["anchor_pct"] = pct
+        h.state["anchor_io"]  = wio
 
     def test_no_lb_on_first_anchor(self, make_handler):
         # First anchor: session_anchors is empty, no prior to diff against.
@@ -1344,7 +1352,8 @@ class TestBudgetLowerBound:
         self._seed_anchor(h, 5.0, 5000)          # anchor 1, no lb yet
         h.state["input_tokens"] = 15000           # +10k
         h._set_anchor(10.0)                       # Δpct=5, Δio=10k
-        assert h.state["session_budget_lb"] == int(100 * 10000 / 6)
+        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
+        assert h.state["session_budget_lb"] == int(100 * 10000 * W / 6)
 
     def test_worst_case_rounding_uses_delta_plus_one(self, make_handler):
         # denom must be Δpct+1, not Δpct — the bound must hold even if the
@@ -1354,8 +1363,9 @@ class TestBudgetLowerBound:
         self._seed_anchor(h, 0.0, 0)
         h.state["input_tokens"] = 20000
         h._set_anchor(2.0)                        # Δpct=2 → denom=3
-        assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
-        assert h.state["session_budget_lb"] < int(100 * 20000 / 2)  # not naive /2
+        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
+        assert h.state["session_budget_lb"] == int(100 * 20000 * W / 3)
+        assert h.state["session_budget_lb"] < int(100 * 20000 * W / 2)  # not naive /2
 
     def test_zero_delta_pct_gives_lb(self, make_handler):
         # Δpct=0, Δio>0: pct didn't tick so true Δpct < 1 pp → denom=1.
@@ -1365,7 +1375,8 @@ class TestBudgetLowerBound:
         self._seed_anchor(h, 5.0, 1000)
         h.state["input_tokens"] = 6000            # +5k, pct still 5
         h._set_anchor(5.0)                        # Δpct=0 → denom=1
-        assert h.state["session_budget_lb"] == int(100 * 5000 / 1)
+        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
+        assert h.state["session_budget_lb"] == int(100 * 5000 * W / 1)
 
     def test_lb_is_running_maximum(self, make_handler):
         # lb grows when a new pair is tighter, stays put when it's looser.
@@ -1373,11 +1384,12 @@ class TestBudgetLowerBound:
         h.state["session_anchors"] = []
         self._seed_anchor(h, 0.0, 0)
 
-        # Anchor 2: 20k tokens, Δpct=2 → pair(1,2): lb = 100*20000/3 ≈ 666k
+        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
+        # Anchor 2: 20k tokens, Δpct=2 → pair(1,2): lb = 100*20000*W/3
         h.state["input_tokens"] = 20000
         h._set_anchor(2.0)
         lb1 = h.state["session_budget_lb"]
-        assert lb1 == int(100 * 20000 / 3)
+        assert lb1 == int(100 * 20000 * W / 3)
 
         # Anchor 3: contaminated (+2k local, Δpct=5). All pairs involving
         # anchor 3 have inflated Δpct → smaller lb. max() preserves lb1.
@@ -1389,7 +1401,7 @@ class TestBudgetLowerBound:
         # pair(3,4): lb = 100*30000/2 = 1500000 — tighter, wins.
         h.state["input_tokens"] = 52000
         h._set_anchor(8.0)
-        assert h.state["session_budget_lb"] == int(100 * 30000 / 2)
+        assert h.state["session_budget_lb"] == int(100 * 30000 * W / 2)
 
     def test_full_history_beats_consecutive(self, make_handler):
         # Two clean intervals each with Δpct=1. Consecutive lb = 100*Δio/2.
@@ -1405,9 +1417,10 @@ class TestBudgetLowerBound:
 
         h.state["input_tokens"] = 20000
         h._set_anchor(2.0)
-        # pair(1,3): Δpct=2, Δio=20k → lb=100*20k/3=666k  (full span wins)
-        # pair(2,3): Δpct=1, Δio=10k → lb=100*10k/2=500k
-        assert h.state["session_budget_lb"] == int(100 * 20000 / 3)
+        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
+        # pair(1,3): Δpct=2, Δio=20k → lb=100*20k*W/3  (full span wins)
+        # pair(2,3): Δpct=1, Δio=10k → lb=100*10k*W/2
+        assert h.state["session_budget_lb"] == int(100 * 20000 * W / 3)
         assert h.state["session_budget_lb"] > lb_after_2
 
     def test_negative_delta_pct_skipped(self, make_handler):
@@ -1984,3 +1997,102 @@ class TestAPIResponseContract:
         raw = _make_raw()
         pct, end = widget_updater._parse_weekly(raw)
         assert pct is not None, "_parse_weekly returned None — _make_raw shape drifted"
+
+
+# ---------------------------------------------------------------------------
+# Per-model weighting (weighted_v3): a session mixes models on one meter
+# (e.g. Opus chat + Sonnet/Haiku agents); _weighted_io sums each model's
+# components at its own calibrated weights. Falls back to global counters x
+# default (Opus) weights when by_model can't be trusted.
+# ---------------------------------------------------------------------------
+class TestPerModelWeighting:
+    def test_model_class_mapping(self):
+        mc = widget_updater._model_class
+        assert mc("claude-opus-4-8") == "opus"
+        assert mc("claude-sonnet-4-6") == "sonnet"
+        assert mc("claude-haiku-4-5-20251001") == "haiku"
+        assert mc("some-unknown-model") == "opus"   # unknown -> Opus default
+        assert mc("") == "opus"
+        assert mc(None) == "opus"
+
+    def _entry(self, i, o, c1, c5, cr):
+        return {"input": i, "output": o, "cache_write_1h": c1,
+                "cache_write_5m": c5, "cache_read": cr}
+
+    def test_weighted_io_sums_per_model(self):
+        # 1000 of each component per model, consistent with the global counters.
+        state = widget_updater._empty_state()
+        state["by_model"] = {
+            "claude-opus-4-8":   self._entry(1000, 1000, 1000, 0, 1000),
+            "claude-sonnet-4-6": self._entry(1000, 1000, 1000, 0, 1000),
+            "claude-haiku-4-5":  self._entry(1000, 1000, 1000, 0, 1000),
+        }
+        state["input_tokens"]  = 3000   # == Σ by_model input  (consistency gate)
+        state["output_tokens"] = 3000   # == Σ by_model output
+        W = widget_updater.MODEL_WEIGHTS
+        exp = 0
+        for cls, m in (("opus", "claude-opus-4-8"),
+                       ("sonnet", "claude-sonnet-4-6"),
+                       ("haiku", "claude-haiku-4-5")):
+            w = W[cls]
+            exp += (1000 * w["input"] + 1000 * w["output"] + 1000 * w["cache_write_1h"]
+                    + 0 * w["cache_write_5m"] + 1000 * w["cache_read"])
+        assert widget_updater._weighted_io(state) == round(exp)
+        # Sanity: Sonnet output cheaper than Opus, so the sum is below 3x Opus-only.
+        assert exp < 3 * (1000 * W["opus"]["input"] + 1000 * W["opus"]["output"]
+                          + 1000 * W["opus"]["cache_write_1h"])
+
+    def test_falls_back_when_by_model_inconsistent_with_counters(self):
+        # by_model present (with cache) but does NOT sum to the global counters
+        # (e.g. counters seeded directly) -> must use the global fallback, not
+        # silently drop the unaccounted tokens.
+        state = widget_updater._empty_state()
+        state["by_model"] = {"claude-opus-4-8": self._entry(2000, 2000, 0, 0, 0)}
+        state["input_tokens"]  = 10000   # != by_model's 2000
+        state["output_tokens"] = 0
+        # fallback = global x default(Opus) weights
+        exp = 10000 * widget_updater.DEFAULT_WEIGHTS["input"]
+        assert widget_updater._weighted_io(state) == round(exp)
+
+    def test_falls_back_when_by_model_has_no_cache(self):
+        # Old-style by_model (input/output only) -> use global fallback so cache
+        # (tracked only globally pre-migration) isn't dropped.
+        state = widget_updater._empty_state()
+        state["by_model"] = {"claude-opus-4-8": {"input": 2000, "output": 0}}
+        state["input_tokens"]  = 2000    # consistent, but no cache keys present
+        state["output_tokens"] = 0
+        state["cache_write_1h"] = 4000   # only in the global counter
+        d = widget_updater.DEFAULT_WEIGHTS
+        exp = 2000 * d["input"] + 4000 * d["cache_write_1h"]
+        assert widget_updater._weighted_io(state) == round(exp)
+
+    def test_io_unit_migration_resets_accumulation(self, tmp_path):
+        # Loading a pre-v3 state must drop the old-basis budget AND reset the
+        # token accumulation (so a re-scan repopulates by_model WITH the cache
+        # split), while preserving session_start.
+        import json as _json
+        old = {
+            "io_unit": "weighted_v1",
+            "seen_ids": ["msg_a", "msg_b"],
+            "offsets": {"/x.jsonl": 123},
+            "input_tokens": 5000, "output_tokens": 4000,
+            "cache_write_1h": 2000, "cache_write_5m": 0, "cache_read": 9000,
+            "by_model": {"claude-opus-4-8": {"input": 5000, "output": 4000}},
+            "implied_session_budget": 999999,
+            "anchor_pct": 42.0, "anchor_io": 12345,
+            "session_start": "2099-01-01T00:00:00+00:00",
+        }
+        widget_updater.STATE_FILE.write_text(_json.dumps(old), encoding="utf-8")
+        s = widget_updater._load_state()
+        assert s["io_unit"] == "weighted_v3"
+        # accumulation reset for a clean per-model re-scan
+        assert s["input_tokens"] == 0 and s["output_tokens"] == 0
+        assert s["cache_write_1h"] == 0 and s["cache_read"] == 0
+        assert s["by_model"] == {}
+        assert s["seen_ids"] == set()
+        assert s["offsets"] == {}
+        # old-basis budget/anchors dropped
+        assert "implied_session_budget" not in s
+        assert "anchor_pct" not in s
+        # but session identity preserved
+        assert s["session_start"] == "2099-01-01T00:00:00+00:00"
