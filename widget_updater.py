@@ -10,6 +10,7 @@ Run once; leave it in the background.
 
 import json
 import os
+import statistics
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -65,11 +66,12 @@ def _data_dir() -> Path:
     return d
 
 
-DATA_DIR          = _data_dir()
-STATE_FILE        = DATA_DIR / "widget_state.json"
-CALIBRATION_FILE  = DATA_DIR / "calibration.jsonl"
-DISCREPANCY_FILE  = DATA_DIR / "discrepancies.jsonl"
-CHART_FILE        = DATA_DIR / "chart_latest.png"
+DATA_DIR             = _data_dir()
+STATE_FILE           = DATA_DIR / "widget_state.json"
+CALIBRATION_FILE     = DATA_DIR / "calibration.jsonl"
+DISCREPANCY_FILE     = DATA_DIR / "discrepancies.jsonl"
+CHART_FILE           = DATA_DIR / "chart_latest.png"
+LEARNED_WEIGHTS_FILE = DATA_DIR / "learned_weights.json"
 # Min absolute pp difference between widget's displayed pct and a fresh API
 # reading before we consider it worth logging. Set tight (>1pp) so we
 # capture drift bugs early; the log is silent so noise has no UX cost.
@@ -816,6 +818,24 @@ DEFAULT_WEIGHTS = MODEL_WEIGHTS["opus"]   # unknown model -> Opus (the commonest
 TOKEN_WEIGHTS = DEFAULT_WEIGHTS
 IO_UNIT = "weighted_v3"   # basis tag for budgets/anchors; change with any weight
 
+# ---------------------------------------------------------------------------
+# SessionFactor + weight-nudge parameters
+# ---------------------------------------------------------------------------
+# EMA step size for the end-of-session weight nudge (Piece 2). One session
+# barely shifts the global weights (~1/α ≈ 33 sessions to fully track a
+# change in composition); keeps weights stable against session-to-session noise.
+WEIGHT_NUDGE_ALPHA          = 0.03
+# Minimum number of lower-envelope grabs to run the nudge computation.
+WEIGHT_NUDGE_MIN_GRABS      = 2
+# Fraction of grabs (by s_g rank, low to high) to treat as the lower envelope.
+# Low-s grabs are least contaminated by off-laptop activity; the rest are
+# excluded from the weight-learning signal.
+WEIGHT_NUDGE_LOWER_FRAC     = 0.60
+# Identifiability gate: std of cost-fraction across lower-envelope grabs must
+# exceed this threshold before we nudge a weight. If a type's share barely
+# varied this session, its weight is under-constrained and we leave it alone.
+WEIGHT_NUDGE_ID_THRESHOLD   = 0.02
+
 # Component key -> the cumulative global-counter key in state. Global counters are
 # kept (alongside the per-model split) for the calibration capture + raw-io logging.
 _GLOBAL_KEY = {
@@ -825,6 +845,52 @@ _GLOBAL_KEY = {
     "cache_write_5m": "cache_write_5m",
     "cache_read":     "cache_read",
 }
+
+
+# ---------------------------------------------------------------------------
+# Learned weights — persisted cross-session refinements to MODEL_WEIGHTS.
+# None until _load_learned_weights() is called (at widget startup).  Tests
+# that bypass startup never populate this, so _effective_weights() falls back
+# to MODEL_WEIGHTS and all existing weight-assertion tests stay valid.
+# ---------------------------------------------------------------------------
+_learned_weights: dict | None = None
+
+
+def _load_learned_weights() -> None:
+    """Load per-model weights from LEARNED_WEIGHTS_FILE into _learned_weights.
+    Silent on missing file; loud on malformed data."""
+    global _learned_weights
+    try:
+        if not LEARNED_WEIGHTS_FILE.exists():
+            return
+        data = json.loads(LEARNED_WEIGHTS_FILE.read_text(encoding="utf-8"))
+        if (isinstance(data, dict)
+                and all(isinstance(v, dict) for v in data.values())
+                and all(isinstance(x, (int, float))
+                        for v in data.values() for x in v.values())):
+            _learned_weights = data
+            print(f"  learned weights loaded from {LEARNED_WEIGHTS_FILE.name}")
+        else:
+            print(f"[!] learned_weights.json has unexpected shape — using defaults")
+    except Exception as e:
+        print(f"[!] learned weights load failed, using defaults: {e}")
+
+
+def _save_learned_weights(weights: dict) -> None:
+    """Persist updated weights to LEARNED_WEIGHTS_FILE and update in-memory."""
+    global _learned_weights
+    try:
+        LEARNED_WEIGHTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        LEARNED_WEIGHTS_FILE.write_text(json.dumps(weights, indent=2),
+                                        encoding="utf-8")
+        _learned_weights = weights
+    except Exception as e:
+        print(f"[!] learned weights save failed: {e}")
+
+
+def _effective_weights() -> dict:
+    """Per-model weights to use for budget math. Learned (if loaded) else static."""
+    return _learned_weights if _learned_weights is not None else MODEL_WEIGHTS
 
 
 def _model_class(model: str) -> str:
@@ -851,11 +917,12 @@ def _weighted_io(state: dict) -> int:
     # counters so nothing is silently dropped.
     bm_io = sum(v.get("input", 0) + v.get("output", 0) for v in bm.values())
     global_io = state.get("input_tokens", 0) + state.get("output_tokens", 0)
+    ew = _effective_weights()
     if (bm and bm_io == global_io
             and all("cache_write_1h" in v for v in bm.values())):
         total = 0.0
         for model, v in bm.items():
-            w = MODEL_WEIGHTS.get(_model_class(model), DEFAULT_WEIGHTS)
+            w = ew.get(_model_class(model), ew.get("opus", DEFAULT_WEIGHTS))
             total += (v.get("input", 0)          * w["input"]
                       + v.get("output", 0)         * w["output"]
                       + v.get("cache_write_1h", 0) * w["cache_write_1h"]
@@ -863,13 +930,114 @@ def _weighted_io(state: dict) -> int:
                       + v.get("cache_read", 0)     * w["cache_read"])
         return round(total)
     # Fallback: global counters x default weights (back-compat / pre-migration).
+    dw = ew.get("opus", DEFAULT_WEIGHTS)
     return round(
-        state.get("input_tokens", 0)     * DEFAULT_WEIGHTS["input"]
-        + state.get("output_tokens", 0)  * DEFAULT_WEIGHTS["output"]
-        + state.get("cache_write_1h", 0) * DEFAULT_WEIGHTS["cache_write_1h"]
-        + state.get("cache_write_5m", 0) * DEFAULT_WEIGHTS["cache_write_5m"]
-        + state.get("cache_read", 0)     * DEFAULT_WEIGHTS["cache_read"]
+        state.get("input_tokens", 0)     * dw["input"]
+        + state.get("output_tokens", 0)  * dw["output"]
+        + state.get("cache_write_1h", 0) * dw["cache_write_1h"]
+        + state.get("cache_write_5m", 0) * dw["cache_write_5m"]
+        + state.get("cache_read", 0)     * dw["cache_read"]
     )
+
+
+def _compute_weight_nudge(
+    sf_grabs: list[dict],
+    weights: dict,
+) -> dict | None:
+    """Compute one EMA step of per-model weight updates from this session's
+    lower-envelope grabs (Piece 2).  Returns an updated weights dict or None
+    when there's insufficient or unidentifiable signal.
+
+    Algorithm
+    ---------
+    1. For each grab, compute c_g = Σ w_k^m tok_k^m_g (weighted cost) and
+       s_g = pct_g / c_g (implied session-factor for that grab).
+    2. Keep only the lower-envelope grabs (bottom WEIGHT_NUDGE_LOWER_FRAC by
+       s_g rank).  High-s_g grabs are off-laptop-contaminated and excluded.
+    3. For each identifiable (model_class, type) pair (std of cost-fraction
+       across lower-envelope grabs > WEIGHT_NUDGE_ID_THRESHOLD), compute the
+       normalised covariance cov_norm = cov(s_g/s_mean, frac_{mc,k,g}).
+       Positive cov_norm means this type's share is higher in high-s_g grabs →
+       the type is underweighted; negative means overweighted.
+    4. Multiplicative EMA step: w_new = w_old * (1 + α * cov_norm).
+       Clamp at 0.01 to prevent weights going negative or zero.
+    5. Gauge-renorm: divide all weights by w_cw1h_opus so cw1h_opus := 1.
+    """
+    if len(sf_grabs) < WEIGHT_NUDGE_MIN_GRABS:
+        return None
+
+    # Step 1: weighted cost and implied s_g per grab.
+    grab_data = []
+    for g in sf_grabs:
+        pct    = g["pct"]
+        by_m   = g.get("by_model") or {}
+        c_g    = 0.0
+        for model_id, comps in by_m.items():
+            mc = _model_class(model_id)
+            w  = weights.get(mc, weights.get("opus", DEFAULT_WEIGHTS))
+            for k, v in comps.items():
+                c_g += w.get(k, 0.0) * v
+        if c_g <= 0:
+            continue
+        grab_data.append({"pct": pct, "c_g": c_g, "s_g": pct / c_g,
+                          "by_model": by_m})
+
+    if len(grab_data) < WEIGHT_NUDGE_MIN_GRABS:
+        return None
+
+    # Step 2: lower-envelope filter.
+    grab_data.sort(key=lambda x: x["s_g"])
+    n_le = max(WEIGHT_NUDGE_MIN_GRABS,
+               round(len(grab_data) * WEIGHT_NUDGE_LOWER_FRAC))
+    le    = grab_data[:n_le]
+    s_vals = [x["s_g"] for x in le]
+    s_mean = statistics.mean(s_vals)
+    if s_mean <= 0:
+        return None
+    s_norm = [(sg / s_mean) for sg in s_vals]
+
+    # Step 3: per-(model_class, type) cost-fractions + identifiability gate.
+    pair_fracs: dict[tuple, list[float]] = {}
+    for g in le:
+        c_g = g["c_g"]
+        for model_id, comps in g["by_model"].items():
+            mc = _model_class(model_id)
+            w  = weights.get(mc, weights.get("opus", DEFAULT_WEIGHTS))
+            for k, tok in comps.items():
+                frac = w.get(k, 0.0) * tok / c_g
+                pair_fracs.setdefault((mc, k), []).append(frac)
+
+    n = len(le)
+    nudges: dict[tuple, float] = {}
+    for (mc, k), fracs in pair_fracs.items():
+        if len(fracs) != n:
+            continue  # not present in every lower-envelope grab
+        if statistics.pstdev(fracs) < WEIGHT_NUDGE_ID_THRESHOLD:
+            continue  # type not identifiable this session
+        mean_frac  = statistics.mean(fracs)
+        cov_norm   = sum((s_norm[i] - 1.0) * (fracs[i] - mean_frac)
+                         for i in range(n)) / n
+        nudges[(mc, k)] = cov_norm
+
+    if not nudges:
+        return None
+
+    # Step 4: multiplicative EMA step.
+    new_w = {mc: dict(wv) for mc, wv in weights.items()}
+    for (mc, k), cov_norm in nudges.items():
+        if mc in new_w and k in new_w[mc]:
+            old_val    = new_w[mc][k]
+            new_w[mc][k] = max(0.01, old_val * (1.0 + WEIGHT_NUDGE_ALPHA * cov_norm))
+
+    # Step 5: gauge-renorm so cw1h_opus := 1.
+    gauge = new_w.get("opus", {}).get("cache_write_1h", 0.0)
+    if gauge <= 0 or gauge == 1.0:
+        return new_w
+    for mc in new_w:
+        for k in new_w[mc]:
+            new_w[mc][k] = round(new_w[mc][k] / gauge, 6)
+
+    return new_w
 
 
 def _load_state() -> dict:
@@ -888,6 +1056,8 @@ def _load_state() -> dict:
                       "anchor_pct", "anchor_io", "session_budget_lb"):
                 s.pop(k, None)
             s["session_anchors"] = []
+            s["session_factor"] = None
+            s["session_sf_grabs"] = []
             # weighted_v3 is per-model and needs the cache vector split BY model.
             # Pre-v3 by_model only held input/output, so reset the token
             # accumulation (counters + dedup + file offsets + by_model) and let
@@ -931,6 +1101,14 @@ def _empty_state(session_start: datetime | None = None) -> dict:
         # All API-confirmed (pct, io) pairs this session, used to find the
         # widest clean span for the tightest lower bound. See _set_anchor.
         "session_anchors": [],
+        # SessionFactor: min(pct/weighted_io) over above-floor API grabs this
+        # session.  s = obs_pct / c_g is too HIGH when off-laptop activity
+        # inflates obs_pct; taking the minimum gives a robust lower bound on
+        # the true s.  The local estimate becomes s * current_io (Piece 1).
+        "session_factor": None,
+        # Per-grab by_model snapshots for end-of-session weight nudge (Piece 2).
+        # Each entry: {"pct": float, "by_model": {model_id: {type: count}}}.
+        "session_sf_grabs": [],
     }
 
 
@@ -1178,11 +1356,25 @@ def _estimate_session_pct(state: dict) -> float | None:
     eliminating drift from budget rounding and off-laptop usage.
 
     Module-level (not just a handler method) so the freeze-regression test can
-    exercise it without standing up a network-touching TranscriptHandler."""
+    exercise it without standing up a network-touching TranscriptHandler.
+
+    Piece 1 — SessionFactor: if this session has at least one above-floor API
+    grab, the estimate is s * weighted_io where s = min(pct/io) across all such
+    grabs.  Off-laptop contamination only inflates obs_pct → inflated s_g, so
+    taking the minimum gives a robust lower bound on true usage; it's also
+    algebraically identical to the anchor extrapolation but uses the cleanest
+    historical anchor rather than the most recent (potentially contaminated) one.
+
+    Falls back to the anchor/budget-based extrapolation when no session_factor
+    is set yet (first minutes of a session, or old state without it)."""
+    io_total = _weighted_io(state)
+    sf = state.get("session_factor")
+    if sf and sf > 0:
+        return min(100, round(sf * io_total, 1))
+    # Fallback: anchor/budget-based (pre-SF state or no above-floor grab yet).
     budget = state.get("implied_session_budget")
     if not budget:
         return None
-    io_total   = _weighted_io(state)
     anchor_pct = state.get("anchor_pct")
     anchor_io  = state.get("anchor_io", 0)
     if anchor_pct is not None:
@@ -1397,8 +1589,35 @@ class TranscriptHandler(FileSystemEventHandler):
         # If the saved window already ended (widget was closed across a session
         # boundary), roll it over before _startup so its stale pct can't seed a
         # false "stuck" discrepancy against the fresh API value.
+        _load_learned_weights()
         self._roll_over_if_expired()
         self._startup()
+
+    def _end_of_session_nudge(self) -> None:
+        """Piece 2: at session end, nudge the global per-model weights by one
+        slow EMA step using this session's lower-envelope grabs. Saves updated
+        weights to LEARNED_WEIGHTS_FILE if the nudge produced a change.
+
+        Designed to be called BEFORE state is reset so session_sf_grabs is
+        still intact. Silent on errors — calibration is best-effort."""
+        sf_grabs = self.state.get("session_sf_grabs") or []
+        if len(sf_grabs) < WEIGHT_NUDGE_MIN_GRABS:
+            return
+        try:
+            current = _effective_weights()
+            updated = _compute_weight_nudge(sf_grabs, current)
+            if updated is None:
+                return
+            # Sanity: every weight must be positive and finite.
+            if not all(isinstance(v, float) and v > 0 and v == v  # v==v rules NaN
+                       for wv in updated.values() for v in wv.values()):
+                print("[!] weight nudge produced invalid weights — skipping save")
+                return
+            _save_learned_weights(updated)
+            print(f"  weight nudge applied ({len(sf_grabs)} grabs); "
+                  f"opus out={updated.get('opus', {}).get('output', '?'):.3f}")
+        except Exception as e:
+            print(f"[!] end-of-session weight nudge failed: {e}")
 
     def _fetch_with_tracking(self) -> dict | None:
         """Wraps _fetch_usage_status to track consecutive failures and the
@@ -1547,6 +1766,7 @@ class TranscriptHandler(FileSystemEventHandler):
         session_start = _snap_session_start(stored_start, session_start)
         if stored_start != session_start.isoformat():
             print(f"  New session detected, resetting state.")
+            self._end_of_session_nudge()
             self.state = _empty_state(session_start)
             full_scan(self.state, session_start, session_end)
 
@@ -1607,6 +1827,21 @@ class TranscriptHandler(FileSystemEventHandler):
         self.state["session_anchors"] = anchors + [[pct, io_now]]
         self.state["anchor_pct"] = pct
         self.state["anchor_io"]  = io_now
+
+        # Piece 1 — SessionFactor: track min(pct/io) over above-floor grabs.
+        # Off-laptop activity only inflates obs_pct → s_g too high → taking the
+        # min is robust; the minimum is the cleanest (least contaminated) estimate.
+        if pct >= CALIBRATION_PCT_FLOOR and io_now > 0:
+            s_g = pct / io_now
+            sf  = self.state.get("session_factor")
+            if sf is None or s_g < sf:
+                self.state["session_factor"] = s_g
+            # Piece 2 — snapshot for end-of-session weight nudge.
+            snap = {m: dict(v) for m, v in self.state.get("by_model", {}).items()}
+            self.state.setdefault("session_sf_grabs", []).append(
+                {"pct": pct, "by_model": snap}
+            )
+
         # Reset both liveness baselines so the 20-min timer and the 10pp
         # delta trigger are always measured from the last API read, regardless
         # of whether it came from calibration, liveness, force_refresh, etc.
@@ -1892,6 +2127,7 @@ class TranscriptHandler(FileSystemEventHandler):
         if self.session_end is None or now < self.session_end:
             return False
         caught_live = now <= self.session_end + timedelta(seconds=ROLLOVER_GRACE_SECS)
+        self._end_of_session_nudge()
         self.state = _empty_state(None)
         self.session_start = None
         self.session_end   = None

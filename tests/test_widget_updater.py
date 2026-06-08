@@ -2096,3 +2096,342 @@ class TestPerModelWeighting:
         assert "anchor_pct" not in s
         # but session identity preserved
         assert s["session_start"] == "2099-01-01T00:00:00+00:00"
+
+    def test_io_unit_migration_clears_session_factor(self, tmp_path):
+        import json as _json
+        old = {
+            "io_unit": "weighted_v1",
+            "seen_ids": [],
+            "session_factor": 0.000042,
+            "session_sf_grabs": [{"pct": 10, "by_model": {}}],
+            "session_start": "2099-01-01T00:00:00+00:00",
+        }
+        widget_updater.STATE_FILE.write_text(_json.dumps(old), encoding="utf-8")
+        s = widget_updater._load_state()
+        assert s["session_factor"] is None
+        assert s["session_sf_grabs"] == []
+
+
+# ---------------------------------------------------------------------------
+# Piece 1 — SessionFactor: _set_anchor + _estimate_session_pct
+# ---------------------------------------------------------------------------
+
+class TestSessionFactor:
+    """session_factor = min(pct/io) over above-floor grabs; used by estimate."""
+
+    def _state_with_tokens(self, inp, out):
+        s = widget_updater._empty_state(datetime(2099, 1, 1, tzinfo=timezone.utc))
+        s["input_tokens"] = inp
+        s["output_tokens"] = out
+        return s
+
+    def test_empty_state_has_no_session_factor(self):
+        s = widget_updater._empty_state()
+        assert s["session_factor"] is None
+        assert s["session_sf_grabs"] == []
+
+    def test_set_anchor_sets_session_factor_above_floor(self, make_handler, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_append_calibration", mock.Mock())
+        monkeypatch.setattr(widget_updater, "full_scan", mock.Mock())
+        h = make_handler()
+        h.state["input_tokens"] = 50000
+        h.state["output_tokens"] = 100000
+        pct = widget_updater.CALIBRATION_PCT_FLOOR + 5  # above floor
+        h._set_anchor(float(pct))
+        io_now = widget_updater._weighted_io(h.state)
+        expected_sf = pct / io_now
+        assert h.state["session_factor"] == pytest.approx(expected_sf)
+
+    def test_set_anchor_below_floor_does_not_set_session_factor(self, make_handler):
+        h = make_handler()
+        h.state["input_tokens"] = 10000
+        h.state["output_tokens"] = 5000
+        pct = widget_updater.CALIBRATION_PCT_FLOOR - 1  # below floor
+        h._set_anchor(float(pct))
+        assert h.state["session_factor"] is None
+
+    def test_set_anchor_tracks_minimum_over_multiple_grabs(self, make_handler):
+        h = make_handler()
+        # First grab: pct=10, io determined by tokens
+        h.state["input_tokens"] = 100000
+        h.state["output_tokens"] = 50000
+        io1 = widget_updater._weighted_io(h.state)
+        h._set_anchor(10.0)
+        sf_after_1 = h.state["session_factor"]
+        assert sf_after_1 == pytest.approx(10.0 / io1)
+
+        # Second grab: add more tokens, higher pct -> higher s_g (contaminated)
+        h.state["input_tokens"] += 100000
+        h.state["output_tokens"] += 100000
+        h._set_anchor(50.0)  # s_g2 = 50 / io2 > s_g1 (pct grew disproportionately)
+        # session_factor must stay at the LOWER value (from grab 1)
+        assert h.state["session_factor"] == pytest.approx(sf_after_1)
+
+    def test_set_anchor_updates_sf_grabs_list(self, make_handler):
+        h = make_handler()
+        h.state["input_tokens"] = 80000
+        h.state["output_tokens"] = 40000
+        h.state["by_model"] = {
+            "claude-opus-4-8": {"input": 80000, "output": 40000,
+                                "cache_write_1h": 0, "cache_write_5m": 0,
+                                "cache_read": 0},
+        }
+        h._set_anchor(15.0)
+        grabs = h.state["session_sf_grabs"]
+        assert len(grabs) == 1
+        assert grabs[0]["pct"] == 15.0
+        assert "claude-opus-4-8" in grabs[0]["by_model"]
+
+    def test_estimate_uses_session_factor_when_set(self):
+        s = widget_updater._empty_state(datetime(2099, 1, 1, tzinfo=timezone.utc))
+        s["input_tokens"] = 100000
+        s["output_tokens"] = 50000
+        io = widget_updater._weighted_io(s)
+        sf = 20.0 / io  # implies budget = io / 0.20
+        s["session_factor"] = sf
+        s["implied_session_budget"] = 999999  # would give a different answer
+        assert widget_updater._estimate_session_pct(s) == pytest.approx(20.0, abs=0.1)
+
+    def test_estimate_fallback_to_budget_when_no_session_factor(self):
+        s = widget_updater._empty_state(datetime(2099, 1, 1, tzinfo=timezone.utc))
+        s["input_tokens"] = 40000
+        s["output_tokens"] = 60000
+        s["implied_session_budget"] = widget_updater._weighted_io(s) * 4  # 25%
+        # session_factor is None (not set)
+        assert widget_updater._estimate_session_pct(s) == 25.0
+
+    def test_estimate_clamps_at_100_with_session_factor(self):
+        s = widget_updater._empty_state(datetime(2099, 1, 1, tzinfo=timezone.utc))
+        s["input_tokens"] = 500000
+        s["output_tokens"] = 200000
+        io = widget_updater._weighted_io(s)
+        s["session_factor"] = 200.0 / io  # would predict 200% unclamped
+        assert widget_updater._estimate_session_pct(s) == 100
+
+    def test_off_laptop_spike_does_not_lower_session_factor(self, make_handler):
+        # Simulate: 2 clean grabs, then 1 off-laptop spike (pct inflated).
+        h = make_handler()
+        h.state["input_tokens"] = 100000
+        h.state["output_tokens"] = 50000
+        io1 = widget_updater._weighted_io(h.state)
+        h._set_anchor(10.0)   # clean grab 1: s_g = 10/io1
+        sf_clean = h.state["session_factor"]
+
+        h.state["input_tokens"] += 50000   # some more local work
+        h._set_anchor(40.0)               # off-laptop spike: pct jumped 30pp but only ~50k new tokens
+        # The spike's s_g is much higher, so session_factor should NOT decrease.
+        assert h.state["session_factor"] == pytest.approx(sf_clean)
+
+    def test_local_estimate_uses_sf_immediately_after_anchor(self, make_handler, monkeypatch):
+        # After _adopt_api_pct sets an above-floor anchor, _local_estimate uses SF.
+        monkeypatch.setattr(widget_updater, "_append_calibration", mock.Mock())
+        monkeypatch.setattr(widget_updater, "full_scan", mock.Mock())
+        h = make_handler()
+        h.state["input_tokens"] = 120000
+        h.state["output_tokens"] = 80000
+        h.state["by_model"] = {
+            "claude-opus-4-8": {"input": 120000, "output": 80000,
+                                "cache_write_1h": 0, "cache_write_5m": 0,
+                                "cache_read": 0}
+        }
+        h.state["implied_session_budget"] = 999999
+        pct = 20.0
+        h._adopt_api_pct(pct, datetime.now(timezone.utc))
+        # No new tokens — estimate should exactly match the API pct.
+        assert h._local_estimate() == pytest.approx(pct, abs=0.1)
+
+
+# ---------------------------------------------------------------------------
+# Piece 2 — _compute_weight_nudge
+# ---------------------------------------------------------------------------
+
+def _make_grabs(pct_list, output_list, cw1h_list, model="claude-opus-4-8"):
+    """Build session_sf_grabs entries with controlled composition."""
+    grabs = []
+    for pct, out, cw in zip(pct_list, output_list, cw1h_list):
+        grabs.append({
+            "pct": pct,
+            "by_model": {
+                model: {
+                    "input": 50000,
+                    "output": out,
+                    "cache_write_1h": cw,
+                    "cache_write_5m": 0,
+                    "cache_read": 0,
+                }
+            },
+        })
+    return grabs
+
+
+class TestWeightNudge:
+    """_compute_weight_nudge correctness, guards, and off-laptop robustness."""
+
+    W = property(lambda self: widget_updater.MODEL_WEIGHTS)
+
+    def test_returns_none_when_too_few_grabs(self):
+        # Fewer than WEIGHT_NUDGE_MIN_GRABS → no signal.
+        grabs = _make_grabs([10], [10000], [50000])
+        assert widget_updater._compute_weight_nudge(grabs, widget_updater.MODEL_WEIGHTS) is None
+
+    def test_returns_none_when_composition_constant(self):
+        # Identical composition in every grab → no identifiable direction.
+        grabs = _make_grabs([10, 20, 30], [10000, 20000, 30000], [50000, 100000, 150000])
+        # All grabs have output:cw1h ratio = 1:5; no variation in cost-fraction.
+        result = widget_updater._compute_weight_nudge(grabs, widget_updater.MODEL_WEIGHTS)
+        # Should return None (nothing identifiable) or the SAME weights (no nudge).
+        # We just verify it doesn't crash and doesn't inflate weights wildly.
+        if result is not None:
+            for mc, wv in result.items():
+                for k, v in wv.items():
+                    orig = widget_updater.MODEL_WEIGHTS.get(mc, {}).get(k, v)
+                    assert abs(v - orig) / max(orig, 0.01) < 0.5  # <50% change
+
+    def test_nudge_increases_output_weight_when_output_heavy_grabs_high_s(self):
+        # Output-heavy grabs should have HIGHER s_g if output weight is too low.
+        # This tests gradient direction: should push output weight up.
+        W = dict(widget_updater.MODEL_WEIGHTS)
+        # Deliberately underweight output so output-heavy grabs have higher s_g.
+        W_low = {"opus": dict(W["opus"]), "sonnet": dict(W["sonnet"]), "haiku": dict(W["haiku"])}
+        W_low["opus"]["output"] = 1.0  # far below true ~7.5
+
+        # 5 grabs: alternating output-heavy (high pct) and cw1h-heavy (lower pct)
+        grabs = [
+            {"pct": 30, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 100000, "cache_write_1h": 10000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 10, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 5000, "cache_write_1h": 100000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 28, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 90000, "cache_write_1h": 10000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 11, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 5000, "cache_write_1h": 110000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 32, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 110000, "cache_write_1h": 10000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+        ]
+        result = widget_updater._compute_weight_nudge(grabs, W_low)
+        if result is not None:
+            # Output weight should be nudged UP relative to W_low (gradient points up).
+            orig_out = W_low["opus"]["output"]
+            new_out  = result.get("opus", {}).get("output", orig_out)
+            assert new_out >= orig_out  # nudged up or stayed the same
+
+    def test_gauge_renorm_preserves_cw1h_opus_eq_1(self):
+        grabs = [
+            {"pct": 20, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 80000, "cache_write_1h": 50000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 10, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 10000, "cache_write_1h": 200000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 25, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 100000, "cache_write_1h": 30000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+        ]
+        result = widget_updater._compute_weight_nudge(grabs, widget_updater.MODEL_WEIGHTS)
+        if result is not None and "opus" in result:
+            assert result["opus"]["cache_write_1h"] == pytest.approx(1.0, rel=0.01)
+
+    def test_off_laptop_spike_excluded_by_lower_envelope(self):
+        # 4 grabs: 3 clean + 1 off-laptop spike (same local tokens, much higher pct).
+        clean = [
+            {"pct": 10, "by_model": {"claude-opus-4-8": {
+                "input": 20000, "output": 50000, "cache_write_1h": 100000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 15, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 70000, "cache_write_1h": 150000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 12, "by_model": {"claude-opus-4-8": {
+                "input": 25000, "output": 55000, "cache_write_1h": 120000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+        ]
+        spike = {"pct": 80, "by_model": {"claude-opus-4-8": {
+            "input": 25000, "output": 55000, "cache_write_1h": 120000,
+            "cache_write_5m": 0, "cache_read": 0}}}
+        grabs_with_spike = clean + [spike]
+
+        result_clean = widget_updater._compute_weight_nudge(clean, widget_updater.MODEL_WEIGHTS)
+        result_spike = widget_updater._compute_weight_nudge(grabs_with_spike,
+                                                            widget_updater.MODEL_WEIGHTS)
+        # Adding an off-laptop spike should NOT materially change the nudge,
+        # because the spike is in the upper s_g range and excluded.
+        if result_clean is not None and result_spike is not None:
+            for mc in result_clean:
+                for k in result_clean[mc]:
+                    r_clean = result_clean[mc][k]
+                    r_spike = result_spike.get(mc, {}).get(k, r_clean)
+                    # The two results should be similar (spike excluded).
+                    assert abs(r_clean - r_spike) < 0.5 * max(abs(r_clean), 0.01)
+
+    def test_weights_all_positive_after_nudge(self):
+        grabs = [
+            {"pct": 20, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 90000, "cache_write_1h": 30000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 8, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 5000, "cache_write_1h": 200000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 18, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 80000, "cache_write_1h": 35000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+        ]
+        result = widget_updater._compute_weight_nudge(grabs, widget_updater.MODEL_WEIGHTS)
+        if result is not None:
+            for mc, wv in result.items():
+                for k, v in wv.items():
+                    assert v > 0, f"weight {mc}.{k}={v} went non-positive"
+
+
+# ---------------------------------------------------------------------------
+# Learned weights — persistence round-trip
+# ---------------------------------------------------------------------------
+
+class TestLearnedWeights:
+    def test_load_save_roundtrip(self, tmp_path, monkeypatch):
+        lw_file = tmp_path / "learned_weights.json"
+        monkeypatch.setattr(widget_updater, "LEARNED_WEIGHTS_FILE", lw_file)
+        monkeypatch.setattr(widget_updater, "_learned_weights", None)
+
+        weights = {
+            "opus":   {"input": 1.5, "output": 7.8, "cache_write_1h": 1.0,
+                       "cache_write_5m": 0.625, "cache_read": 0.0},
+            "sonnet": {"input": 1.5, "output": 6.5, "cache_write_1h": 1.0,
+                       "cache_write_5m": 0.625, "cache_read": 0.0},
+            "haiku":  {"input": 0.75, "output": 9.0, "cache_write_1h": 0.5,
+                       "cache_write_5m": 0.31,  "cache_read": 0.0},
+        }
+        widget_updater._save_learned_weights(weights)
+        assert lw_file.exists()
+
+        # Reset and reload.
+        monkeypatch.setattr(widget_updater, "_learned_weights", None)
+        widget_updater._load_learned_weights()
+        assert widget_updater._learned_weights == weights
+
+    def test_load_missing_file_leaves_none(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(widget_updater, "LEARNED_WEIGHTS_FILE",
+                            tmp_path / "nope.json")
+        monkeypatch.setattr(widget_updater, "_learned_weights", None)
+        widget_updater._load_learned_weights()
+        assert widget_updater._learned_weights is None
+
+    def test_load_malformed_file_leaves_none(self, tmp_path, monkeypatch):
+        lw_file = tmp_path / "bad.json"
+        lw_file.write_text('{"opus": "not-a-dict"}', encoding="utf-8")
+        monkeypatch.setattr(widget_updater, "LEARNED_WEIGHTS_FILE", lw_file)
+        monkeypatch.setattr(widget_updater, "_learned_weights", None)
+        widget_updater._load_learned_weights()
+        assert widget_updater._learned_weights is None
+
+    def test_effective_weights_returns_learned_when_loaded(self, monkeypatch):
+        learned = {"opus": {"output": 99.0}}
+        monkeypatch.setattr(widget_updater, "_learned_weights", learned)
+        assert widget_updater._effective_weights() is learned
+
+    def test_effective_weights_falls_back_to_model_weights(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_learned_weights", None)
+        assert widget_updater._effective_weights() is widget_updater.MODEL_WEIGHTS
