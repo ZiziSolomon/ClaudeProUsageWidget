@@ -2602,3 +2602,84 @@ class TestLearnedWeights:
     def test_effective_weights_falls_back_to_model_weights(self, monkeypatch):
         monkeypatch.setattr(widget_updater, "_learned_weights", None)
         assert widget_updater._effective_weights() is widget_updater.MODEL_WEIGHTS
+
+
+class TestCompactionCharge:
+    """Auto/manual compaction fires a summarization request that never appears
+    as an assistant/usage entry, but the meter charges ~1.0x preTokens at the
+    model's cw1h weight (measured 2026-06-09). process_file must charge it
+    synthetically as cache_write_1h on the file's current model."""
+
+    def _window(self):
+        now = datetime.now(timezone.utc)
+        return now - timedelta(hours=1), now + timedelta(hours=4), now
+
+    def _assistant(self, msg_id, ts, model="claude-haiku-4-5-20251001"):
+        return json.dumps({"type": "assistant", "timestamp": ts.isoformat(),
+                           "message": {"id": msg_id, "model": model,
+                                       "usage": {"input_tokens": 10,
+                                                 "output_tokens": 5}}})
+
+    def _compact(self, uuid, ts, pre, trigger="auto"):
+        return json.dumps({"type": "system", "subtype": "compact_boundary",
+                           "content": "Conversation compacted", "uuid": uuid,
+                           "timestamp": ts.isoformat(),
+                           "compactMetadata": {"trigger": trigger,
+                                               "preTokens": pre}})
+
+    def test_compaction_charged_to_file_model(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(self._assistant("m1", now) + "\n"
+                     + self._compact("u1", now, 200_317) + "\n",
+                     encoding="utf-8")
+        assert widget_updater.process_file(f, state, start, end) is True
+        bm = state["by_model"]["claude-haiku-4-5-20251001"]
+        assert bm["cache_write_1h"] == 200_317
+        assert state["cache_write_1h"] == 200_317
+        # input/output from the assistant entry still accumulate normally
+        assert bm["input"] == 10 and bm["output"] == 5
+
+    def test_compaction_deduped_on_rescan(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(self._assistant("m1", now) + "\n"
+                     + self._compact("u1", now, 50_000) + "\n",
+                     encoding="utf-8")
+        widget_updater.process_file(f, state, start, end)
+        state["offsets"] = {}          # force a full re-read (seen_ids dedup)
+        widget_updater.process_file(f, state, start, end)
+        assert state["cache_write_1h"] == 50_000
+
+    def test_compaction_without_model_context_goes_to_unknown(self, tmp_path):
+        # Boundary as the first parsed line of a file (e.g. watcher started
+        # mid-conversation): no assistant entry seen, no model to attribute.
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(self._compact("u1", now, 80_000) + "\n", encoding="utf-8")
+        assert widget_updater.process_file(f, state, start, end) is True
+        assert state["by_model"]["unknown"]["cache_write_1h"] == 80_000
+
+    def test_compaction_outside_window_or_empty_ignored(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        stale = now - timedelta(hours=3)
+        f.write_text(self._compact("u1", stale, 90_000) + "\n"
+                     + self._compact("u2", now, 0) + "\n",
+                     encoding="utf-8")
+        assert widget_updater.process_file(f, state, start, end) is False
+        assert state["cache_write_1h"] == 0
+
+    def test_manual_compact_also_charged(self, tmp_path):
+        start, end, now = self._window()
+        state = widget_updater._empty_state(start)
+        f = tmp_path / "t.jsonl"
+        f.write_text(self._assistant("m1", now, model="claude-opus-4-8") + "\n"
+                     + self._compact("u1", now, 120_000, trigger="manual") + "\n",
+                     encoding="utf-8")
+        widget_updater.process_file(f, state, start, end)
+        assert state["by_model"]["claude-opus-4-8"]["cache_write_1h"] == 120_000

@@ -1440,6 +1440,43 @@ def _estimate_session_pct(state: dict) -> float | None:
 # transcripts as the type value.
 _ASSISTANT_MARKER = b'"assistant"'
 _USAGE_MARKER     = b'"usage"'
+_COMPACT_MARKER   = b'"compact_boundary"'
+
+
+def _process_compaction(raw: bytes, path, state: dict, key: str,
+                        session_start: datetime, session_end: datetime) -> bool:
+    """Charge a compaction's hidden cost. /compact (auto or manual) fires a
+    summarization request that never appears as an assistant/usage entry, but
+    the meter charges ~1.0x the pre-compaction context at the model's cw1h
+    weight (measured 2026-06-09: preTokens=200,317 vs a ~192k haiku-cw1h-eq
+    budget shortfall). Without this, every session that compacts drifts the
+    estimate low by ~2pp. Charged as synthetic cache_write_1h tokens so the
+    per-model weighting applies unchanged. Model comes from the file's last
+    assistant entry (boundary entries carry no model field)."""
+    try:
+        obj = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+    if obj.get("type") != "system" or obj.get("subtype") != "compact_boundary":
+        return False
+    pre = (obj.get("compactMetadata") or {}).get("preTokens") or 0
+    cid = "compact:" + str(obj.get("uuid"))
+    if not pre or cid in state["seen_ids"]:
+        return False
+    try:
+        ts = datetime.fromisoformat(obj["timestamp"].replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        return False
+    if not (session_start <= ts <= session_end):
+        return False
+    state["seen_ids"].add(cid)
+    model = state.get("file_last_model", {}).get(key, "unknown")
+    entry = state["by_model"].setdefault(
+        model, {"input": 0, "output": 0, "cache_write_1h": 0,
+                "cache_write_5m": 0, "cache_read": 0})
+    entry["cache_write_1h"] = entry.get("cache_write_1h", 0) + pre
+    state[_GLOBAL_KEY["cache_write_1h"]] += pre
+    return True
 
 
 def process_file(path: Path, state: dict, session_start: datetime, session_end: datetime) -> bool:
@@ -1490,6 +1527,11 @@ def process_file(path: Path, state: dict, session_start: datetime, session_end: 
 
     changed = False
     for raw in complete.split(b"\n"):
+        if _COMPACT_MARKER in raw:
+            if _process_compaction(raw, path, state, key,
+                                   session_start, session_end):
+                changed = True
+            continue
         if _ASSISTANT_MARKER not in raw or _USAGE_MARKER not in raw:
             continue
         try:
@@ -1513,6 +1555,9 @@ def process_file(path: Path, state: dict, session_start: datetime, session_end: 
                 continue
             state["seen_ids"].add(mid)
             model = msg.get("model", "unknown")
+            # Remember the file's model so a later compact_boundary (which has
+            # no model field) can be attributed to the right weight row.
+            state.setdefault("file_last_model", {})[key] = model
             # Compute this message's component vector once. Prefer the 1h/5m
             # split; fall back to the flat total (older records lack the nested
             # breakdown) attributed to 1h, Claude Code's default.
