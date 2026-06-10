@@ -469,15 +469,16 @@ class TestLocalEstimate:
         assert widget_updater._estimate_session_pct(state) == 100
 
     def test_anchor_snaps_to_api_pct(self):
-        # With anchor_io == current io, estimate is exactly anchor_pct regardless
-        # of what total_io / budget would yield (eliminates rounding drift).
+        # With anchor_io == current io, estimate is anchor_pct + 0.5 floor-bias
+        # (no delta from local tokens; the +0.5 midpoint correction is always applied).
         state = {
             "input_tokens": 30000, "output_tokens": 30000,
             "implied_session_budget": 200000,
             "anchor_pct": 28.5,   # API said 28.5% at this weighted io
         }
         state["anchor_io"] = widget_updater._weighted_io(state)  # == current => delta 0
-        assert widget_updater._estimate_session_pct(state) == 28.5
+        # 28.5 + API_PCT_FLOOR_BIAS_PP (0.5) = 29.0
+        assert widget_updater._estimate_session_pct(state) == 29.0
 
     def test_anchor_delta_adds_from_anchor(self):
         # Tokens written after the anchor grow estimate from anchor_pct, not zero.
@@ -491,7 +492,9 @@ class TestLocalEstimate:
         state["anchor_io"] = widget_updater._weighted_io(state)
         state["output_tokens"] += 20000  # delta is weighted (output weight applies)
         delta_w = 20000 * widget_updater.TOKEN_WEIGHTS["output"]
-        expected = round(28.5 + 100 * delta_w / 2000000, 1)
+        # +0.5 floor-bias is added to the anchor level.
+        bias = widget_updater.API_PCT_FLOOR_BIAS_PP
+        expected = round(28.5 + bias + 100 * delta_w / 2000000, 1)
         assert widget_updater._estimate_session_pct(state) == expected
 
     def test_anchor_clamps_at_100(self):
@@ -552,6 +555,29 @@ class TestEmergencyRecal:
         now = datetime.now(timezone.utc)
         h.state.pop("implied_session_budget", None)
         assert h._estimate_is_suspect(100, now) is False
+
+    def test_clamp_hit_uses_weighted_io(self, make_handler):
+        """clamp_hit must fire on WEIGHTED io reaching the budget, not raw
+        input+output.  This guards the unit bug where raw io (much smaller than
+        weighted) was compared against the weighted budget, making clamp_hit
+        effectively dead (Task 3)."""
+        h = make_handler()
+        now = datetime.now(timezone.utc)
+        # Budget expressed in weighted units.  Choose tokens so that:
+        #   raw input+output << budget  (old code would NOT fire clamp_hit)
+        #   weighted io       >= budget  (new code DOES fire clamp_hit)
+        dw = widget_updater.DEFAULT_WEIGHTS
+        # 10k output tokens: raw = 10k, weighted = 10k * dw["output"] ~ 75k
+        h.state["input_tokens"]  = 0
+        h.state["output_tokens"] = 10000
+        weighted = widget_updater._weighted_io(h.state)   # ~75000
+        h.state["implied_session_budget"] = int(weighted * 0.9)   # budget < weighted
+        h.last_api_pct = 10
+        # Raw io (10k) << budget, but weighted io > budget → clamp_hit must be True.
+        assert h._estimate_is_suspect(100, now) is True
+        # Sanity: raw io is well below the budget to confirm we're testing the fix.
+        raw_io = h.state["input_tokens"] + h.state["output_tokens"]
+        assert raw_io < h.state["implied_session_budget"]
 
     def test_on_modified_forces_recal_when_clamped(self, make_handler, monkeypatch, tmp_path):
         h = make_handler()
@@ -695,16 +721,16 @@ class TestAdoptApiPct:
         assert h.state["anchor_io"] == widget_updater._weighted_io(h.state)
 
     def test_local_estimate_uses_anchor_immediately(self, make_handler, monkeypatch):
-        # After _adopt_api_pct, _local_estimate returns exactly the API pct when
-        # no new tokens have been written (delta = 0).
+        # After _adopt_api_pct with no new tokens, _local_estimate returns the
+        # anchor pct + the floor-rounding midpoint correction (0.5pp).
         h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
         h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
         h._adopt_api_pct(53, datetime.now(timezone.utc))
-        # No new tokens: delta = 0, so estimate == anchor_pct exactly.
-        assert h._local_estimate() == 53
+        # delta = 0, so estimate == anchor_pct + API_PCT_FLOOR_BIAS_PP = 53.5.
+        assert h._local_estimate() == 53.5
 
 
 class TestWatcherStuck:
@@ -2139,7 +2165,8 @@ class TestSessionFactor:
         pct = widget_updater.CALIBRATION_PCT_FLOOR + 5  # above floor
         h._set_anchor(float(pct))
         io_now = widget_updater._weighted_io(h.state)
-        expected_sf = pct / io_now
+        # s_g uses the floor-rounding midpoint: (pct + 0.5) / io
+        expected_sf = (pct + widget_updater.API_PCT_FLOOR_BIAS_PP) / io_now
         assert h.state["session_factor"] == pytest.approx(expected_sf)
 
     def test_set_anchor_below_floor_does_not_set_session_factor(self, make_handler):
@@ -2158,7 +2185,8 @@ class TestSessionFactor:
         io1 = widget_updater._weighted_io(h.state)
         h._set_anchor(10.0)
         sf_after_1 = h.state["session_factor"]
-        assert sf_after_1 == pytest.approx(10.0 / io1)
+        # s_g uses floor-rounding midpoint: (pct + 0.5) / io
+        assert sf_after_1 == pytest.approx((10.0 + widget_updater.API_PCT_FLOOR_BIAS_PP) / io1)
 
         # Second grab: add more tokens, higher pct -> higher s_g (contaminated)
         h.state["input_tokens"] += 100000
@@ -2222,6 +2250,59 @@ class TestSessionFactor:
         # The spike's s_g is much higher, so session_factor should NOT decrease.
         assert h.state["session_factor"] == pytest.approx(sf_clean)
 
+    def test_set_anchor_records_n_messages_in_sf_grabs(self, make_handler):
+        """n_messages (Task 4b) is recorded in each sf_grabs snapshot so
+        per-turn fixed cost F can be estimated offline later."""
+        h = make_handler()
+        h.state["input_tokens"] = 100000
+        h.state["output_tokens"] = 50000
+        # Seed seen_ids with a known count so we can assert against it.
+        h.state["seen_ids"] = {"msg1", "msg2", "msg3"}
+        pct = float(widget_updater.CALIBRATION_PCT_FLOOR + 2)
+        h._set_anchor(pct)
+        grabs = h.state["session_sf_grabs"]
+        assert len(grabs) == 1
+        assert grabs[0]["n_messages"] == 3
+
+    def test_s_g_uses_midpoint_at_floor(self, make_handler):
+        """s_g = (pct + 0.5) / io at the CALIBRATION_PCT_FLOOR, not pct / io."""
+        h = make_handler()
+        h.state["input_tokens"] = 100000
+        h.state["output_tokens"] = 0
+        io = widget_updater._weighted_io(h.state)
+        pct = float(widget_updater.CALIBRATION_PCT_FLOOR)   # e.g. 5.0
+        h._set_anchor(pct)
+        expected_sf = (pct + widget_updater.API_PCT_FLOOR_BIAS_PP) / io   # (5.0 + 0.5) / io
+        assert h.state["session_factor"] == pytest.approx(expected_sf)
+        # Confirm it's different from the un-corrected value to ensure the fix matters.
+        naive_sf = pct / io
+        assert expected_sf != pytest.approx(naive_sf, rel=1e-6)
+
+    def test_estimate_never_falls_below_anchor_plus_bias(self, make_handler):
+        """After an API grab at pct P, the local estimate must never display
+        LESS than P + API_PCT_FLOOR_BIAS_PP, even when session_factor is very
+        small (snap-down regression guard, Task 2 part i)."""
+        h = make_handler()
+        # Seed a tiny session_factor so s * io_total would be well below P.
+        h.state["input_tokens"] = 10000
+        h.state["output_tokens"] = 0
+        io_at_anchor = widget_updater._weighted_io(h.state)
+        anchor_p = 30.0
+        # Give it a session_factor derived at the anchor.
+        h.state["session_factor"] = (anchor_p + widget_updater.API_PCT_FLOOR_BIAS_PP) / io_at_anchor
+        h.state["anchor_pct"] = anchor_p
+        h.state["anchor_io"] = io_at_anchor
+        # Now simulate off-laptop usage: the meter jumped to 60% but we only have the
+        # same local tokens, so s * io_total would be tiny relative to the new anchor.
+        h.state["anchor_pct"] = 60.0   # off-laptop drove the API reading up
+        h.state["anchor_io"] = io_at_anchor  # our local io hasn't grown
+        est = widget_updater._estimate_session_pct(h.state)
+        floor_value = 60.0 + widget_updater.API_PCT_FLOOR_BIAS_PP   # = 60.5
+        assert est is not None
+        assert est >= floor_value, (
+            f"estimate {est} fell below anchor level {floor_value}"
+        )
+
     def test_local_estimate_uses_sf_immediately_after_anchor(self, make_handler, monkeypatch):
         # After _adopt_api_pct sets an above-floor anchor, _local_estimate uses SF.
         monkeypatch.setattr(widget_updater, "_append_calibration", mock.Mock())
@@ -2237,8 +2318,9 @@ class TestSessionFactor:
         h.state["implied_session_budget"] = 999999
         pct = 20.0
         h._adopt_api_pct(pct, datetime.now(timezone.utc))
-        # No new tokens — estimate should exactly match the API pct.
-        assert h._local_estimate() == pytest.approx(pct, abs=0.1)
+        # No new tokens — estimate is anchor_pct + floor bias (0.5pp), not anchor_pct itself.
+        expected = pct + widget_updater.API_PCT_FLOOR_BIAS_PP
+        assert h._local_estimate() == pytest.approx(expected, abs=0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -2383,7 +2465,92 @@ class TestWeightNudge:
         if result is not None:
             for mc, wv in result.items():
                 for k, v in wv.items():
-                    assert v > 0, f"weight {mc}.{k}={v} went non-positive"
+                    assert v >= 0, f"weight {mc}.{k}={v} went non-positive"
+
+    def test_nudge_slope_corrects_wrong_output_weight(self):
+        """Regression slope implementation: synthetic session where the assumed
+        output weight is 2x the true value.  Because s_g = pct / c_g and c_g
+        overestimates the true cost for output-heavy grabs, those grabs end up
+        with LOWER s_g — so the slope estimator returns a negative δ̂ (output
+        overweighted) and the nudge reduces the output weight.  Conversely if
+        the assumed weight is 0.5x the true (underweighted), output-heavy grabs
+        have higher s_g and the nudge increases the weight.
+
+        Here we set w_out = 2 * TRUE and verify the nudge moves it DOWN.
+        The true session_factor is uniform (no contamination), so variation in
+        s_g is caused solely by the misweight.  Tolerance: ±50% of the
+        expected step size (other collinear weights absorb some signal)."""
+        import copy
+        true_out = widget_updater.MODEL_WEIGHTS["opus"]["output"]   # e.g. 7.5
+        W_high = copy.deepcopy(widget_updater.MODEL_WEIGHTS)
+        W_high["opus"]["output"] = true_out * 2.0  # 2x overweight
+
+        # Build grabs with varying output/cw1h composition but a FIXED true
+        # session_factor.  Because W_high overestimates output cost, grabs that
+        # are output-heavy will appear to have LOWER s_g (c_g inflated), so
+        # cov(s_norm, frac_output) is negative → δ̂ < 0 → weight goes DOWN.
+        true_sf = 1e-5   # arbitrary; kept identical across grabs
+        grabs = []
+        compositions = [
+            (80000, 20000),   # output-heavy
+            (20000, 80000),   # cw1h-heavy
+            (70000, 30000),   # output-heavy
+            (30000, 70000),   # cw1h-heavy
+            (60000, 40000),   # moderate
+        ]
+        for out_tok, cw1h_tok in compositions:
+            # True cost using true weights; pct derived from true_sf * true_cost.
+            true_w = widget_updater.MODEL_WEIGHTS["opus"]
+            true_cost = (50000 * true_w["input"] + out_tok * true_w["output"]
+                         + cw1h_tok * true_w["cache_write_1h"])
+            pct = true_sf * true_cost
+            grabs.append({
+                "pct": pct,
+                "by_model": {"claude-opus-4-8": {
+                    "input": 50000, "output": out_tok,
+                    "cache_write_1h": cw1h_tok,
+                    "cache_write_5m": 0, "cache_read": 0,
+                }},
+            })
+
+        result = widget_updater._compute_weight_nudge(grabs, W_high)
+        assert result is not None, "nudge returned None — not enough signal"
+        old_out = W_high["opus"]["output"]
+        new_out = result["opus"]["output"]
+        # Nudge must move the output weight DOWN (toward the true value).
+        assert new_out < old_out, (
+            f"expected output weight to decrease from {old_out}, got {new_out}"
+        )
+        # The step should be approximately ALPHA * min(|δ̂|, CLAMP) * w_old
+        # — within a factor of 2 (other weights absorb some collinear signal).
+        alpha = widget_updater.WEIGHT_NUDGE_ALPHA
+        clamp = widget_updater.WEIGHT_NUDGE_SLOPE_CLAMP
+        # δ̂ is clamped at CLAMP=0.5 if the regression slope exceeds it.
+        expected_min_step = alpha * min(0.1, clamp) * old_out * 0.5  # very loose lower bound
+        actual_step = old_out - new_out
+        assert actual_step > expected_min_step, (
+            f"step {actual_step:.4f} too small vs expected minimum {expected_min_step:.4f}"
+        )
+
+    def test_nudge_ignores_unknown_grab_keys(self):
+        """n_messages and other future keys in grabs must not break the nudge."""
+        grabs = [
+            {"pct": 20, "n_messages": 10, "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 80000, "cache_write_1h": 30000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 8,  "n_messages": 4,  "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 5000, "cache_write_1h": 200000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+            {"pct": 18, "n_messages": 8,  "by_model": {"claude-opus-4-8": {
+                "input": 30000, "output": 75000, "cache_write_1h": 35000,
+                "cache_write_5m": 0, "cache_read": 0}}},
+        ]
+        # Should not raise; result may be None or a valid weights dict.
+        result = widget_updater._compute_weight_nudge(grabs, widget_updater.MODEL_WEIGHTS)
+        if result is not None:
+            for mc, wv in result.items():
+                for k, v in wv.items():
+                    assert v >= 0   # cache_read is legitimately 0.0
 
 
 # ---------------------------------------------------------------------------

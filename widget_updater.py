@@ -827,14 +827,27 @@ IO_UNIT = "weighted_v3"   # basis tag for budgets/anchors; change with any weigh
 WEIGHT_NUDGE_ALPHA          = 0.03
 # Minimum number of lower-envelope grabs to run the nudge computation.
 WEIGHT_NUDGE_MIN_GRABS      = 2
-# Fraction of grabs (by s_g rank, low to high) to treat as the lower envelope.
-# Low-s grabs are least contaminated by off-laptop activity; the rest are
-# excluded from the weight-learning signal.
-WEIGHT_NUDGE_LOWER_FRAC     = 0.60
+# Ratio threshold for the lower-envelope filter: exclude any grab where
+# s_g > RATIO_MAX * s_min.  Derived from historic clean-session data: 85% of
+# clean Opus sessions have max/min ratio < 2.0; dirty sessions often exceed it.
+# A quantile-based filter (bottom 60%) was rejected because it discards valid
+# clean grabs and keeps contaminated ones if the spread is wide.
+WEIGHT_NUDGE_RATIO_MAX      = 2.0
 # Identifiability gate: std of cost-fraction across lower-envelope grabs must
 # exceed this threshold before we nudge a weight. If a type's share barely
 # varied this session, its weight is under-constrained and we leave it alone.
 WEIGHT_NUDGE_ID_THRESHOLD   = 0.02
+# Small-n regression slopes from a single session are noisy; clamp the relative
+# misweight estimate to avoid over-correcting on an atypical session.
+WEIGHT_NUDGE_SLOPE_CLAMP    = 0.5
+
+# claude.ai reports floored integer pct: an observation of N means the true
+# utilisation lies in [N, N+1) (floor convention). The midpoint N+0.5 is our
+# best single-shot estimate of the true value, and it also debiases the
+# SessionFactor's min() which would otherwise latch on the most-rounded-down
+# grab (up to ~17% systematic under-estimate at the pct=5 floor).
+# Set to 0.0 if claude.ai is ever confirmed to round-to-nearest instead.
+API_PCT_FLOOR_BIAS_PP = 0.5
 
 # Component key -> the cumulative global-counter key in state. Global counters are
 # kept (alongside the per-model split) for the calibration capture + raw-io logging.
@@ -952,14 +965,18 @@ def _compute_weight_nudge(
     ---------
     1. For each grab, compute c_g = Σ w_k^m tok_k^m_g (weighted cost) and
        s_g = pct_g / c_g (implied session-factor for that grab).
-    2. Keep only the lower-envelope grabs (bottom WEIGHT_NUDGE_LOWER_FRAC by
-       s_g rank).  High-s_g grabs are off-laptop-contaminated and excluded.
+    2. Keep only the lower-envelope grabs (s_g <= RATIO_MAX * s_min).
+       High-s_g grabs are off-laptop-contaminated and excluded.
     3. For each identifiable (model_class, type) pair (std of cost-fraction
-       across lower-envelope grabs > WEIGHT_NUDGE_ID_THRESHOLD), compute the
-       normalised covariance cov_norm = cov(s_g/s_mean, frac_{mc,k,g}).
-       Positive cov_norm means this type's share is higher in high-s_g grabs →
-       the type is underweighted; negative means overweighted.
-    4. Multiplicative EMA step: w_new = w_old * (1 + α * cov_norm).
+       across lower-envelope grabs > WEIGHT_NUDGE_ID_THRESHOLD), estimate the
+       relative misweight via regression slope:
+           δ̂ = cov(s_norm, frac) / var(frac)
+       This follows from the model: if weight w_k is off by factor (1+δ),
+       then s_g/s_mean ≈ 1 + δ·(frac_k,g − mean_frac_k), so δ̂ is the
+       OLS slope.  Positive δ̂ → type is underweighted; negative → overweighted.
+       δ̂ is clamped to [-SLOPE_CLAMP, +SLOPE_CLAMP]: a single session may not
+       imply more than a 50% misweight.
+    4. Multiplicative EMA step: w_new = w_old * (1 + ALPHA * δ̂_clamped).
        Clamp at 0.01 to prevent weights going negative or zero.
     5. Gauge-renorm: divide all weights by w_cw1h_opus so cw1h_opus := 1.
     """
@@ -985,11 +1002,12 @@ def _compute_weight_nudge(
     if len(grab_data) < WEIGHT_NUDGE_MIN_GRABS:
         return None
 
-    # Step 2: lower-envelope filter.
+    # Step 2: lower-envelope filter — keep grabs where s_g <= RATIO_MAX * s_min.
     grab_data.sort(key=lambda x: x["s_g"])
-    n_le = max(WEIGHT_NUDGE_MIN_GRABS,
-               round(len(grab_data) * WEIGHT_NUDGE_LOWER_FRAC))
-    le    = grab_data[:n_le]
+    s_min = grab_data[0]["s_g"]
+    le = [g for g in grab_data if g["s_g"] <= WEIGHT_NUDGE_RATIO_MAX * s_min]
+    if len(le) < WEIGHT_NUDGE_MIN_GRABS:
+        return None
     s_vals = [x["s_g"] for x in le]
     s_mean = statistics.mean(s_vals)
     if s_mean <= 0:
@@ -1012,22 +1030,28 @@ def _compute_weight_nudge(
     for (mc, k), fracs in pair_fracs.items():
         if len(fracs) != n:
             continue  # not present in every lower-envelope grab
-        if statistics.pstdev(fracs) < WEIGHT_NUDGE_ID_THRESHOLD:
+        pstdev_fracs = statistics.pstdev(fracs)
+        if pstdev_fracs < WEIGHT_NUDGE_ID_THRESHOLD:
             continue  # type not identifiable this session
         mean_frac  = statistics.mean(fracs)
+        var_frac   = pstdev_fracs ** 2
         cov_norm   = sum((s_norm[i] - 1.0) * (fracs[i] - mean_frac)
                          for i in range(n)) / n
-        nudges[(mc, k)] = cov_norm
+        # OLS slope: δ̂ = cov / var(frac) gives the relative misweight estimate
+        delta_hat  = cov_norm / var_frac
+        delta_hat  = max(-WEIGHT_NUDGE_SLOPE_CLAMP,
+                         min(WEIGHT_NUDGE_SLOPE_CLAMP, delta_hat))
+        nudges[(mc, k)] = delta_hat
 
     if not nudges:
         return None
 
     # Step 4: multiplicative EMA step.
     new_w = {mc: dict(wv) for mc, wv in weights.items()}
-    for (mc, k), cov_norm in nudges.items():
+    for (mc, k), delta_hat in nudges.items():
         if mc in new_w and k in new_w[mc]:
             old_val    = new_w[mc][k]
-            new_w[mc][k] = max(0.01, old_val * (1.0 + WEIGHT_NUDGE_ALPHA * cov_norm))
+            new_w[mc][k] = max(0.01, old_val * (1.0 + WEIGHT_NUDGE_ALPHA * delta_hat))
 
     # Step 5: gauge-renorm so cw1h_opus := 1.
     gauge = new_w.get("opus", {}).get("cache_write_1h", 0.0)
@@ -1231,8 +1255,8 @@ def _blended_sub_floor_budget(total_io: int, pct_live: float,
     CALIBRATION_PCT_FLOOR, by blending a live-reading midpoint X with the
     user's historical median M.
 
-    The API only ever returns integer percentages, so a reading of N means
-    the true pct lies in [N-0.5, N+0.5] (clamped at 0). The midpoint of that
+    The API reports floored integer percentages, so a reading of N means the
+    true pct lies in [N, N+1) (floor convention). The midpoint N+0.5 of that
     range, fed back through total_io, gives X - our best single-shot guess
     from the live reading alone.
 
@@ -1332,6 +1356,11 @@ def _append_calibration(state: dict, pct: float, scraped_at: datetime,
         "budget_source":           budget_source,
         "budget_unit":             IO_UNIT,          # weighting basis for implied_session_budget
         "by_model":                state["by_model"],
+        # Active per-model weights at record time. Once the nudge starts moving
+        # weights across sessions, records with the same budget_unit are no
+        # longer strictly comparable; storing the active weights lets offline
+        # analysis re-normalise to a common basis.
+        "weights":                 _effective_weights(),
         "source":                  "widget",
     }
     CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1350,27 +1379,40 @@ def _estimate_session_pct(state: dict) -> float | None:
     implied by the last API calibration. None until a budget exists.
 
     When an API anchor is present (set by _set_anchor on every API read),
-    extrapolates as:  anchor_pct + 100 * (current_io - anchor_io) / budget
-    This snaps the estimate to the exact API value at calibration time and
-    grows it only by locally-observed tokens written after that snapshot,
-    eliminating drift from budget rounding and off-laptop usage.
+    extrapolates as:
+        anchor_pct + API_PCT_FLOOR_BIAS_PP + 100 * (current_io - anchor_io) / budget
+    The +0.5 is the floor-rounding midpoint correction (obs=N means true pct
+    ∈ [N, N+1)).  This snaps the estimate to the API midpoint at calibration
+    time and grows it only by locally-observed tokens written after that
+    snapshot, eliminating drift from budget rounding.  Off-laptop usage that
+    occurred before the anchor is already captured in anchor_pct — the widget's
+    job is to track the meter, not just local tokens.
 
     Module-level (not just a handler method) so the freeze-regression test can
     exercise it without standing up a network-touching TranscriptHandler.
 
-    Piece 1 — SessionFactor: if this session has at least one above-floor API
-    grab, the estimate is s * weighted_io where s = min(pct/io) across all such
-    grabs.  Off-laptop contamination only inflates obs_pct → inflated s_g, so
-    taking the minimum gives a robust lower bound on true usage; it's also
-    algebraically identical to the anchor extrapolation but uses the cleanest
-    historical anchor rather than the most recent (potentially contaminated) one.
+    Piece 1 — SessionFactor: s = min((pct+0.5)/io) is the clean SLOPE of the
+    burn rate; the anchor is the LEVEL (which legitimately includes off-laptop
+    consumption).  The estimate uses the LEVEL from the last API anchor plus
+    the SLOPE from the clean SessionFactor for growth since that anchor:
+        est = anchor_pct + API_PCT_FLOOR_BIAS_PP + s * (io_total - anchor_io)
+    If session_factor is set but anchor_pct is None (shouldn't happen in normal
+    operation), falls back to s * io_total as a safe approximation.
 
     Falls back to the anchor/budget-based extrapolation when no session_factor
     is set yet (first minutes of a session, or old state without it)."""
     io_total = _weighted_io(state)
     sf = state.get("session_factor")
     if sf and sf > 0:
-        return min(100, round(sf * io_total, 1))
+        anchor_pct = state.get("anchor_pct")
+        anchor_io  = state.get("anchor_io", 0)
+        if anchor_pct is not None:
+            # LEVEL from anchor (includes off-laptop usage up to that point),
+            # SLOPE from the clean session_factor, +0.5 for floor-rounding.
+            raw = anchor_pct + API_PCT_FLOOR_BIAS_PP + sf * (io_total - anchor_io)
+        else:
+            raw = sf * io_total
+        return min(100, round(raw, 1))
     # Fallback: anchor/budget-based (pre-SF state or no above-floor grab yet).
     budget = state.get("implied_session_budget")
     if not budget:
@@ -1378,7 +1420,7 @@ def _estimate_session_pct(state: dict) -> float | None:
     anchor_pct = state.get("anchor_pct")
     anchor_io  = state.get("anchor_io", 0)
     if anchor_pct is not None:
-        raw = anchor_pct + 100 * (io_total - anchor_io) / budget
+        raw = anchor_pct + API_PCT_FLOOR_BIAS_PP + 100 * (io_total - anchor_io) / budget
     else:
         # Fallback before first API reading: total-io / budget.
         raw = 100 * io_total / budget
@@ -1828,18 +1870,21 @@ class TranscriptHandler(FileSystemEventHandler):
         self.state["anchor_pct"] = pct
         self.state["anchor_io"]  = io_now
 
-        # Piece 1 — SessionFactor: track min(pct/io) over above-floor grabs.
-        # Off-laptop activity only inflates obs_pct → s_g too high → taking the
-        # min is robust; the minimum is the cleanest (least contaminated) estimate.
+        # Piece 1 — SessionFactor: the SLOPE of the burn rate.  Off-laptop
+        # activity only inflates obs_pct → s_g too high → min() is robust.
+        # +API_PCT_FLOOR_BIAS_PP applies the floor-rounding midpoint: obs=N means
+        # true pct ∈ [N, N+1); the midpoint N+0.5 removes the systematic
+        # under-estimate that the raw min() would otherwise latch onto.
         if pct >= CALIBRATION_PCT_FLOOR and io_now > 0:
-            s_g = pct / io_now
+            s_g = (pct + API_PCT_FLOOR_BIAS_PP) / io_now
             sf  = self.state.get("session_factor")
             if sf is None or s_g < sf:
                 self.state["session_factor"] = s_g
             # Piece 2 — snapshot for end-of-session weight nudge.
             snap = {m: dict(v) for m, v in self.state.get("by_model", {}).items()}
             self.state.setdefault("session_sf_grabs", []).append(
-                {"pct": pct, "by_model": snap}
+                {"pct": pct, "by_model": snap,
+                 "n_messages": len(self.state.get("seen_ids", set()))}
             )
 
         # Reset both liveness baselines so the 20-min timer and the 10pp
@@ -2037,7 +2082,7 @@ class TranscriptHandler(FileSystemEventHandler):
         budget = self.state.get("implied_session_budget")
         if not budget:
             return False
-        io_total = self.state["input_tokens"] + self.state["output_tokens"]
+        io_total = _weighted_io(self.state)   # budget is in weighted units; raw io would be far smaller
         clamp_hit = 100 * io_total / budget >= 100          # unclamped >= 100
         big_gap   = (self.last_api_pct is not None and
                      est - self.last_api_pct >= FORCE_RECAL_GAP_PP)
