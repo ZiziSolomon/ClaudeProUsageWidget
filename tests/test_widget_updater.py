@@ -2110,7 +2110,7 @@ class TestPerModelWeighting:
         }
         widget_updater.STATE_FILE.write_text(_json.dumps(old), encoding="utf-8")
         s = widget_updater._load_state()
-        assert s["io_unit"] == "weighted_v3"
+        assert s["io_unit"] == widget_updater.IO_UNIT
         # accumulation reset for a clean per-model re-scan
         assert s["input_tokens"] == 0 and s["output_tokens"] == 0
         assert s["cache_write_1h"] == 0 and s["cache_read"] == 0
