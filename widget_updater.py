@@ -800,13 +800,16 @@ def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
 # different rate, so we weight per-model and sum (subagent transcripts are already
 # captured account-wide). See analysis/burn/SESSIONFACTOR-DESIGN.md.
 #   output (o): Opus 7.5 (burn 8.1 / history 7, meet-point), Sonnet 6.34 (typed-prose
-#     burn 2026-06-08), Haiku 2.41 MEASURED 2026-06-10 (typed-prose 06-09 morning
-#     pair: o=7.84 in cw1h_haiku units x w_cw1h_haiku=0.31; solve_haiku_jun9.py;
-#     same-session Opus cross-check landed 7.75-7.91 vs shipped 7.5). Own-basis o is
-#     ~7+/-1 for ALL models — the per-model story is mostly one overall scale.
+#     burn 2026-06-08), Haiku own-basis o=6.39 MEASURED 2026-06-11b (paced prose/number
+#     crossing, drop-1 6.59; the 06-11a replicate gave 5.14 and the older 06-09 pair
+#     7.84 — spread is real, ±~20%) x w_cw1h_haiku=0.31 -> 1.98 Om. Fable own-basis
+#     o=5.92 MEASURED 2026-06-10 chain2 (orun_fable_b refit with same-session
+#     B=979,815 from brun_fable_b) x w_cw1h_fable=1.49 -> 8.83 Om.
 #   cw1h cross-model: cw1h_opus:=1 (gauge), cw1h_sonnet≈1 ASSUMED (the 06-09 "1.016
-#     measurement" is VOID — that leg silently ran Opus), cw1h_haiku=0.31 MEASURED
-#     (cross-session bridge, ±~4%).
+#     measurement" is VOID — that leg silently ran Opus), cw1h_haiku=0.31 (06-09
+#     cross-session bridge — STALE METHOD; the 06-11b same-session bridge leg was
+#     lost, re-measure), cw1h_fable=1.49 MEASURED 2026-06-10 SAME-SESSION
+#     (B_pp_Om 14,608 ±12% / B_pp_fable 9,798 ±1.5% — carries the Opus leg's 12%).
 #   input ≈ 1.5*cw1h per model (weakly identified, <5% cost); cread ≈ 0 (confirmed
 #     B-free; reconfirmed for Haiku 2026-06-10: intervals differing 4.5M cread agree
 #     to 0.5%); cw5m ≈ 0.625*cw1h (≈0 volume in Claude Code). Tune as burns improve;
@@ -814,12 +817,13 @@ def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
 MODEL_WEIGHTS = {
     "opus":   {"input": 1.5,  "output": 7.5,  "cache_write_1h": 1.0,  "cache_write_5m": 0.625, "cache_read": 0.0},
     "sonnet": {"input": 1.5,  "output": 6.34, "cache_write_1h": 1.0,  "cache_write_5m": 0.625, "cache_read": 0.0},
-    "haiku":  {"input": 0.46, "output": 2.41, "cache_write_1h": 0.31, "cache_write_5m": 0.19,  "cache_read": 0.0},
+    "haiku":  {"input": 0.46, "output": 1.98, "cache_write_1h": 0.31, "cache_write_5m": 0.19,  "cache_read": 0.0},
+    "fable":  {"input": 2.24, "output": 8.83, "cache_write_1h": 1.49, "cache_write_5m": 0.93,  "cache_read": 0.0},
 }
 DEFAULT_WEIGHTS = MODEL_WEIGHTS["opus"]   # unknown model -> Opus (the commonest chat model)
 # Back-compat alias: the fallback path and existing tests use a single weight set.
 TOKEN_WEIGHTS = DEFAULT_WEIGHTS
-IO_UNIT = "weighted_v4"   # basis tag for budgets/anchors; change with any weight
+IO_UNIT = "weighted_v5"   # basis tag for budgets/anchors; change with any weight
 
 # ---------------------------------------------------------------------------
 # SessionFactor + weight-nudge parameters
@@ -916,6 +920,8 @@ def _model_class(model: str) -> str:
         return "haiku"
     if "sonnet" in m:
         return "sonnet"
+    if "fable" in m or "mythos" in m:   # claude-fable-5 / claude-mythos-5 share weights
+        return "fable"
     return "opus"   # opus + anything unknown
 
 
