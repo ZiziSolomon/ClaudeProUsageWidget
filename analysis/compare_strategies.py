@@ -22,6 +22,11 @@ Both strategies mirror widget_updater:
      min((pct+bias)/io) over readings so far (the clean SLOPE) and the anchor is
      the last reading's (pct, io). Level always snaps to truth; slope is the
      contamination-robust min. (The current primary path.)
+  C (asymmetric / off-laptop-aware): like B but makes the off-laptop asymmetry
+     explicit. Off-laptop usage only inflates truth, so on under-predict
+     (truth>pred) jump the LEVEL but leave the slope; on over-predict
+     (truth<pred, can't be off-laptop) correct the slope. (Ezekiel's "treat
+     off-laptop differently".)
 
 Error at reading i is measured BEFORE that reading updates the strategy (i.e.
 what the user would have seen just before the poll landed). The first reading of
@@ -82,6 +87,30 @@ def replay_strategy_B(readings):
     return errs
 
 
+def replay_strategy_C(readings):
+    """Asymmetric / off-laptop-aware strategy. Off-laptop usage only ever makes
+    truth HIGHER than we predicted (it adds usage we can't see), so the sign of
+    the miss is diagnostic:
+      truth > pred  (under-predict): likely off-laptop -> jump the LEVEL to truth
+        but leave the slope alone (don't let contamination corrupt B).
+      truth < pred  (over-predict):  off-laptop can't cause this, so our slope was
+        too steep -> correct it (re-derive slope from this clean point).
+    Level always anchors to truth either way."""
+    errs = []
+    s = (readings[0]["api_pct"] + FLOOR_BIAS) / readings[0]["io"]
+    anchor_pct = readings[0]["api_pct"] + FLOOR_BIAS
+    anchor_io  = readings[0]["io"]
+    for r in readings[1:]:
+        pred = anchor_pct + s * (r["io"] - anchor_io)
+        truth = r["api_pct"] + FLOOR_BIAS
+        errs.append(abs(pred - truth))
+        if truth < pred and r["io"] > 0:        # over-predict -> slope too steep, fix it
+            s = truth / r["io"]
+        # under-predict -> leave slope (off-laptop, not our error)
+        anchor_pct, anchor_io = truth, r["io"]  # level always re-anchors to truth
+    return errs
+
+
 def _summary(errs):
     if not errs:
         return None
@@ -98,18 +127,18 @@ def _summary(errs):
 
 
 def analyze(sessions, classify, recal_pp):
-    buckets = {"clean": {"A": [], "B": []},
-               "dirty": {"A": [], "B": []},
-               "unknown": {"A": [], "B": []}}
+    buckets = {p: {"A": [], "B": [], "C": []}
+               for p in ("clean", "dirty", "unknown")}
     for ss, readings in sessions.items():
         if len(readings) < 2:
             continue
         purity = classify(bt.hv._parse_ts(ss))
         buckets[purity]["A"].extend(replay_strategy_A(readings, recal_pp))
         buckets[purity]["B"].extend(replay_strategy_B(readings))
+        buckets[purity]["C"].extend(replay_strategy_C(readings))
     out = {}
     for purity, d in buckets.items():
-        out[purity] = {"A": _summary(d["A"]), "B": _summary(d["B"])}
+        out[purity] = {k: _summary(v) for k, v in d.items()}
     return out
 
 
@@ -140,16 +169,18 @@ def main():
     print(hdr)
     print("-" * len(hdr))
     for purity in ("clean", "dirty", "unknown"):
-        for strat, key in (("A re-derive B", "A"), ("B SessionFactor", "B")):
+        for strat, key in (("A re-derive B", "A"), ("B SessionFactor", "B"),
+                           ("C asymmetric", "C")):
             s = result[purity][key]
             if s is None:
                 continue
             print(f"{purity:8} {strat:14} {s['n']:>4} {s['mean']:>6} {s['median']:>6} "
                   f"{s['p90']:>6} {s['max']:>7} {s['within2']:>7.0%}")
         print()
-    print("Read: if B beats A on DIRTY (esp. mean/p90/max), that's the off-laptop "
-          "contamination of the re-derived B. If they tie on CLEAN, B's conservatism "
-          "costs nothing there.")
+    print("Read: A re-derives B on every disagreement (contamination-prone). B takes "
+          "the clean-min slope. C is sign-aware: on under-predict (likely off-laptop) "
+          "it jumps the LEVEL but leaves the slope; on over-predict it fixes the slope. "
+          "Watch DIRTY: C and B should beat A by not baking off-laptop use into the slope.")
 
 
 if __name__ == "__main__":
