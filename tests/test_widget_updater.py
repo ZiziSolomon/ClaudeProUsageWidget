@@ -974,6 +974,32 @@ class TestLivenessInterval:
         assert widget_updater._liveness_interval_secs() == 1200
 
 
+class TestChartGrid:
+    """_chart_grid() resolves the usage-log chart gridline counts from config
+    (dashboard 'Graph gridlines' control), with safe fallback/clamping."""
+
+    def test_defaults_when_absent(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._chart_grid() == (
+            widget_updater.CHART_HGRID_DEFAULT, widget_updater.CHART_VGRID_DEFAULT)
+
+    def test_config_values_honoured(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_hgrid": 8, "chart_vgrid": 0})
+        assert widget_updater._chart_grid() == (8, 0)   # 0 = disabled, valid
+
+    def test_negative_clamps_to_zero(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_hgrid": -3, "chart_vgrid": 5})
+        assert widget_updater._chart_grid() == (0, 5)
+
+    def test_garbage_falls_back_per_field(self, monkeypatch):
+        # An unparseable value falls back to that field's default, independently.
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_hgrid": "lots", "chart_vgrid": 3})
+        assert widget_updater._chart_grid() == (widget_updater.CHART_HGRID_DEFAULT, 3)
+
+
 # ---------------------------------------------------------------------------
 # Incremental process_file - the watcher stalled on a 2.5MB transcript
 # because each FS event re-read and re-parsed the whole file. The fix is

@@ -594,6 +594,13 @@
       </select>
       <button class="action-btn" id="chart-btn">Generate</button>
     </div>
+    <div class="setting-row">
+      <span class="setting-label">Gridlines — horizontal (%)</span>
+      <input type="number" id="hgrid-input" class="setting-input narrow" min="0" max="20" step="1"/>
+      <span class="setting-label">vertical (time)</span>
+      <input type="number" id="vgrid-input" class="setting-input narrow" min="0" max="20" step="1"/>
+      <button class="action-btn" id="grid-save">Save</button>
+    </div>
     <img id="chart-img" alt="Accuracy chart"/>
   </div>
 </div>
@@ -947,6 +954,14 @@
       if (document.activeElement !== delta && p.liveness_delta_pct != null) {
         delta.value = p.liveness_delta_pct;
       }
+      const hgrid = document.getElementById('hgrid-input');
+      if (document.activeElement !== hgrid && p.chart_hgrid != null) {
+        hgrid.value = p.chart_hgrid;
+      }
+      const vgrid = document.getElementById('vgrid-input');
+      if (document.activeElement !== vgrid && p.chart_vgrid != null) {
+        vgrid.value = p.chart_vgrid;
+      }
 
       // Update the in-memory widget config so setGhost / updateArc use fresh colours.
       if (p.widgets && typeof p.widgets === 'object') {
@@ -1020,6 +1035,19 @@
     const v = document.getElementById('delta-input').value.trim();
     saveSetting('/set_liveness_delta?pct=' + encodeURIComponent(v),
                 document.getElementById('delta-save'));
+  });
+
+  document.getElementById('grid-save').addEventListener('click', async () => {
+    const h = document.getElementById('hgrid-input').value.trim();
+    const v = document.getElementById('vgrid-input').value.trim();
+    await saveSetting('/set_chart_grid?hgrid=' + encodeURIComponent(h) +
+                      '&vgrid=' + encodeURIComponent(v),
+                      document.getElementById('grid-save'));
+    // Regenerate so the new gridlines show immediately (only if a chart is up).
+    const img = document.getElementById('chart-img');
+    if (img && img.style.display === 'block') {
+      document.getElementById('chart-btn').click();
+    }
   });
 
   // ---- Appearance section save buttons ----

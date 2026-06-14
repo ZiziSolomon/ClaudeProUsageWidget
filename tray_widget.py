@@ -184,6 +184,7 @@ from widget_updater import (
     _poll_interval_minutes,
     _liveness_oneshot_pcts,
     _liveness_delta_pct,
+    _chart_grid,
     _read_widget_config_all,
     _widget_shape_path,
     _widget_show_text,
@@ -1364,6 +1365,8 @@ def main():
         "poll_interval_minutes": _poll_interval_minutes(),
         "liveness_oneshot_pcts": sorted(_liveness_oneshot_pcts()),
         "liveness_delta_pct": _liveness_delta_pct(),
+        "chart_hgrid": _chart_grid()[0],
+        "chart_vgrid": _chart_grid()[1],
         # Per-widget colour/fill config for the Appearance section in the
         # dashboard.  Merged defaults+config so the JS can always read complete
         # objects even when the user has only set one or two fields.

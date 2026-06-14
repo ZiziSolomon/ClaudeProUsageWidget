@@ -2415,6 +2415,28 @@ def _list_sessions() -> list[dict]:
     return sessions
 
 
+# Chart gridline counts (dashboard "Graph gridlines" control). Defaults match
+# save_accuracy_chart's own DEFAULT_HGRID/VGRID; duplicated here (not imported)
+# because that module pulls in matplotlib and is also run as a separate frozen
+# exe. 0 disables an axis's gridlines.
+CHART_HGRID_DEFAULT = 4
+CHART_VGRID_DEFAULT = 6
+
+
+def _chart_grid() -> tuple[int, int]:
+    """(hgrid, vgrid) gridline counts from config, falling back to defaults.
+    Invalid/negative values clamp to 0 (disabled) rather than erroring."""
+    cfg = _read_config()
+    def _g(key, default):
+        raw = cfg.get(key, default)
+        try:
+            return max(0, int(raw))
+        except (TypeError, ValueError):
+            print(f"  ignoring invalid {key}={raw!r}")
+            return default
+    return _g("chart_hgrid", CHART_HGRID_DEFAULT), _g("chart_vgrid", CHART_VGRID_DEFAULT)
+
+
 def _run_accuracy_chart(at: str | None) -> bool:
     """Run save_accuracy_chart synchronously; save PNG to CHART_FILE.
 
@@ -2435,6 +2457,8 @@ def _run_accuracy_chart(at: str | None) -> bool:
             return False
         cmd = [sys.executable, str(script)]
     cmd += ["--no-open", "--out", str(CHART_FILE)]
+    hgrid, vgrid = _chart_grid()
+    cmd += ["--hgrid", str(hgrid), "--vgrid", str(vgrid)]
     if at:
         cmd += ["--at", at]
     flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
@@ -2548,6 +2572,32 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 return
             _write_config_value("liveness_delta_pct", val)
             self._respond(b'{"ok":true}', "application/json")
+        elif parsed.path == "/set_chart_grid":
+            # Dashboard "Graph gridlines" control: horizontal (% axis) and
+            # vertical (time axis) gridline counts for the usage-log chart.
+            # Each clamps to 0..20; 0 disables that axis's lines. Either param
+            # may be omitted to leave that axis unchanged. Takes effect on the
+            # next Generate (the chart is regenerated per request).
+            def _parse_grid(name):
+                raw = params.get(name, [None])[0]
+                if raw is None:
+                    return None
+                try:
+                    return min(20, max(0, int(float(raw))))
+                except (TypeError, ValueError):
+                    return None
+            h = _parse_grid("hgrid")
+            v = _parse_grid("vgrid")
+            if h is None and v is None:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            if h is not None:
+                _write_config_value("chart_hgrid", h)
+            if v is not None:
+                _write_config_value("chart_vgrid", v)
+            cur_h, cur_v = _chart_grid()
+            self._respond(json.dumps({"ok": True, "hgrid": cur_h, "vgrid": cur_v}).encode(),
+                          "application/json")
         elif parsed.path == "/set_widget_color":
             # Dashboard Appearance section: set base_color for one widget.
             # Validates: widget name in (session/weekly/clock), valid hex.
