@@ -2421,8 +2421,8 @@ def _list_sessions() -> list[dict]:
 # save_accuracy_chart's own DEFAULT_HGRID/VGRID; duplicated here (not imported)
 # because that module pulls in matplotlib and is also run as a separate frozen
 # exe. 0 disables an axis's gridlines.
-CHART_HGRID_DEFAULT = 25   # percent between horizontal gridlines
-CHART_VGRID_DEFAULT = 30   # minutes between vertical gridlines
+CHART_HGRID_DEFAULT = 10   # percent between horizontal gridlines
+CHART_VGRID_DEFAULT = 15   # minutes between vertical gridlines
 
 
 def _chart_grid() -> tuple[int, int]:

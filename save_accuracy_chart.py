@@ -51,10 +51,10 @@ SESSION_MERGE_SECS = 300
 
 # Gridline INTERVALS (see --hgrid / --vgrid). These are spacings, not counts:
 # a horizontal line every HGRID percent, a vertical line every VGRID minutes.
-# 25% reads cleanly against the 0-100% usage axis; 30-minute time gridlines
-# give a handful across a 5-hour session without crowding the labels.
-DEFAULT_HGRID = 25     # percent between horizontal gridlines
-DEFAULT_VGRID = 30     # minutes between vertical gridlines
+# 10% reads cleanly against the 0-100% usage axis; 15-minute time gridlines
+# give good resolution across a 5-hour session without crowding the labels.
+DEFAULT_HGRID = 10     # percent between horizontal gridlines
+DEFAULT_VGRID = 15     # minutes between vertical gridlines
 
 
 def horizontal_grid_ticks(ymax: float, step_pct: float) -> list[float]:
