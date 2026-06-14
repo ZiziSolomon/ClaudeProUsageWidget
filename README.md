@@ -1,6 +1,6 @@
 # Claude Usage Widget
 
-**v0.1.0-alpha** · Windows · Python · MIT
+**v0.2.0-beta** · Windows · Python · MIT
 
 A lightweight tray widget for Claude Pro/Max users — uses live Claude Code transcripts to estimate your usage continuously between polls of claude.ai for calibration.
 
@@ -86,9 +86,9 @@ Per-widget controls for all five icons:
 
 ![Widget log section](docs/readmeImages/dashboard_widgetlog.png)
 
-Select a past session and hit **Generate** to plot your usage over time alongside the claude.ai calibration points — useful for checking what your usage looked like over time and verifying the accuracy of the live estimate.
+Select a past session and hit **Generate** to plot your usage over time alongside the claude.ai endpoint readings — useful for checking what your usage looked like over time and verifying the accuracy of the live estimate. Gridline spacing (every N% / N minutes), the marker lines dropped at each endpoint reading (vertical and/or horizontal), and colouring those readings by *why* the call fired are all configurable here.
 
-![Widget log chart — local estimate vs API calibration points](docs/readmeImages/dashboard_widgetlog_chart.png)
+![Widget log chart — local estimate vs claude.ai endpoint readings](docs/readmeImages/dashboard_widgetlog_chart.png)
 </details>
 
 ---
@@ -224,7 +224,7 @@ Polling claude.ai is kept to a minimum by design — once at startup, then on th
 
 **Config** lives in `%LOCALAPPDATA%\ClaudeUsage\config.json`. Edit it directly or use the dashboard. The repo's root `config.json` is the build-time default baked into the exe — don't edit the `dist/` copy.
 
-**Calibration logic:** The widget derives a `session_budget` (implied total token capacity) from `transcript_tokens / (api_pct / 100)`. Between polls it estimates current usage as `(tokens_since_last_poll / session_budget) + last_poll_pct`. A forced re-poll fires if the estimate sprints ≥5pp past the last confirmed reading, or if a configurable % threshold is crossed. Session start is detected from `resets_at - 5h`; a 30-second jitter tolerance prevents phantom resets from sub-second variation in the endpoint's response.
+**Calibration logic:** Local tokens are counted as a *weighted* total — each token is weighted by model and by type (output and 1-hour cache-writes cost far more against the session limit than plain input; an Opus token more than a Sonnet/Haiku one), using ratios calibrated against the claude.ai endpoint. Between endpoint readings the widget extrapolates from the last reading: `level + SessionFactor · (weighted_io − anchor_io)`, where `SessionFactor` is the cleanest observed slope (min of `(pct / io)` across above-floor readings, robust to off-laptop inflation) and `level` is the anchor from the last reading. The endpoint reports an integer %, which we presume is round-to-nearest (so a reading of N means true ∈ [N−0.5, N+0.5)); the anchor reconciles that band with our prior estimate rather than blindly snapping to N (see `_snap_anchor_level`). A forced re-read fires if the estimate sprints ≥5pp past the last reading or pegs at the 100% clamp (cooldown-gated). Scheduled reads also fire on an interval, on a configurable %-moved delta, and the first time you cross configured fixed thresholds — the trigger reason is recorded per reading and can be surfaced on the chart. Session start is `resets_at − 5h` with a 30-second jitter tolerance to avoid phantom resets.
 
 **Tests:** `pytest tests/` — 200+ tests, no network calls. All writers monkeypatch `STATE_FILE` and `CALIBRATION_FILE` to avoid touching real user data.
 

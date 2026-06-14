@@ -1055,6 +1055,15 @@ class TestChartEndpointLines:
                                      "chart_endpoint_hlines": "true"})
         assert widget_updater._chart_endpoint_lines() == (False, True)
 
+    def test_colour_by_reason_default_off(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._chart_colour_by_reason() is False
+
+    def test_colour_by_reason_config(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_colour_by_reason": True})
+        assert widget_updater._chart_colour_by_reason() is True
+
 
 # ---------------------------------------------------------------------------
 # Incremental process_file - the watcher stalled on a 2.5MB transcript

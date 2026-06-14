@@ -56,6 +56,32 @@ SESSION_MERGE_SECS = 300
 DEFAULT_HGRID = 10     # percent between horizontal gridlines
 DEFAULT_VGRID = 15     # minutes between vertical gridlines
 
+# Default colour for endpoint markers when not colouring by reason.
+ENDPOINT_COLOUR = "#E84C4C"
+
+# Map a stored calibration `trigger` to a (legend label, colour) for the
+# "colour endpoint calls by reason" option. The triggers are recorded by
+# widget_updater._append_calibration. Fixed-point shots (5/10/95%) collapse to
+# one reason; the rest stay distinct per the user's choice.
+_TRIGGER_STYLE = {
+    "liveness":           ("20m since last call", "#4C9BE8"),
+    "liveness_10ppdelta": ("10pp since last call", "#E88A4C"),
+    "liveness_5pct":      ("passed fixed point", "#3FA34D"),
+    "liveness_10pct":     ("passed fixed point", "#3FA34D"),
+    "liveness_95pct":     ("passed fixed point", "#3FA34D"),
+    "startup":            ("startup", "#9B59B6"),
+    "force_refresh":      ("manual refresh", "#E84C4C"),
+    "suspect":            ("auto re-anchor", "#E8C84C"),
+    "scheduled":          ("scheduled", "#7F8C8D"),
+}
+_TRIGGER_FALLBACK = ("other", "#7F8C8D")
+
+
+def trigger_style(trigger: str | None) -> tuple[str, str]:
+    """(legend label, hex colour) for a calibration trigger; fallback for
+    unknown/missing triggers (old records may predate the field)."""
+    return _TRIGGER_STYLE.get(trigger or "", _TRIGGER_FALLBACK)
+
 
 def horizontal_grid_ticks(ymax: float, step_pct: float) -> list[float]:
     """Y-axis tick positions for a horizontal gridline every `step_pct` percent,
@@ -174,6 +200,7 @@ def load_api_points(session_start: datetime) -> list[dict]:
             points.append({
                 "ts":  to_local_naive(datetime.fromisoformat(r["scraped_at"])),
                 "pct": r["session_pct"],
+                "trigger": r.get("trigger"),   # why this endpoint call fired
             })
     # Deduplicate by minute (multiple rapid calls at the same % are noise).
     seen, deduped = set(), []
@@ -236,11 +263,15 @@ def main() -> None:
                          f"(default: {DEFAULT_VGRID}). 0 disables vertical "
                          "gridlines.")
     ap.add_argument("--no-endpoint-vlines", action="store_true",
-                    help="Do not draw a vertical marker line at each API "
-                         "calibration point (on by default).")
+                    help="Do not draw a vertical marker line at each claude.ai "
+                         "endpoint point (on by default).")
     ap.add_argument("--endpoint-hlines", action="store_true",
-                    help="Draw a horizontal marker line at each API calibration "
-                         "point's %% level (off by default).")
+                    help="Draw a horizontal marker line at each endpoint point's "
+                         "%% level (off by default).")
+    ap.add_argument("--colour-by-reason", action="store_true",
+                    help="Colour each claude.ai endpoint point (and its marker "
+                         "lines) by why the call fired (interval / delta / fixed "
+                         "point / etc). Off by default (all one colour).")
     args = ap.parse_args()
 
     session_start = _resolve_session(args)
@@ -256,27 +287,39 @@ def main() -> None:
 
     local_ts  = [p["ts"] for p in local_pts]
     local_pct = [p["pct"] for p in local_pts]
-    api_ts    = [p["ts"] for p in api_pts]
-    api_pct   = [p["pct"] for p in api_pts]
 
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.plot(local_ts, local_pct, "-", color="#4C9BE8", lw=1.8,
             label="Local estimate (live)")
-    ax.scatter(api_ts, api_pct, color="#E84C4C", s=80, zorder=5,
-               label="API truth (calibration call)")
-    # Optional marker lines dropped from each API calibration point: vertical
-    # (down to the time axis) and/or horizontal (across to the % axis). Toggled
-    # independently from the dashboard. Vertical defaults on (long-standing
-    # behaviour); horizontal defaults off.
-    if not args.no_endpoint_vlines:
-        for ts in api_ts:
-            ax.axvline(ts, color="#E84C4C", lw=0.6, ls=":", alpha=0.5)
-    if args.endpoint_hlines:
-        for pc in api_pct:
-            ax.axhline(pc, color="#E84C4C", lw=0.6, ls=":", alpha=0.5)
+
+    # Per-point colour: if colouring by reason, each endpoint point takes the
+    # colour of its trigger; otherwise all share ENDPOINT_COLOUR. We scatter one
+    # group per (label, colour) so the legend lists ONLY the reasons that
+    # actually occurred this session (no dead swatches).
+    if args.colour_by_reason:
+        groups: dict[tuple[str, str], list[dict]] = {}
+        for p in api_pts:
+            groups.setdefault(trigger_style(p["trigger"]), []).append(p)
+    else:
+        groups = {("claude.ai endpoint", ENDPOINT_COLOUR): api_pts}
+
+    for (label, colour), pts in groups.items():
+        ax.scatter([p["ts"] for p in pts], [p["pct"] for p in pts],
+                   color=colour, s=80, zorder=5, label=label)
+        # Optional marker lines dropped from each endpoint point: vertical (down
+        # to the time axis) and/or horizontal (across to the % axis). Toggled
+        # independently from the dashboard; coloured to match the point so a
+        # colour-by-reason chart stays consistent. Vertical defaults on, h off.
+        if not args.no_endpoint_vlines:
+            for p in pts:
+                ax.axvline(p["ts"], color=colour, lw=0.6, ls=":", alpha=0.5)
+        if args.endpoint_hlines:
+            for p in pts:
+                ax.axhline(p["pct"], color=colour, lw=0.6, ls=":", alpha=0.5)
+    api_pct = [p["pct"] for p in api_pts]   # still needed for the y-axis range
 
     sess_label = to_local_naive(session_start).strftime("%Y-%m-%d %H:%M")
-    ax.set_title(f"Session {sess_label} - local estimate vs API calibration points",
+    ax.set_title(f"Session {sess_label} - local estimate vs claude.ai endpoint readings",
                  fontsize=10)
     ax.set_ylabel("Usage %")
     ymax = max(max(local_pct), max(api_pct) if api_pct else 0) + 5

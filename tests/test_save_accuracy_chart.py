@@ -12,7 +12,8 @@ import sys
 # matplotlib is imported at module level by save_accuracy_chart, but importing
 # it has no side effects (main() is guarded), so a plain import is safe.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from save_accuracy_chart import horizontal_grid_ticks, DEFAULT_HGRID, DEFAULT_VGRID
+from save_accuracy_chart import (horizontal_grid_ticks, trigger_style,
+                                  DEFAULT_HGRID, DEFAULT_VGRID)
 
 
 class TestHorizontalGridTicks:
@@ -54,3 +55,27 @@ class TestHorizontalGridTicks:
         # (0 would silently disable an axis).
         assert DEFAULT_HGRID > 0
         assert DEFAULT_VGRID > 0
+
+
+class TestTriggerStyle:
+    """trigger_style(): maps a calibration trigger to (legend label, colour)."""
+
+    def test_fixed_point_triggers_collapse_to_one_label(self):
+        # 5/10/95% shots all read as "passed fixed point" (same label+colour),
+        # so the legend shows one entry for them.
+        labels = {trigger_style(t)[0]
+                  for t in ("liveness_5pct", "liveness_10pct", "liveness_95pct")}
+        assert labels == {"passed fixed point"}
+
+    def test_named_reasons_distinct(self):
+        assert trigger_style("liveness")[0] == "20m since last call"
+        assert trigger_style("liveness_10ppdelta")[0] == "10pp since last call"
+
+    def test_unknown_and_missing_use_fallback(self):
+        # Old records may have no trigger field, or an unrecognised value.
+        assert trigger_style(None)[0] == "other"
+        assert trigger_style("brand_new_trigger")[0] == "other"
+
+    def test_returns_hex_colour(self):
+        label, colour = trigger_style("liveness")
+        assert colour.startswith("#") and len(colour) == 7

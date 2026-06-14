@@ -603,9 +603,12 @@
       <button class="action-btn" id="grid-save">Save</button>
     </div>
     <div class="setting-row">
-      <span class="setting-label">Lines at each API reading:</span>
+      <span class="setting-label">Lines at each claude.ai endpoint reading:</span>
       <label class="text-toggle"><input type="checkbox" id="endpoint-vlines"/> Vertical</label>
       <label class="text-toggle"><input type="checkbox" id="endpoint-hlines"/> Horizontal</label>
+    </div>
+    <div class="setting-row">
+      <label class="text-toggle"><input type="checkbox" id="endpoint-colour"/> Colour endpoint readings by why the call fired</label>
     </div>
     <img id="chart-img" alt="Accuracy chart"/>
   </div>
@@ -974,6 +977,9 @@
       if (p.chart_endpoint_hlines != null) {
         document.getElementById('endpoint-hlines').checked = !!p.chart_endpoint_hlines;
       }
+      if (p.chart_colour_by_reason != null) {
+        document.getElementById('endpoint-colour').checked = !!p.chart_colour_by_reason;
+      }
 
       // Update the in-memory widget config so setGhost / updateArc use fresh colours.
       if (p.widgets && typeof p.widgets === 'object') {
@@ -1066,7 +1072,8 @@
   async function saveEndpointLines() {
     const vl = document.getElementById('endpoint-vlines').checked ? '1' : '0';
     const hl = document.getElementById('endpoint-hlines').checked ? '1' : '0';
-    await fetch('/set_chart_endpoint_lines?vlines=' + vl + '&hlines=' + hl,
+    const cr = document.getElementById('endpoint-colour').checked ? '1' : '0';
+    await fetch('/set_chart_endpoint_lines?vlines=' + vl + '&hlines=' + hl + '&colour=' + cr,
                 { method: 'POST' }).catch(() => {});
     const img = document.getElementById('chart-img');
     if (img && img.style.display === 'block') {
@@ -1075,6 +1082,7 @@
   }
   document.getElementById('endpoint-vlines').addEventListener('change', saveEndpointLines);
   document.getElementById('endpoint-hlines').addEventListener('change', saveEndpointLines);
+  document.getElementById('endpoint-colour').addEventListener('change', saveEndpointLines);
 
   // ---- Appearance section save buttons ----
   // Each row saves three fields (base_color, color_stops, fill_mode) for one

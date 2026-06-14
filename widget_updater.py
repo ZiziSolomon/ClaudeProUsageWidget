@@ -2478,20 +2478,30 @@ def _chart_grid() -> tuple[int, int]:
     return _g("chart_hgrid", CHART_HGRID_DEFAULT), _g("chart_vgrid", CHART_VGRID_DEFAULT)
 
 
-# Marker lines at each API calibration point on the chart. Vertical defaults ON
-# (long-standing behaviour); horizontal defaults OFF.
+# Marker lines at each claude.ai endpoint point on the chart. Vertical defaults
+# ON (long-standing behaviour); horizontal defaults OFF.
 CHART_ENDPOINT_VLINES_DEFAULT = True
 CHART_ENDPOINT_HLINES_DEFAULT = False
+# Colour endpoint points by the reason the call fired (interval/delta/etc).
+CHART_COLOUR_BY_REASON_DEFAULT = False
+
+
+def _cfg_bool(cfg: dict, key: str, default: bool) -> bool:
+    v = cfg.get(key, default)
+    return bool(v) if isinstance(v, bool) else (str(v).lower() in ("1", "true"))
 
 
 def _chart_endpoint_lines() -> tuple[bool, bool]:
     """(vertical, horizontal) endpoint-marker-line toggles from config."""
     cfg = _read_config()
-    def _b(key, default):
-        v = cfg.get(key, default)
-        return bool(v) if isinstance(v, bool) else (str(v).lower() in ("1", "true"))
-    return (_b("chart_endpoint_vlines", CHART_ENDPOINT_VLINES_DEFAULT),
-            _b("chart_endpoint_hlines", CHART_ENDPOINT_HLINES_DEFAULT))
+    return (_cfg_bool(cfg, "chart_endpoint_vlines", CHART_ENDPOINT_VLINES_DEFAULT),
+            _cfg_bool(cfg, "chart_endpoint_hlines", CHART_ENDPOINT_HLINES_DEFAULT))
+
+
+def _chart_colour_by_reason() -> bool:
+    """Whether to colour endpoint points by their trigger reason."""
+    return _cfg_bool(_read_config(), "chart_colour_by_reason",
+                     CHART_COLOUR_BY_REASON_DEFAULT)
 
 
 def _run_accuracy_chart(at: str | None) -> bool:
@@ -2521,6 +2531,8 @@ def _run_accuracy_chart(at: str | None) -> bool:
         cmd += ["--no-endpoint-vlines"]
     if hlines:
         cmd += ["--endpoint-hlines"]
+    if _chart_colour_by_reason():
+        cmd += ["--colour-by-reason"]
     if at:
         cmd += ["--at", at]
     flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
@@ -2661,9 +2673,10 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             self._respond(json.dumps({"ok": True, "hgrid": cur_h, "vgrid": cur_v}).encode(),
                           "application/json")
         elif parsed.path == "/set_chart_endpoint_lines":
-            # Toggle the marker lines at each API calibration point: vertical
-            # (to the time axis) and/or horizontal (to the % axis). Each param
-            # is "1"/"0" (or true/false); either may be omitted to leave it.
+            # Toggle endpoint marker rendering: vertical lines (to the time
+            # axis), horizontal lines (to the % axis), and colour-by-reason.
+            # Each param is "1"/"0" (or true/false); any may be omitted to
+            # leave that setting unchanged.
             def _parse_bool(name):
                 raw = params.get(name, [None])[0]
                 if raw is None:
@@ -2671,15 +2684,19 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 return raw.lower() in ("1", "true")
             vl = _parse_bool("vlines")
             hl = _parse_bool("hlines")
-            if vl is None and hl is None:
+            cr = _parse_bool("colour")
+            if vl is None and hl is None and cr is None:
                 self._respond(b'{"ok":false}', "application/json")
                 return
             if vl is not None:
                 _write_config_value("chart_endpoint_vlines", vl)
             if hl is not None:
                 _write_config_value("chart_endpoint_hlines", hl)
+            if cr is not None:
+                _write_config_value("chart_colour_by_reason", cr)
             cv, ch = _chart_endpoint_lines()
-            self._respond(json.dumps({"ok": True, "vlines": cv, "hlines": ch}).encode(),
+            self._respond(json.dumps({"ok": True, "vlines": cv, "hlines": ch,
+                                      "colour": _chart_colour_by_reason()}).encode(),
                           "application/json")
         elif parsed.path == "/set_widget_color":
             # Dashboard Appearance section: set base_color for one widget.

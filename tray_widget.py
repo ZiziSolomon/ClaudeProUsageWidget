@@ -186,6 +186,7 @@ from widget_updater import (
     _liveness_delta_pct,
     _chart_grid,
     _chart_endpoint_lines,
+    _chart_colour_by_reason,
     _read_widget_config_all,
     _widget_shape_path,
     _widget_show_text,
@@ -1370,6 +1371,7 @@ def main():
         "chart_vgrid": _chart_grid()[1],
         "chart_endpoint_vlines": _chart_endpoint_lines()[0],
         "chart_endpoint_hlines": _chart_endpoint_lines()[1],
+        "chart_colour_by_reason": _chart_colour_by_reason(),
         # Per-widget colour/fill config for the Appearance section in the
         # dashboard.  Merged defaults+config so the JS can always read complete
         # objects even when the user has only set one or two fields.
