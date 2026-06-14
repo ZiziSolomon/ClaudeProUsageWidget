@@ -602,6 +602,11 @@
       <span class="setting-label">min</span>
       <button class="action-btn" id="grid-save">Save</button>
     </div>
+    <div class="setting-row">
+      <span class="setting-label">Lines at each API reading:</span>
+      <label class="text-toggle"><input type="checkbox" id="endpoint-vlines"/> Vertical</label>
+      <label class="text-toggle"><input type="checkbox" id="endpoint-hlines"/> Horizontal</label>
+    </div>
     <img id="chart-img" alt="Accuracy chart"/>
   </div>
 </div>
@@ -963,6 +968,12 @@
       if (document.activeElement !== vgrid && p.chart_vgrid != null) {
         vgrid.value = p.chart_vgrid;
       }
+      if (p.chart_endpoint_vlines != null) {
+        document.getElementById('endpoint-vlines').checked = !!p.chart_endpoint_vlines;
+      }
+      if (p.chart_endpoint_hlines != null) {
+        document.getElementById('endpoint-hlines').checked = !!p.chart_endpoint_hlines;
+      }
 
       // Update the in-memory widget config so setGhost / updateArc use fresh colours.
       if (p.widgets && typeof p.widgets === 'object') {
@@ -1050,6 +1061,20 @@
       document.getElementById('chart-btn').click();
     }
   });
+
+  // Endpoint marker-line checkboxes: save on toggle, regenerate if a chart is up.
+  async function saveEndpointLines() {
+    const vl = document.getElementById('endpoint-vlines').checked ? '1' : '0';
+    const hl = document.getElementById('endpoint-hlines').checked ? '1' : '0';
+    await fetch('/set_chart_endpoint_lines?vlines=' + vl + '&hlines=' + hl,
+                { method: 'POST' }).catch(() => {});
+    const img = document.getElementById('chart-img');
+    if (img && img.style.display === 'block') {
+      document.getElementById('chart-btn').click();
+    }
+  }
+  document.getElementById('endpoint-vlines').addEventListener('change', saveEndpointLines);
+  document.getElementById('endpoint-hlines').addEventListener('change', saveEndpointLines);
 
   // ---- Appearance section save buttons ----
   // Each row saves three fields (base_color, color_stops, fill_mode) for one

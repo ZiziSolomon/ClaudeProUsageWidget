@@ -2478,6 +2478,22 @@ def _chart_grid() -> tuple[int, int]:
     return _g("chart_hgrid", CHART_HGRID_DEFAULT), _g("chart_vgrid", CHART_VGRID_DEFAULT)
 
 
+# Marker lines at each API calibration point on the chart. Vertical defaults ON
+# (long-standing behaviour); horizontal defaults OFF.
+CHART_ENDPOINT_VLINES_DEFAULT = True
+CHART_ENDPOINT_HLINES_DEFAULT = False
+
+
+def _chart_endpoint_lines() -> tuple[bool, bool]:
+    """(vertical, horizontal) endpoint-marker-line toggles from config."""
+    cfg = _read_config()
+    def _b(key, default):
+        v = cfg.get(key, default)
+        return bool(v) if isinstance(v, bool) else (str(v).lower() in ("1", "true"))
+    return (_b("chart_endpoint_vlines", CHART_ENDPOINT_VLINES_DEFAULT),
+            _b("chart_endpoint_hlines", CHART_ENDPOINT_HLINES_DEFAULT))
+
+
 def _run_accuracy_chart(at: str | None) -> bool:
     """Run save_accuracy_chart synchronously; save PNG to CHART_FILE.
 
@@ -2500,6 +2516,11 @@ def _run_accuracy_chart(at: str | None) -> bool:
     cmd += ["--no-open", "--out", str(CHART_FILE)]
     hgrid, vgrid = _chart_grid()
     cmd += ["--hgrid", str(hgrid), "--vgrid", str(vgrid)]
+    vlines, hlines = _chart_endpoint_lines()
+    if not vlines:
+        cmd += ["--no-endpoint-vlines"]
+    if hlines:
+        cmd += ["--endpoint-hlines"]
     if at:
         cmd += ["--at", at]
     flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
@@ -2638,6 +2659,27 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 _write_config_value("chart_vgrid", v)
             cur_h, cur_v = _chart_grid()
             self._respond(json.dumps({"ok": True, "hgrid": cur_h, "vgrid": cur_v}).encode(),
+                          "application/json")
+        elif parsed.path == "/set_chart_endpoint_lines":
+            # Toggle the marker lines at each API calibration point: vertical
+            # (to the time axis) and/or horizontal (to the % axis). Each param
+            # is "1"/"0" (or true/false); either may be omitted to leave it.
+            def _parse_bool(name):
+                raw = params.get(name, [None])[0]
+                if raw is None:
+                    return None
+                return raw.lower() in ("1", "true")
+            vl = _parse_bool("vlines")
+            hl = _parse_bool("hlines")
+            if vl is None and hl is None:
+                self._respond(b'{"ok":false}', "application/json")
+                return
+            if vl is not None:
+                _write_config_value("chart_endpoint_vlines", vl)
+            if hl is not None:
+                _write_config_value("chart_endpoint_hlines", hl)
+            cv, ch = _chart_endpoint_lines()
+            self._respond(json.dumps({"ok": True, "vlines": cv, "hlines": ch}).encode(),
                           "application/json")
         elif parsed.path == "/set_widget_color":
             # Dashboard Appearance section: set base_color for one widget.

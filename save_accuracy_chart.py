@@ -235,6 +235,12 @@ def main() -> None:
                     help="Vertical gridline every MIN minutes on the time axis "
                          f"(default: {DEFAULT_VGRID}). 0 disables vertical "
                          "gridlines.")
+    ap.add_argument("--no-endpoint-vlines", action="store_true",
+                    help="Do not draw a vertical marker line at each API "
+                         "calibration point (on by default).")
+    ap.add_argument("--endpoint-hlines", action="store_true",
+                    help="Draw a horizontal marker line at each API calibration "
+                         "point's %% level (off by default).")
     args = ap.parse_args()
 
     session_start = _resolve_session(args)
@@ -258,8 +264,16 @@ def main() -> None:
             label="Local estimate (live)")
     ax.scatter(api_ts, api_pct, color="#E84C4C", s=80, zorder=5,
                label="API truth (calibration call)")
-    for ts in api_ts:
-        ax.axvline(ts, color="#E84C4C", lw=0.6, ls=":", alpha=0.5)
+    # Optional marker lines dropped from each API calibration point: vertical
+    # (down to the time axis) and/or horizontal (across to the % axis). Toggled
+    # independently from the dashboard. Vertical defaults on (long-standing
+    # behaviour); horizontal defaults off.
+    if not args.no_endpoint_vlines:
+        for ts in api_ts:
+            ax.axvline(ts, color="#E84C4C", lw=0.6, ls=":", alpha=0.5)
+    if args.endpoint_hlines:
+        for pc in api_pct:
+            ax.axhline(pc, color="#E84C4C", lw=0.6, ls=":", alpha=0.5)
 
     sess_label = to_local_naive(session_start).strftime("%Y-%m-%d %H:%M")
     ax.set_title(f"Session {sess_label} - local estimate vs API calibration points",

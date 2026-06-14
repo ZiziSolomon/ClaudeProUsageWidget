@@ -1034,6 +1034,28 @@ class TestChartGrid:
         assert widget_updater._chart_grid() == (widget_updater.CHART_HGRID_DEFAULT, 3)
 
 
+class TestChartEndpointLines:
+    """_chart_endpoint_lines(): (vertical, horizontal) marker toggles. Vertical
+    defaults on (legacy behaviour), horizontal off."""
+
+    def test_defaults(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._chart_endpoint_lines() == (True, False)
+
+    def test_config_overrides(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_endpoint_vlines": False,
+                                     "chart_endpoint_hlines": True})
+        assert widget_updater._chart_endpoint_lines() == (False, True)
+
+    def test_string_truthy_values(self, monkeypatch):
+        # Config may round-trip as strings ("1"/"true"); accept those too.
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_endpoint_vlines": "0",
+                                     "chart_endpoint_hlines": "true"})
+        assert widget_updater._chart_endpoint_lines() == (False, True)
+
+
 # ---------------------------------------------------------------------------
 # Incremental process_file - the watcher stalled on a 2.5MB transcript
 # because each FS event re-read and re-parsed the whole file. The fix is
