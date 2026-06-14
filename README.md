@@ -147,7 +147,7 @@ The dashboard's **Settings** section has a **Start at login** toggle for auto-la
 
 The widget combines two sources:
 
-**Live estimate (continuous):** Watches your Claude Code transcript files (`.jsonl`) for new responses. Each time Claude responds, the token count for that exchange is added to a running total; between polls the widget estimates the change in your usage since the last poll as `tokens_since_last_poll / session_budget`, where `session_budget` is derived from the most recent claude.ai reading.
+**Live estimate (continuous):** Watches your Claude Code transcript files (`.jsonl`) for new responses. Each time Claude responds, that exchange's tokens are added to a running total — **weighted per model and per token type** (output and 1-hour cache-writes cost far more against the session limit than plain input, and an Opus token costs more than a Sonnet or Haiku one), using weights calibrated against claude.ai. Between polls the widget estimates the change in your usage since the last poll as `weighted_tokens_since_last_poll / session_budget`, where `session_budget` is derived from the most recent claude.ai reading.
 
 **Calibration (periodic):** Polls claude.ai for your actual Pro/Max utilisation % using your Firefox session cookie. Polls are triggered by:
 - Widget startup
@@ -195,8 +195,6 @@ The tray icons are Windows-only today; macOS/Linux packaging is planned.
 ## Coming features
 
 - **macOS & Linux packaging** — the core is cross-platform; only the tray packaging is Windows-only today.
-- **Improved early-session calibration** — a recency-weighted prior plus delta-calibration so the estimate is accurate from the first minutes of a session and can't overshoot 100%.
-- **Per-model weighting** — weight tokens by model (Opus costs more against the limit than Sonnet/Haiku); today the estimate counts raw input + output tokens unweighted.
 
 ---
 
@@ -228,7 +226,7 @@ Polling claude.ai is kept to a minimum by design — once at startup, then on th
 
 **Calibration logic:** The widget derives a `session_budget` (implied total token capacity) from `transcript_tokens / (api_pct / 100)`. Between polls it estimates current usage as `(tokens_since_last_poll / session_budget) + last_poll_pct`. A forced re-poll fires if the estimate sprints ≥5pp past the last confirmed reading, or if a configurable % threshold is crossed. Session start is detected from `resets_at - 5h`; a 30-second jitter tolerance prevents phantom resets from sub-second variation in the endpoint's response.
 
-**Tests:** `pytest tests/` — 173 tests, no network calls. All writers monkeypatch `STATE_FILE` and `CALIBRATION_FILE` to avoid touching real user data.
+**Tests:** `pytest tests/` — 200+ tests, no network calls. All writers monkeypatch `STATE_FILE` and `CALIBRATION_FILE` to avoid touching real user data.
 
 ---
 
