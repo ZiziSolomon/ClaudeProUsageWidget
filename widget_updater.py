@@ -866,6 +866,36 @@ WEIGHT_NUDGE_SLOPE_CLAMP    = 0.5
 # _blended_sub_floor_budget (midpoint N+0.5, blend weight pct/(pct+1)).
 API_PCT_FLOOR_BIAS_PP = 0.0
 
+# When we anchor on an API read of integer N, the true value lies in a 1pp band
+# whose midpoint is the best zero-information guess. But we also have a prior:
+# our own live estimate just before the read. _snap_anchor_level reconciles them:
+#   - prior INSIDE the band  -> keep the prior (it's more precise than N and is
+#     consistent with the API; the display doesn't jump, since it's within the band).
+#   - prior OUTSIDE the band -> the band edge nearest the prior is a .5 rounding
+#     boundary, so anchoring there makes the *displayed* round(level) flicker to the
+#     next integer on the first token of growth. Instead snap toward the midpoint
+#     but stop SNAP_INWARD short of it on the prior's side: keeps a little
+#     directional signal while staying off the boundary.
+# SNAP_INWARD must be < 0.5 (the half-band) to stay off the boundary.
+SNAP_INWARD = 0.25
+
+
+def _snap_anchor_level(pct_int: float, prior_estimate: float | None) -> float:
+    """Anchor LEVEL to store given an API read pct_int and our prior estimate.
+    The rounding midpoint is pct_int + API_PCT_FLOOR_BIAS_PP; the band is that
+    midpoint +/- 0.5. Returns a value the estimate path uses directly (the bias
+    is baked in here, NOT re-added downstream)."""
+    mid = pct_int + API_PCT_FLOOR_BIAS_PP
+    if prior_estimate is None:
+        return mid
+    lo, hi = mid - 0.5, mid + 0.5
+    if lo <= prior_estimate < hi:
+        return prior_estimate            # consistent + more precise -> keep it
+    if prior_estimate >= hi:             # we over-guessed -> nudge toward our (high) side
+        return mid + SNAP_INWARD
+    return mid - SNAP_INWARD             # we under-guessed -> nudge toward our (low) side
+
+
 # Component key -> the cumulative global-counter key in state. Global counters are
 # kept (alongside the per-model split) for the calibration capture + raw-io logging.
 _GLOBAL_KEY = {
@@ -1419,7 +1449,9 @@ def _estimate_session_pct(state: dict) -> float | None:
     burn rate; the anchor is the LEVEL (which legitimately includes off-laptop
     consumption).  The estimate uses the LEVEL from the last API anchor plus
     the SLOPE from the clean SessionFactor for growth since that anchor:
-        est = anchor_pct + API_PCT_FLOOR_BIAS_PP + s * (io_total - anchor_io)
+        est = anchor_pct + s * (io_total - anchor_io)
+    anchor_pct already carries the rounding-midpoint correction and the prior-
+    reconciliation snap (see _snap_anchor_level), so no bias is re-added here.
     If session_factor is set but anchor_pct is None (shouldn't happen in normal
     operation), falls back to s * io_total as a safe approximation.
 
@@ -1431,9 +1463,9 @@ def _estimate_session_pct(state: dict) -> float | None:
         anchor_pct = state.get("anchor_pct")
         anchor_io  = state.get("anchor_io", 0)
         if anchor_pct is not None:
-            # LEVEL from anchor (includes off-laptop usage up to that point),
-            # SLOPE from the clean session_factor, +bias for rounding midpoint.
-            raw = anchor_pct + API_PCT_FLOOR_BIAS_PP + sf * (io_total - anchor_io)
+            # LEVEL from anchor (already bias- and snap-corrected; includes
+            # off-laptop usage up to that point), SLOPE from the session_factor.
+            raw = anchor_pct + sf * (io_total - anchor_io)
         else:
             raw = sf * io_total
         return min(100, round(raw, 1))
@@ -1444,7 +1476,8 @@ def _estimate_session_pct(state: dict) -> float | None:
     anchor_pct = state.get("anchor_pct")
     anchor_io  = state.get("anchor_io", 0)
     if anchor_pct is not None:
-        raw = anchor_pct + API_PCT_FLOOR_BIAS_PP + 100 * (io_total - anchor_io) / budget
+        # anchor_pct already bias- and snap-corrected (see _snap_anchor_level).
+        raw = anchor_pct + 100 * (io_total - anchor_io) / budget
     else:
         # Fallback before first API reading: total-io / budget.
         raw = 100 * io_total / budget
@@ -1935,8 +1968,13 @@ class TranscriptHandler(FileSystemEventHandler):
                 self.state["session_budget_lb"] = max(
                     self.state.get("session_budget_lb", 0), best_lb
                 )
+        # Reconcile the API read with our prior live estimate to pick the anchor
+        # LEVEL (see _snap_anchor_level). Capture the prior BEFORE overwriting the
+        # anchor. session_anchors keeps the raw integer pct (the lower-bound math
+        # below and SessionFactor reason about the API value, not the snapped level).
+        prior = _estimate_session_pct(self.state)
         self.state["session_anchors"] = anchors + [[pct, io_now]]
-        self.state["anchor_pct"] = pct
+        self.state["anchor_pct"] = _snap_anchor_level(pct, prior)
         self.state["anchor_io"]  = io_now
 
         # Piece 1 — SessionFactor: the SLOPE of the burn rate.  Off-laptop

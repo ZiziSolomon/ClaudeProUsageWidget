@@ -715,27 +715,26 @@ class TestAdoptApiPct:
     def test_sets_anchor(self, make_handler, monkeypatch):
         # _adopt_api_pct must record anchor_pct + anchor_io so subsequent
         # _local_estimate calls start from the API value, not total_io/budget.
+        # No prior estimate here (no budget yet), so the anchor is the snap
+        # midpoint = API pct + bias = 53.
         h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
-        h.state["implied_session_budget"] = 200000
         h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
         h._adopt_api_pct(53, datetime.now(timezone.utc))
-        assert h.state["anchor_pct"] == 53
+        assert h.state["anchor_pct"] == 53 + widget_updater.API_PCT_FLOOR_BIAS_PP
         # anchor_io is the WEIGHTED total at call time, not raw 40k+20k.
         assert h.state["anchor_io"] == widget_updater._weighted_io(h.state)
 
     def test_local_estimate_uses_anchor_immediately(self, make_handler, monkeypatch):
         # After _adopt_api_pct with no new tokens, _local_estimate returns the
-        # anchor pct + the rounding midpoint correction (API_PCT_FLOOR_BIAS_PP,
-        # 0.0 under the current round-to-nearest presumption).
+        # anchor level. With no prior (no budget), that's the snap midpoint
+        # (API pct + bias). delta=0, so the estimate equals the anchor.
         h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
-        h.state["implied_session_budget"] = 200000
         h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
         h._adopt_api_pct(53, datetime.now(timezone.utc))
-        # delta = 0, so estimate == anchor_pct + API_PCT_FLOOR_BIAS_PP.
         assert h._local_estimate() == round(53 + widget_updater.API_PCT_FLOOR_BIAS_PP, 1)
 
 
@@ -972,6 +971,41 @@ class TestLivenessInterval:
         monkeypatch.setenv("CLAUDE_POLL_INTERVAL_MINUTES", "soon")
         monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
         assert widget_updater._liveness_interval_secs() == 1200
+
+
+class TestSnapAnchorLevel:
+    """_snap_anchor_level reconciles an API integer read with our prior estimate.
+    Round presumption (bias 0.0): band for N is [N-0.5, N+0.5), midpoint N."""
+
+    def test_no_prior_returns_midpoint(self):
+        assert widget_updater._snap_anchor_level(19, None) == 19.0
+
+    def test_prior_inside_band_is_kept(self):
+        # A more-precise consistent prior survives unchanged (no display jump).
+        assert widget_updater._snap_anchor_level(19, 19.2) == 19.2
+        assert widget_updater._snap_anchor_level(19, 18.6) == 18.6
+
+    def test_over_guess_snaps_inward_not_to_upper_edge(self):
+        # prior above the band -> midpoint + SNAP_INWARD (off the .5 boundary,
+        # so round(level) doesn't flicker to N+1 on the first token of growth).
+        got = widget_updater._snap_anchor_level(19, 19.9)
+        assert got == 19 + widget_updater.SNAP_INWARD
+        assert got < 19.5            # crucially NOT the upper edge
+
+    def test_under_guess_snaps_inward_below_midpoint(self):
+        got = widget_updater._snap_anchor_level(19, 18.1)
+        assert got == 19 - widget_updater.SNAP_INWARD
+        assert got > 18.5            # NOT the lower edge
+
+    def test_snap_inward_stays_off_boundary(self):
+        # Guardrail: the inward offset must be inside the half-band so a snap
+        # never lands on a .5 rounding boundary.
+        assert 0 < widget_updater.SNAP_INWARD < 0.5
+
+    def test_exactly_on_lower_edge_is_inside(self):
+        # Band is half-open [N-0.5, N+0.5): the lower edge is inside, upper is not.
+        assert widget_updater._snap_anchor_level(19, 18.5) == 18.5
+        assert widget_updater._snap_anchor_level(19, 19.5) == 19 + widget_updater.SNAP_INWARD
 
 
 class TestChartGrid:
@@ -2351,9 +2385,12 @@ class TestSessionFactor:
         }
         h.state["implied_session_budget"] = 999999
         pct = 20.0
+        # The prior estimate here is far ABOVE the band (huge weighted io vs a
+        # tight budget), so _snap_anchor_level treats it as an over-guess and
+        # snaps inward to pct + bias + SNAP_INWARD, not the midpoint.
         h._adopt_api_pct(pct, datetime.now(timezone.utc))
-        # No new tokens — estimate is anchor_pct + floor bias (0.5pp), not anchor_pct itself.
-        expected = pct + widget_updater.API_PCT_FLOOR_BIAS_PP
+        expected = pct + widget_updater.API_PCT_FLOOR_BIAS_PP + widget_updater.SNAP_INWARD
+        # _local_estimate rounds to 1dp, so 20.25 -> 20.2.
         assert h._local_estimate() == pytest.approx(expected, abs=0.1)
 
 
