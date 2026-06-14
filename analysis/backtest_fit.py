@@ -48,6 +48,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import widget_updater as wu
 from analysis.burn import historic_validate as hv
+from analysis.burn import historic_step3 as h3
 
 FLOOR_BIAS = wu.API_PCT_FLOOR_BIAS_PP
 # The widget only derives its SessionFactor from above-floor grabs (claude.ai
@@ -110,6 +111,31 @@ def _dominant_model(rec: dict) -> str:
     return best
 
 
+def load_purity():
+    """Return (classify(session_start_dt) -> 'clean'|'dirty'|'unknown', available).
+
+    Reuses historic_step3's off-laptop export so the backtest agrees with the
+    weight-validation work on which sessions are contaminated by web/mobile use.
+    A session is CLEAN only if no off-laptop message overlaps its window AND the
+    window ends before the export's last-covered instant; windows extending past
+    that are UNKNOWN (post-export off-laptop use is invisible). Degrades to
+    all-unknown if the export zip is missing, so the backtest still runs."""
+    try:
+        off, export_end = h3.load_offlaptop()
+    except (FileNotFoundError, OSError, KeyError) as e:
+        print(f"[purity] off-laptop export unavailable ({e}); "
+              f"sessions left unclassified")
+        return (lambda dt: "unknown"), False
+
+    def classify(start_dt):
+        cls = h3.classify_session(start_dt, off, export_end)
+        if cls == "clean" and (start_dt + hv.timedelta(hours=hv.SESSION_HOURS)) > export_end:
+            return "unknown"   # window runs past export coverage -> can't confirm clean
+        return cls
+
+    return classify, True
+
+
 def build_grabs(min_grabs: int) -> dict[str, list[dict]]:
     """Reconstruct weighted tokens at every above-floor calibration grab, grouped
     by session_start. Only sessions with >= min_grabs usable grabs are returned."""
@@ -149,11 +175,16 @@ def build_grabs(min_grabs: int) -> dict[str, list[dict]]:
     return out
 
 
-def analyze(sessions: dict[str, list[dict]]) -> dict:
-    """Per-session SessionFactor-consistency (A) + stale-projection drift (B)."""
+def analyze(sessions: dict[str, list[dict]], classify) -> dict:
+    """Per-session SessionFactor-consistency (A) + stale-projection drift (B).
+
+    `classify` maps a session-start datetime to 'clean'/'dirty'/'unknown' so a
+    high s_ratio caused by off-laptop use (DIRTY) isn't misread as a weight
+    misfit — only CLEAN sessions are a fair test of the weights."""
     per_session = []
     all_abs_drift = []
     for ss, grabs in sorted(sessions.items()):
+        purity = classify(hv._parse_ts(ss))
         s_vals = [g["s_grab"] for g in grabs]
         s_min, s_max = min(s_vals), max(s_vals)
         ratio = s_max / s_min if s_min > 0 else float("inf")
@@ -172,6 +203,7 @@ def analyze(sessions: dict[str, list[dict]]) -> dict:
         models = sorted({g["dom_model"] for g in grabs})
         per_session.append({
             "session_start": ss,
+            "purity":        purity,
             "n_grabs":       len(grabs),
             "models":        models,
             "mixed":         len(models) > 1,
@@ -181,12 +213,18 @@ def analyze(sessions: dict[str, list[dict]]) -> dict:
         })
 
     n = len(all_abs_drift)
+    # Clean sessions are the fair weight test; report their s_ratio band separately.
+    clean_ratios = [r["s_ratio"] for r in per_session if r["purity"] == "clean"]
     summary = {
         "n_sessions":        len(per_session),
+        "n_clean":           sum(1 for r in per_session if r["purity"] == "clean"),
+        "n_dirty":           sum(1 for r in per_session if r["purity"] == "dirty"),
+        "n_unknown":         sum(1 for r in per_session if r["purity"] == "unknown"),
         "n_projection_pts":  n,
         "mean_abs_drift_pp": round(sum(all_abs_drift) / n, 2) if n else 0,
         "max_abs_drift_pp":  max(all_abs_drift, default=0),
         "within_2pp_frac":   round(sum(1 for d in all_abs_drift if d <= 2) / n, 3) if n else 0,
+        "clean_s_ratio_max": round(max(clean_ratios), 3) if clean_ratios else None,
         "io_unit":           wu.IO_UNIT,
     }
     return {"summary": summary, "sessions": per_session}
@@ -200,10 +238,16 @@ def main() -> None:
     ap.add_argument("--json", action="store_true", help="Emit JSON, not a table.")
     args = ap.parse_args()
 
-    sessions = build_grabs(args.min_grabs)
-    if not sessions:
-        sys.exit("No sessions with enough above-floor grabs in calibration.jsonl.")
-    result = analyze(sessions)
+    # Data loading (hv.load_messages, load_purity) prints progress to stdout.
+    # In --json mode that would corrupt the JSON, so divert those to stderr.
+    import contextlib
+    load_sink = sys.stderr if args.json else sys.stdout
+    with contextlib.redirect_stdout(load_sink):
+        sessions = build_grabs(args.min_grabs)
+        if not sessions:
+            sys.exit("No sessions with enough above-floor grabs in calibration.jsonl.")
+        classify, _ = load_purity()
+    result = analyze(sessions, classify)
 
     if args.json:
         print(json.dumps(result, indent=2))
@@ -211,19 +255,28 @@ def main() -> None:
 
     s = result["summary"]
     print(f"\n=== Backtest of CURRENT weights ({s['io_unit']}) against historic data ===")
-    print(f"sessions: {s['n_sessions']}   projection points: {s['n_projection_pts']}")
+    print(f"sessions: {s['n_sessions']}  "
+          f"(clean {s['n_clean']} / dirty {s['n_dirty']} / unknown {s['n_unknown']})   "
+          f"projection points: {s['n_projection_pts']}")
     print(f"stale-projection drift: mean abs {s['mean_abs_drift_pp']} pp   "
           f"max abs {s['max_abs_drift_pp']} pp   "
           f"within 2pp: {s['within_2pp_frac']:.0%}")
+    if s["clean_s_ratio_max"] is not None:
+        print(f"worst s_ratio among CLEAN sessions (the fair weight test): "
+              f"{s['clean_s_ratio_max']}")
     print("\n--- per session: SessionFactor consistency (s_ratio ~1.0 = weights fit) ---")
-    print(f"{'session_start':25} {'grabs':>5} {'s_ratio':>8} {'maxdrift':>8}  models")
+    print(f"{'session_start':25} {'pure':>7} {'grabs':>5} {'s_ratio':>8} {'maxdrift':>8}  models")
     for row in sorted(result["sessions"], key=lambda r: r["s_ratio"], reverse=True):
-        flag = "  <-- high spread" if row["s_ratio"] > 2.0 else ""
+        # Only flag CLEAN sessions: a high s_ratio on a dirty/unknown session is
+        # expected off-laptop contamination, not a weight problem.
+        flag = "  <-- CLEAN misfit" if (row["s_ratio"] > 2.0 and row["purity"] == "clean") else ""
         mtag = ("MIX:" if row["mixed"] else "") + ",".join(row["models"])
-        print(f"{row['session_start']:25} {row['n_grabs']:>5} "
+        print(f"{row['session_start']:25} {row['purity']:>7} {row['n_grabs']:>5} "
               f"{row['s_ratio']:>8.3f} {row['max_abs_drift']:>8}  {mtag}{flag}")
-    print("\nNote: high s_ratio in a MIXED session points at a cross-model weight "
-          "being off; in a single-model session it's session noise / off-laptop use.")
+    print("\nNote: a high s_ratio is only a weight signal on a CLEAN session. On "
+          "DIRTY/UNKNOWN sessions it's (likely) off-laptop use the meter saw but "
+          "our transcripts didn't. In a MIXED clean session it points at a "
+          "cross-model weight being off.")
 
 
 if __name__ == "__main__":
