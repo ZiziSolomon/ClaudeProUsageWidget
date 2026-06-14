@@ -2,8 +2,8 @@
 Unit tests for save_accuracy_chart.horizontal_grid_ticks.
 
 Pure function - no matplotlib rendering, no file I/O, no calibration data
-required. Covers the gridline-count logic backing the --hgrid CLI option
-(configurable horizontal gridlines on the accuracy chart's % axis).
+required. Covers the gridline-interval logic backing the --hgrid CLI option (a horizontal
+line every N percent on the accuracy chart's % axis).
 """
 
 import os
@@ -16,40 +16,41 @@ from save_accuracy_chart import horizontal_grid_ticks, DEFAULT_HGRID, DEFAULT_VG
 
 
 class TestHorizontalGridTicks:
-    def test_default_count_splits_evenly(self):
-        assert horizontal_grid_ticks(100, 4) == [0, 25, 50, 75, 100]
+    """horizontal_grid_ticks(ymax, step_pct): a tick every step_pct percent from
+    0 to ymax inclusive. step_pct is an INTERVAL, not a count."""
 
-    def test_zero_count_disables_gridlines(self):
+    def test_every_25_pct(self):
+        assert horizontal_grid_ticks(100, 25) == [0, 25, 50, 75, 100]
+
+    def test_every_1_pct_gives_a_line_per_percent(self):
+        # The headline of the interval semantics: 1 => 100 lines (0..100).
+        ticks = horizontal_grid_ticks(100, 1)
+        assert ticks[:3] == [0, 1, 2]
+        assert ticks[-1] == 100
+        assert len(ticks) == 101
+
+    def test_zero_step_disables_gridlines(self):
         assert horizontal_grid_ticks(100, 0) == []
 
-    def test_negative_count_disables_gridlines(self):
+    def test_negative_step_disables_gridlines(self):
         assert horizontal_grid_ticks(100, -1) == []
 
     def test_zero_ymax_returns_empty(self):
-        assert horizontal_grid_ticks(0, 4) == []
-
-    def test_single_gridline_spans_full_range(self):
-        assert horizontal_grid_ticks(100, 1) == [0, 100]
-
-    def test_non_round_ymax_rounds_each_tick(self):
-        # ymax=63, count=4 -> step=15.75 -> rounded ticks
-        assert horizontal_grid_ticks(63, 4) == [0, 16, 32, 47, 63]
+        assert horizontal_grid_ticks(0, 25) == []
 
     def test_ticks_always_start_at_zero(self):
-        ticks = horizontal_grid_ticks(87, 3)
-        assert ticks[0] == 0
+        assert horizontal_grid_ticks(87, 20)[0] == 0
 
-    def test_ticks_always_end_at_ymax(self):
-        ymax = 87
-        ticks = horizontal_grid_ticks(ymax, 3)
-        assert ticks[-1] == round(ymax)
+    def test_final_tick_clamped_to_ymax(self):
+        # ymax=87, step=20 -> 0,20,40,60,80, then ymax 87 (not 100).
+        assert horizontal_grid_ticks(87, 20) == [0, 20, 40, 60, 80, 87]
 
-    def test_tick_count_matches_request(self):
-        for count in (1, 2, 4, 8):
-            assert len(horizontal_grid_ticks(100, count)) == count + 1
+    def test_step_larger_than_range_gives_endpoints(self):
+        # A step bigger than the whole range -> just 0 and ymax.
+        assert horizontal_grid_ticks(40, 25) == [0, 25, 40]
 
     def test_defaults_are_sane(self):
-        # Sanity check the module-level defaults haven't drifted to something
-        # degenerate (0 or negative would silently disable gridlines).
+        # Defaults are intervals now (percent / minutes); both must be positive
+        # (0 would silently disable an axis).
         assert DEFAULT_HGRID > 0
         assert DEFAULT_VGRID > 0

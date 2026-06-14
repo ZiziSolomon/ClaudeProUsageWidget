@@ -2415,17 +2415,20 @@ def _list_sessions() -> list[dict]:
     return sessions
 
 
-# Chart gridline counts (dashboard "Graph gridlines" control). Defaults match
+# Chart gridline INTERVALS (dashboard "Gridlines" control): a horizontal line
+# every CHART_HGRID percent and a vertical line every CHART_VGRID minutes — these
+# are spacings, not counts (hgrid=1 => a line at every percent). Defaults match
 # save_accuracy_chart's own DEFAULT_HGRID/VGRID; duplicated here (not imported)
 # because that module pulls in matplotlib and is also run as a separate frozen
 # exe. 0 disables an axis's gridlines.
-CHART_HGRID_DEFAULT = 4
-CHART_VGRID_DEFAULT = 6
+CHART_HGRID_DEFAULT = 25   # percent between horizontal gridlines
+CHART_VGRID_DEFAULT = 30   # minutes between vertical gridlines
 
 
 def _chart_grid() -> tuple[int, int]:
-    """(hgrid, vgrid) gridline counts from config, falling back to defaults.
-    Invalid/negative values clamp to 0 (disabled) rather than erroring."""
+    """(hgrid_pct, vgrid_min) gridline intervals from config, falling back to
+    defaults. Invalid values fall back to the default for that field; negative
+    clamps to 0 (disabled)."""
     cfg = _read_config()
     def _g(key, default):
         raw = cfg.get(key, default)
@@ -2573,21 +2576,21 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             _write_config_value("liveness_delta_pct", val)
             self._respond(b'{"ok":true}', "application/json")
         elif parsed.path == "/set_chart_grid":
-            # Dashboard "Graph gridlines" control: horizontal (% axis) and
-            # vertical (time axis) gridline counts for the usage-log chart.
-            # Each clamps to 0..20; 0 disables that axis's lines. Either param
-            # may be omitted to leave that axis unchanged. Takes effect on the
-            # next Generate (the chart is regenerated per request).
-            def _parse_grid(name):
+            # Dashboard "Gridlines" control: gridline INTERVALS for the usage-log
+            # chart — a horizontal line every hgrid PERCENT (clamped 0..100) and a
+            # vertical line every vgrid MINUTES (clamped 0..300, a 5h session). 0
+            # disables that axis's lines. Either param may be omitted to leave
+            # that axis unchanged. Takes effect on the next Generate.
+            def _parse_grid(name, hi):
                 raw = params.get(name, [None])[0]
                 if raw is None:
                     return None
                 try:
-                    return min(20, max(0, int(float(raw))))
+                    return min(hi, max(0, int(float(raw))))
                 except (TypeError, ValueError):
                     return None
-            h = _parse_grid("hgrid")
-            v = _parse_grid("vgrid")
+            h = _parse_grid("hgrid", 100)
+            v = _parse_grid("vgrid", 300)
             if h is None and v is None:
                 self._respond(b'{"ok":false}', "application/json")
                 return

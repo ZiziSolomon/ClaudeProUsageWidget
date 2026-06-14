@@ -595,10 +595,11 @@
       <button class="action-btn" id="chart-btn">Generate</button>
     </div>
     <div class="setting-row">
-      <span class="setting-label">Gridlines — horizontal (%)</span>
-      <input type="number" id="hgrid-input" class="setting-input narrow" min="0" max="20" step="1"/>
-      <span class="setting-label">vertical (time)</span>
-      <input type="number" id="vgrid-input" class="setting-input narrow" min="0" max="20" step="1"/>
+      <span class="setting-label">Gridline every</span>
+      <input type="number" id="hgrid-input" class="setting-input narrow" min="0" max="100" step="1"/>
+      <span class="setting-label">% &nbsp;·&nbsp; and every</span>
+      <input type="number" id="vgrid-input" class="setting-input narrow" min="0" max="300" step="1"/>
+      <span class="setting-label">min</span>
       <button class="action-btn" id="grid-save">Save</button>
     </div>
     <img id="chart-img" alt="Accuracy chart"/>

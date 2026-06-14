@@ -28,7 +28,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import MaxNLocator
 
 DATA = Path(os.environ["LOCALAPPDATA"]) / "ClaudeUsage" / "usage_data"
 JSONL = DATA / "calibration.jsonl"
@@ -50,24 +49,31 @@ def to_local_naive(dt: datetime) -> datetime:
 # safely below the minimum real gap between sessions (SESSION_HOURS = 5h).
 SESSION_MERGE_SECS = 300
 
-# Default gridline counts (see --hgrid / --vgrid). Horizontal lines every 25%
-# read cleanly against the 0-100% usage axis; 6 vertical lines give roughly
-# one per 50 minutes across a 5-hour session without crowding the labels.
-DEFAULT_HGRID = 4
-DEFAULT_VGRID = 6
+# Gridline INTERVALS (see --hgrid / --vgrid). These are spacings, not counts:
+# a horizontal line every HGRID percent, a vertical line every VGRID minutes.
+# 25% reads cleanly against the 0-100% usage axis; 30-minute time gridlines
+# give a handful across a 5-hour session without crowding the labels.
+DEFAULT_HGRID = 25     # percent between horizontal gridlines
+DEFAULT_VGRID = 30     # minutes between vertical gridlines
 
 
-def horizontal_grid_ticks(ymax: float, count: int) -> list[float]:
-    """Y-axis tick positions for `count` evenly-spaced horizontal gridlines
-    between 0 and ymax (inclusive of 0; ymax itself is added as the top tick
-    too so the topmost band is also bounded).
+def horizontal_grid_ticks(ymax: float, step_pct: float) -> list[float]:
+    """Y-axis tick positions for a horizontal gridline every `step_pct` percent,
+    from 0 up to (and including) ymax. So step_pct=25 -> [0,25,50,75,100] for a
+    100% axis, and step_pct=1 -> a line at every percent.
 
-    count <= 0 disables horizontal gridlines (returns []). Ticks are rounded
-    to whole percent for clean axis labels."""
-    if count <= 0 or ymax <= 0:
+    step_pct <= 0 disables horizontal gridlines (returns []). Ticks are rounded
+    to whole percent for clean axis labels; the final tick is clamped to ymax so
+    the top band is bounded even when ymax isn't a multiple of the step."""
+    if step_pct <= 0 or ymax <= 0:
         return []
-    step = ymax / count
-    return [round(step * i) for i in range(count + 1)]
+    ticks = []
+    v = 0.0
+    while v < ymax:
+        ticks.append(round(v))
+        v += step_pct
+    ticks.append(round(ymax))
+    return ticks
 
 
 def _load_all_records() -> list[dict]:
@@ -221,14 +227,14 @@ def main() -> None:
                          "the README chart.")
     ap.add_argument("--no-open", action="store_true",
                     help="Save the PNG but do not open it.")
-    ap.add_argument("--hgrid", type=int, default=DEFAULT_HGRID, metavar="N",
-                    help="Number of horizontal gridlines on the %% axis "
-                         f"(default: {DEFAULT_HGRID}, i.e. every 25%% of the "
-                         "y-range). 0 disables horizontal gridlines.")
-    ap.add_argument("--vgrid", type=int, default=DEFAULT_VGRID, metavar="N",
-                    help="Approximate number of vertical gridlines on the "
-                         f"time axis (default: {DEFAULT_VGRID}). 0 disables "
-                         "vertical gridlines.")
+    ap.add_argument("--hgrid", type=int, default=DEFAULT_HGRID, metavar="PCT",
+                    help="Horizontal gridline every PCT percent on the %% axis "
+                         f"(default: {DEFAULT_HGRID}; e.g. 1 = a line at every "
+                         "percent). 0 disables horizontal gridlines.")
+    ap.add_argument("--vgrid", type=int, default=DEFAULT_VGRID, metavar="MIN",
+                    help="Vertical gridline every MIN minutes on the time axis "
+                         f"(default: {DEFAULT_VGRID}). 0 disables vertical "
+                         "gridlines.")
     args = ap.parse_args()
 
     session_start = _resolve_session(args)
@@ -270,11 +276,16 @@ def main() -> None:
         ax.yaxis.set_major_formatter(lambda v, _pos: f"{v:.0f}%")
         ax.grid(axis="y", alpha=0.3)
 
-    # Vertical gridlines on the time axis. MaxNLocator works on the
-    # date-as-float axis and targets ~args.vgrid ticks without the
-    # short-range warnings AutoDateLocator can raise.
+    # Vertical gridlines every args.vgrid MINUTES of wall-clock. MinuteLocator
+    # with byminute lets us place ticks at multiples of the interval (00,30,...
+    # for vgrid=30); fall back to a plain interval for spacings that don't
+    # divide 60 (e.g. 45) so we still get evenly-spaced lines.
     if args.vgrid > 0:
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=args.vgrid))
+        if 60 % args.vgrid == 0:
+            ax.xaxis.set_major_locator(
+                mdates.MinuteLocator(byminute=range(0, 60, args.vgrid)))
+        else:
+            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=args.vgrid))
         ax.grid(axis="x", alpha=0.3)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     ax.tick_params(axis="x", labelsize=9)
