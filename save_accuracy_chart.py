@@ -28,6 +28,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import MaxNLocator
 
 DATA = Path(os.environ["LOCALAPPDATA"]) / "ClaudeUsage" / "usage_data"
 JSONL = DATA / "calibration.jsonl"
@@ -48,6 +49,25 @@ def to_local_naive(dt: datetime) -> datetime:
 # if resets_at drifts across restarts the stored start shifts too. 5 minutes is
 # safely below the minimum real gap between sessions (SESSION_HOURS = 5h).
 SESSION_MERGE_SECS = 300
+
+# Default gridline counts (see --hgrid / --vgrid). Horizontal lines every 25%
+# read cleanly against the 0-100% usage axis; 6 vertical lines give roughly
+# one per 50 minutes across a 5-hour session without crowding the labels.
+DEFAULT_HGRID = 4
+DEFAULT_VGRID = 6
+
+
+def horizontal_grid_ticks(ymax: float, count: int) -> list[float]:
+    """Y-axis tick positions for `count` evenly-spaced horizontal gridlines
+    between 0 and ymax (inclusive of 0; ymax itself is added as the top tick
+    too so the topmost band is also bounded).
+
+    count <= 0 disables horizontal gridlines (returns []). Ticks are rounded
+    to whole percent for clean axis labels."""
+    if count <= 0 or ymax <= 0:
+        return []
+    step = ymax / count
+    return [round(step * i) for i in range(count + 1)]
 
 
 def _load_all_records() -> list[dict]:
@@ -201,6 +221,14 @@ def main() -> None:
                          "the README chart.")
     ap.add_argument("--no-open", action="store_true",
                     help="Save the PNG but do not open it.")
+    ap.add_argument("--hgrid", type=int, default=DEFAULT_HGRID, metavar="N",
+                    help="Number of horizontal gridlines on the %% axis "
+                         f"(default: {DEFAULT_HGRID}, i.e. every 25%% of the "
+                         "y-range). 0 disables horizontal gridlines.")
+    ap.add_argument("--vgrid", type=int, default=DEFAULT_VGRID, metavar="N",
+                    help="Approximate number of vertical gridlines on the "
+                         f"time axis (default: {DEFAULT_VGRID}). 0 disables "
+                         "vertical gridlines.")
     args = ap.parse_args()
 
     session_start = _resolve_session(args)
@@ -233,10 +261,24 @@ def main() -> None:
     ax.set_ylabel("Usage %")
     ymax = max(max(local_pct), max(api_pct) if api_pct else 0) + 5
     ax.set_ylim(0, ymax)
+
+    # Horizontal gridlines at even %-of-range steps, labelled on the y-axis so
+    # the curve's level can be read at a glance instead of estimated.
+    hticks = horizontal_grid_ticks(ymax, args.hgrid)
+    if hticks:
+        ax.set_yticks(hticks)
+        ax.yaxis.set_major_formatter(lambda v, _pos: f"{v:.0f}%")
+        ax.grid(axis="y", alpha=0.3)
+
+    # Vertical gridlines on the time axis. MaxNLocator works on the
+    # date-as-float axis and targets ~args.vgrid ticks without the
+    # short-range warnings AutoDateLocator can raise.
+    if args.vgrid > 0:
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=args.vgrid))
+        ax.grid(axis="x", alpha=0.3)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     ax.tick_params(axis="x", labelsize=9)
     ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3)
     plt.tight_layout()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
