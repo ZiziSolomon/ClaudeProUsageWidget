@@ -21,8 +21,8 @@
 - Run the actual Sonnet bridge burn (the driver is ready + test-validated).
 - A single clean tiny-dose run from pct 0 would CONFIRM round-vs-floor
   (currently a presumption from 2 thin runs, 0.4-0.5pp flip).
-- Dashboard settings UI wiring for --hgrid/--vgrid (small follow-up; chart
-  already defaults them on).
+- ~~Dashboard settings UI wiring for --hgrid/--vgrid~~ DONE 2026-06-14
+  (commit bc8efa8): "Gridlines" control in the Widget log section.
 
 ## Usage graph
 - **Configurable gridlines.** Add a toggle/setting for how many horizontal and
