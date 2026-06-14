@@ -284,8 +284,8 @@ class TestCalibrationRecordsBudget:
         widget_updater._append_calibration(state, float(pct),
                                            datetime.now(timezone.utc))
         # No prior history -> blend falls back to X alone:
-        # floor convention: midpoint = 4 + 0.5 = 4.5% => X = wio/0.045.
-        assert state["implied_session_budget"] == int(round(wio / 0.045))
+        # round-to-nearest: pct=4 midpoint = 4% => X = wio/0.04.
+        assert state["implied_session_budget"] == int(round(wio / 0.04))
 
     def test_at_floor_sets_budget(self):
         # At the floor exactly we DO trust it: 2k io at floor% => 2k/(floor/100).
@@ -305,9 +305,10 @@ class TestBlendedSubFloorBudget:
     going through the calibration file dance."""
 
     def _x(self, total_io, pct):
-        # Mirror the production midpoint: floor convention means true pct ∈
-        # [N, N+1), so midpoint = N + 0.5.
-        return total_io / ((pct + 0.5) / 100)
+        # Mirror the production midpoint: round-to-nearest means true pct ∈
+        # [N-0.5, N+0.5), so midpoint = N (and 0.25 at pct=0, where w=0 anyway).
+        midpoint = pct if pct >= 1 else 0.25
+        return total_io / (midpoint / 100)
 
     def test_no_history_returns_x(self):
         # With no M to blend, we just get X back unchanged.
@@ -325,20 +326,22 @@ class TestBlendedSubFloorBudget:
         assert b == 250000
 
     def test_weight_at_pct_one(self):
-        # pct=1 => w=0.5 => equal weight (factor-of-2 uncertainty).
+        # round model: pct=1 => w = 1/(1+0.5) = 2/3 (interval half as wide as floor).
         total_io, pct = 1500, 1.0
-        x = self._x(total_io, pct)              # 1500 / 0.015 = 100000
+        x = self._x(total_io, pct)              # 1500 / 0.01 = 150000
         m = 200000
-        expected = 0.5 * x + 0.5 * m           # 50000 + 100000 = 150000
+        w = pct / (pct + 0.5)                   # 0.6667
+        expected = w * x + (1 - w) * m
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
         assert b == int(round(expected))
 
     def test_weight_at_pct_four(self):
-        # pct=4 (just under the floor) => w=4/5=0.8 => 0.8*X + 0.2*M.
+        # round model: pct=4 (just under the floor) => w = 4/4.5 ≈ 0.889.
         total_io, pct = 8000, 4.0
-        x = self._x(total_io, pct)              # 8000 / 0.045 ≈ 177778
+        x = self._x(total_io, pct)              # 8000 / 0.04 = 200000
         m = 250000
-        expected = 0.8 * x + 0.2 * m
+        w = pct / (pct + 0.5)
+        expected = w * x + (1 - w) * m
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
         assert b == int(round(expected))
 
@@ -358,7 +361,8 @@ class TestBlendedSubFloorBudget:
         total_io, pct = 500, 4.0
         x = self._x(total_io, pct)              # 500 / 0.04 = 12500
         m = 10_000_000                          # absurdly large vs X
-        expected = 0.8 * x + 0.2 * m            # = 10000 + 2000000 = 2010000
+        w = pct / (pct + 0.5)                   # round model: 0.889
+        expected = w * x + (1 - w) * m
         b = widget_updater._blended_sub_floor_budget(total_io, pct, m)
         assert b == int(round(expected))
         # And confirm we did NOT clamp at 2X.
@@ -469,16 +473,17 @@ class TestLocalEstimate:
         assert widget_updater._estimate_session_pct(state) == 100
 
     def test_anchor_snaps_to_api_pct(self):
-        # With anchor_io == current io, estimate is anchor_pct + 0.5 floor-bias
-        # (no delta from local tokens; the +0.5 midpoint correction is always applied).
+        # With anchor_io == current io, estimate is anchor_pct + the rounding-bias
+        # midpoint correction (no delta from local tokens). Under the current
+        # round-to-nearest presumption that bias is 0.0, so it snaps to anchor_pct.
         state = {
             "input_tokens": 30000, "output_tokens": 30000,
             "implied_session_budget": 200000,
             "anchor_pct": 28.5,   # API said 28.5% at this weighted io
         }
         state["anchor_io"] = widget_updater._weighted_io(state)  # == current => delta 0
-        # 28.5 + API_PCT_FLOOR_BIAS_PP (0.5) = 29.0
-        assert widget_updater._estimate_session_pct(state) == 29.0
+        expected = round(28.5 + widget_updater.API_PCT_FLOOR_BIAS_PP, 1)
+        assert widget_updater._estimate_session_pct(state) == expected
 
     def test_anchor_delta_adds_from_anchor(self):
         # Tokens written after the anchor grow estimate from anchor_pct, not zero.
@@ -722,15 +727,16 @@ class TestAdoptApiPct:
 
     def test_local_estimate_uses_anchor_immediately(self, make_handler, monkeypatch):
         # After _adopt_api_pct with no new tokens, _local_estimate returns the
-        # anchor pct + the floor-rounding midpoint correction (0.5pp).
+        # anchor pct + the rounding midpoint correction (API_PCT_FLOOR_BIAS_PP,
+        # 0.0 under the current round-to-nearest presumption).
         h = make_handler()
         self._capture(monkeypatch)
         h.session_pct = 50
         h.state["implied_session_budget"] = 200000
         h.state["input_tokens"], h.state["output_tokens"] = 40000, 20000
         h._adopt_api_pct(53, datetime.now(timezone.utc))
-        # delta = 0, so estimate == anchor_pct + API_PCT_FLOOR_BIAS_PP = 53.5.
-        assert h._local_estimate() == 53.5
+        # delta = 0, so estimate == anchor_pct + API_PCT_FLOOR_BIAS_PP.
+        assert h._local_estimate() == round(53 + widget_updater.API_PCT_FLOOR_BIAS_PP, 1)
 
 
 class TestWatcherStuck:
@@ -2265,18 +2271,20 @@ class TestSessionFactor:
         assert grabs[0]["n_messages"] == 3
 
     def test_s_g_uses_midpoint_at_floor(self, make_handler):
-        """s_g = (pct + 0.5) / io at the CALIBRATION_PCT_FLOOR, not pct / io."""
+        """s_g = (pct + API_PCT_FLOOR_BIAS_PP) / io at the CALIBRATION_PCT_FLOOR.
+
+        Under the current round-to-nearest presumption the bias is 0.0, so the
+        midpoint IS pct and s_g == pct/io. The test pins s_g to the bias constant
+        so it stays correct whichever rounding presumption is in force (it would
+        be (pct+0.5)/io again if we ever revert to floor)."""
         h = make_handler()
         h.state["input_tokens"] = 100000
         h.state["output_tokens"] = 0
         io = widget_updater._weighted_io(h.state)
         pct = float(widget_updater.CALIBRATION_PCT_FLOOR)   # e.g. 5.0
         h._set_anchor(pct)
-        expected_sf = (pct + widget_updater.API_PCT_FLOOR_BIAS_PP) / io   # (5.0 + 0.5) / io
+        expected_sf = (pct + widget_updater.API_PCT_FLOOR_BIAS_PP) / io
         assert h.state["session_factor"] == pytest.approx(expected_sf)
-        # Confirm it's different from the un-corrected value to ensure the fix matters.
-        naive_sf = pct / io
-        assert expected_sf != pytest.approx(naive_sf, rel=1e-6)
 
     def test_estimate_never_falls_below_anchor_plus_bias(self, make_handler):
         """After an API grab at pct P, the local estimate must never display

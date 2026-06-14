@@ -848,13 +848,17 @@ WEIGHT_NUDGE_ID_THRESHOLD   = 0.02
 # misweight estimate to avoid over-correcting on an atypical session.
 WEIGHT_NUDGE_SLOPE_CLAMP    = 0.5
 
-# claude.ai reports floored integer pct: an observation of N means the true
-# utilisation lies in [N, N+1) (floor convention). The midpoint N+0.5 is our
-# best single-shot estimate of the true value, and it also debiases the
-# SessionFactor's min() which would otherwise latch on the most-rounded-down
-# grab (up to ~17% systematic under-estimate at the pct=5 floor).
-# Set to 0.0 if claude.ai is ever confirmed to round-to-nearest instead.
-API_PCT_FLOOR_BIAS_PP = 0.5
+# claude.ai reports an integer pct. Two clean floor/round probe runs (tiny doses
+# from a fresh pct=0 session, 2026-06-08 and 2026-06-10) saw the 0->1 flip at
+# ~0.4-0.5 of a steady pp's tokens — i.e. ROUND-to-nearest, not floor. So we
+# PRESUME round: an observation of N means the true utilisation lies in
+# [N-0.5, N+0.5), whose midpoint is N itself, so the bias correction is 0.0.
+# (Under the old floor presumption the interval was [N, N+1), midpoint N+0.5.)
+# NB this is a presumption from two thin runs, not a hard measurement — a single
+# clean tiny-dose run would confirm it. If claude.ai is ever confirmed to FLOOR,
+# set this back to 0.5 AND revert the round-interval math in
+# _blended_sub_floor_budget (midpoint N+0.5, blend weight pct/(pct+1)).
+API_PCT_FLOOR_BIAS_PP = 0.0
 
 # Component key -> the cumulative global-counter key in state. Global counters are
 # kept (alongside the per-model split) for the calibration capture + raw-io logging.
@@ -1264,23 +1268,26 @@ def _blended_sub_floor_budget(total_io: int, pct_live: float,
     CALIBRATION_PCT_FLOOR, by blending a live-reading midpoint X with the
     user's historical median M.
 
-    The API reports floored integer percentages, so a reading of N means the
-    true pct lies in [N, N+1) (floor convention). The midpoint N+0.5 of that
-    range, fed back through total_io, gives X - our best single-shot guess
-    from the live reading alone.
+    The API reports integer percentages and we presume round-to-nearest, so a
+    reading of N means the true pct lies in [N-0.5, N+0.5). The midpoint N of
+    that range, fed back through total_io, gives X - our best single-shot guess
+    from the live reading alone. (Under the old floor presumption the range was
+    [N, N+1) with midpoint N+0.5; see API_PCT_FLOOR_BIAS_PP.)
 
     M (prior_median) is the user's typical session budget across recent
     above-floor calibrations - their gravity. It carries real signal even
     when it disagrees with X, especially at pct=0 where X's bounds are wide
     enough to be barely informative.
 
-    Blend: w * X + (1-w) * M, where w = pct_live / (pct_live + 1).
-    This follows directly from the floor-rounding uncertainty: at pct=N the
-    true budget is in [100*io/(N+1), 100*io/N], a ratio of (N+1)/N. So:
-      pct=0 → w=0   (entirely prior; local gives no upper bound at all)
-      pct=1 → w=0.5 (factor-of-2 uncertainty; equal weight)
-      pct=2 → w=0.67
-      pct=4 → w=0.8 (25% uncertainty; mostly local)
+    Blend: w * X + (1-w) * M, where w = pct_live / (pct_live + 0.5).
+    This follows directly from the round-to-nearest uncertainty: at pct=N the
+    true budget is in [100*io/(N+0.5), 100*io/(N-0.5)], a ratio of
+    (N+0.5)/(N-0.5). The local reading is tighter than under floor, so w rises
+    faster. So:
+      pct=0 → w=0    (entirely prior; the [0,0.5) bound is barely informative)
+      pct=1 → w=0.67 (the round interval is half as wide as floor's was)
+      pct=2 → w=0.8
+      pct=4 → w=0.89 (mostly local)
     At pct≥5 the main _append_calibration path handles it directly.
 
     Lower-clamp at X/2 only - asymmetric. The symmetric [X/2, 2X] clamp
@@ -1295,15 +1302,16 @@ def _blended_sub_floor_budget(total_io: int, pct_live: float,
     Returns None if we can't form even an X (zero tokens)."""
     if total_io <= 0 or pct_live is None or pct_live >= CALIBRATION_PCT_FLOOR:
         return None
-    # Floor rounding: pct=N means true pct ∈ [N, N+1) (floor convention).
-    # Midpoint of [N, N+1) is N+0.5; clamped lower edge at 0 for pct=0.
-    lower_pct = max(pct_live, 0.0)
-    midpoint_pct = lower_pct + 0.5
+    # Round-to-nearest: pct=N means true pct ∈ [N-0.5, N+0.5), midpoint N.
+    # At pct=0 the interval clamps to [0, 0.5) (midpoint 0.25); we use that only
+    # to keep X finite — w=0 there, so X is not actually used in the blend.
+    midpoint_pct = pct_live if pct_live >= 1 else 0.25
     x = total_io / (midpoint_pct / 100)
     if prior_median is None or prior_median <= 0:
         return int(round(x))
-    # w = pct/(pct+1): 0 at pct=0 (entirely prior), 0.8 at pct=4.
-    w = pct_live / (pct_live + 1.0)
+    # w = pct/(pct+0.5): 0 at pct=0 (entirely prior), 0.89 at pct=4. Tighter
+    # than the old floor weight pct/(pct+1) because round halves the interval.
+    w = pct_live / (pct_live + 0.5)
     blended = w * x + (1 - w) * prior_median
     # Asymmetric clamp: floor at X/2 to stop M dragging us implausibly low,
     # but no ceiling - M > X is the off-laptop-contamination signature and
@@ -1390,8 +1398,9 @@ def _estimate_session_pct(state: dict) -> float | None:
     When an API anchor is present (set by _set_anchor on every API read),
     extrapolates as:
         anchor_pct + API_PCT_FLOOR_BIAS_PP + 100 * (current_io - anchor_io) / budget
-    The +0.5 is the floor-rounding midpoint correction (obs=N means true pct
-    ∈ [N, N+1)).  This snaps the estimate to the API midpoint at calibration
+    API_PCT_FLOOR_BIAS_PP is the rounding midpoint correction; under the current
+    round-to-nearest presumption obs=N means true pct ∈ [N-0.5, N+0.5), midpoint
+    N, so the correction is 0.0.  This snaps the estimate to the API midpoint at calibration
     time and grows it only by locally-observed tokens written after that
     snapshot, eliminating drift from budget rounding.  Off-laptop usage that
     occurred before the anchor is already captured in anchor_pct — the widget's
@@ -1400,7 +1409,7 @@ def _estimate_session_pct(state: dict) -> float | None:
     Module-level (not just a handler method) so the freeze-regression test can
     exercise it without standing up a network-touching TranscriptHandler.
 
-    Piece 1 — SessionFactor: s = min((pct+0.5)/io) is the clean SLOPE of the
+    Piece 1 — SessionFactor: s = min((pct+bias)/io) is the clean SLOPE of the
     burn rate; the anchor is the LEVEL (which legitimately includes off-laptop
     consumption).  The estimate uses the LEVEL from the last API anchor plus
     the SLOPE from the clean SessionFactor for growth since that anchor:
@@ -1417,7 +1426,7 @@ def _estimate_session_pct(state: dict) -> float | None:
         anchor_io  = state.get("anchor_io", 0)
         if anchor_pct is not None:
             # LEVEL from anchor (includes off-laptop usage up to that point),
-            # SLOPE from the clean session_factor, +0.5 for floor-rounding.
+            # SLOPE from the clean session_factor, +bias for rounding midpoint.
             raw = anchor_pct + API_PCT_FLOOR_BIAS_PP + sf * (io_total - anchor_io)
         else:
             raw = sf * io_total
@@ -1926,9 +1935,10 @@ class TranscriptHandler(FileSystemEventHandler):
 
         # Piece 1 — SessionFactor: the SLOPE of the burn rate.  Off-laptop
         # activity only inflates obs_pct → s_g too high → min() is robust.
-        # +API_PCT_FLOOR_BIAS_PP applies the floor-rounding midpoint: obs=N means
-        # true pct ∈ [N, N+1); the midpoint N+0.5 removes the systematic
-        # under-estimate that the raw min() would otherwise latch onto.
+        # +API_PCT_FLOOR_BIAS_PP applies the rounding midpoint. Under the current
+        # round-to-nearest presumption obs=N means true pct ∈ [N-0.5, N+0.5),
+        # midpoint N, so the bias is 0.0 and s_g = pct/io directly. (It was 0.5
+        # under the old floor presumption; see API_PCT_FLOOR_BIAS_PP.)
         if pct >= CALIBRATION_PCT_FLOOR and io_now > 0:
             s_g = (pct + API_PCT_FLOOR_BIAS_PP) / io_now
             sf  = self.state.get("session_factor")

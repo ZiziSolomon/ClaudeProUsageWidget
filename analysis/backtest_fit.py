@@ -175,6 +175,23 @@ def build_grabs(min_grabs: int) -> dict[str, list[dict]]:
     return out
 
 
+def _interval_ratio(grabs) -> float:
+    """SessionFactor consistency that RESPECTS endpoint rounding.
+
+    claude.ai reports an integer pct, so an observed value N pins the true
+    utilisation to a 1pp-wide band centred on the rounding midpoint N+bias
+    (bias = API_PCT_FLOOR_BIAS_PP: 0.0 under the round-to-nearest presumption =>
+    band [N-0.5, N+0.5); 0.5 under floor => [N, N+1)). Each grab therefore
+    constrains the true slope s = true_pct/io to [(N+bias-0.5)/io, (N+bias+0.5)/io),
+    NOT a single point. If one s lies in EVERY grab's band the session is perfectly
+    consistent and we report 1.0 — the apparent spread was pure quantisation. Only
+    when the bands share no common point is there real disagreement; we report the
+    gap (lower_envelope / upper_envelope) as its size."""
+    lo = max((g["api_pct"] + FLOOR_BIAS - 0.5) / g["io"] for g in grabs)  # tightest lower
+    hi = min((g["api_pct"] + FLOOR_BIAS + 0.5) / g["io"] for g in grabs)  # tightest upper
+    return 1.0 if lo <= hi else lo / hi
+
+
 def analyze(sessions: dict[str, list[dict]], classify) -> dict:
     """Per-session SessionFactor-consistency (A) + stale-projection drift (B).
 
@@ -185,9 +202,13 @@ def analyze(sessions: dict[str, list[dict]], classify) -> dict:
     all_abs_drift = []
     for ss, grabs in sorted(sessions.items()):
         purity = classify(hv._parse_ts(ss))
-        s_vals = [g["s_grab"] for g in grabs]
-        s_min, s_max = min(s_vals), max(s_vals)
-        ratio = s_max / s_min if s_min > 0 else float("inf")
+        # Interval-aware ratio (respects pct flooring) is the headline metric.
+        # Also recompute it dropping the first above-floor grab: a fixed startup
+        # cost (system prompt + first cache writes) is a big fraction of io when
+        # io is tiny, inflating only the earliest slope. If the ratio clears once
+        # the first grab is dropped, the "misfit" was early-session, not weights.
+        ratio = _interval_ratio(grabs)
+        ratio_drop1 = _interval_ratio(grabs[1:]) if len(grabs) > 2 else ratio
 
         # B: stale projection. Anchor on each grab, project to the next using that
         # anchor's slope (pct/io), compare to truth. Mirrors plot_drift but with
@@ -207,14 +228,15 @@ def analyze(sessions: dict[str, list[dict]], classify) -> dict:
             "n_grabs":       len(grabs),
             "models":        models,
             "mixed":         len(models) > 1,
-            "s_ratio":       round(ratio, 3),
+            "s_ratio":       round(ratio, 3),         # interval-aware (floor-respecting)
+            "s_ratio_drop1": round(ratio_drop1, 3),   # same, first grab removed
             "max_abs_drift": max((abs(d) for d in drifts), default=0),
             "drifts":        drifts,
         })
 
     n = len(all_abs_drift)
     # Clean sessions are the fair weight test; report their s_ratio band separately.
-    clean_ratios = [r["s_ratio"] for r in per_session if r["purity"] == "clean"]
+    clean_ratios = [r["s_ratio_drop1"] for r in per_session if r["purity"] == "clean"]
     summary = {
         "n_sessions":        len(per_session),
         "n_clean":           sum(1 for r in per_session if r["purity"] == "clean"),
@@ -265,14 +287,20 @@ def main() -> None:
         print(f"worst s_ratio among CLEAN sessions (the fair weight test): "
               f"{s['clean_s_ratio_max']}")
     print("\n--- per session: SessionFactor consistency (s_ratio ~1.0 = weights fit) ---")
-    print(f"{'session_start':25} {'pure':>7} {'grabs':>5} {'s_ratio':>8} {'maxdrift':>8}  models")
+    print("  s_ratio is floor-aware (1.0 = grabs' rounding bands share one slope); "
+          "drop1 removes the first grab")
+    print(f"{'session_start':25} {'pure':>7} {'grabs':>5} {'s_ratio':>8} {'drop1':>7} {'maxdrift':>8}  models")
     for row in sorted(result["sessions"], key=lambda r: r["s_ratio"], reverse=True):
-        # Only flag CLEAN sessions: a high s_ratio on a dirty/unknown session is
-        # expected off-laptop contamination, not a weight problem.
-        flag = "  <-- CLEAN misfit" if (row["s_ratio"] > 2.0 and row["purity"] == "clean") else ""
+        # Only flag CLEAN sessions whose spread SURVIVES dropping the first grab:
+        # a high s_ratio on a dirty/unknown session is off-laptop contamination,
+        # and one that clears on drop1 is early-session startup cost — neither is
+        # a weight problem.
+        flag = ("  <-- CLEAN misfit"
+                if (row["s_ratio_drop1"] > 2.0 and row["purity"] == "clean") else "")
         mtag = ("MIX:" if row["mixed"] else "") + ",".join(row["models"])
         print(f"{row['session_start']:25} {row['purity']:>7} {row['n_grabs']:>5} "
-              f"{row['s_ratio']:>8.3f} {row['max_abs_drift']:>8}  {mtag}{flag}")
+              f"{row['s_ratio']:>8.3f} {row['s_ratio_drop1']:>7.3f} "
+              f"{row['max_abs_drift']:>8}  {mtag}{flag}")
     print("\nNote: a high s_ratio is only a weight signal on a CLEAN session. On "
           "DIRTY/UNKNOWN sessions it's (likely) off-laptop use the meter saw but "
           "our transcripts didn't. In a MIXED clean session it points at a "

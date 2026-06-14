@@ -15,3 +15,7 @@ docs/*
 docs/readmeImages/*
 !docs/readmeImages/*.png
 ClaudeUsage-win64.zip
+# Local scratch / autonomous-run artifacts — never commit.
+ClaudeAutonomousTesting/
+transcript_full.md
+test.png
