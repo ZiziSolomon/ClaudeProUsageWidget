@@ -779,15 +779,21 @@ def _parse_weekly(raw: dict) -> tuple[float | None, datetime | None]:
 # Weighted token accounting. The live budget/estimate runs on a CALIBRATED
 # weighted token count, not raw input+output: cache_write_1h is a large hidden
 # consumer and output costs several input-equivalents, so input+output alone
-# under-counts the meter. Weights are per-type costs toward the 5h session
-# meter, normalised to input = 1, from the calibration in analysis/burn/
-# (two-non-colinear-burn direct solve, solve_ratio.py, 2026-06-07): the orun
-# (output-light) and B-run (output-heavy) halves of one session pin the unique
-# (o, B) where both halves agree on B, eliminating the circular o<->B feedback.
-# In the burn basis (cw1h:=1) that gives input=1.5, output(o)=8.1, so the
-# robust invariant is output:cw1h = 8.1. Normalised to input=1 (divide by 1.5):
-#   output 5.4x input, cache_write_1h 0.667x, cache_read ~0 (huge volume, ~free),
-#   cache_write_5m unobserved in Claude Code (emits 1h only) -> published-ratio guess.
+# under-counts the meter. Weights are per-type costs toward the 5h session meter.
+#
+# BASIS: the gauge is cw1h_Om := 1 (Opus-Medium 1-hour cache-write = 1 unit).
+# Every weight in MODEL_WEIGHTS below is in those units, PER MODEL — a session
+# mixes models that hit the same meter at different rates (see the MODEL_WEIGHTS
+# header). Budget cost is count * weight (multiply); cost is NOT count / weight.
+# This SUPERSEDES the old single-weight "input = 1" basis (where output read as
+# ~5.4x input); do not reintroduce that normalisation.
+#
+# Method: the per-model output weights come from the typed-prose burns +
+# 5-week historic clean-session validation (analysis/burn/, solve_ratio.py's
+# two-non-colinear-burn direct solve: the orun (output-light) and B-run
+# (output-heavy) halves of one session pin the unique (o, B) where both halves
+# agree on B, eliminating the circular o<->B feedback). cache_read ~0 (huge
+# volume, ~free); cache_write_5m is unobserved in Claude Code (emits 1h only).
 # Tune here as calibration improves; bump IO_UNIT whenever TOKEN_WEIGHTS change so
 # budgets/anchors derived under the old basis are invalidated (persisted state and
 # prior-median history), forcing a clean re-derivation.
