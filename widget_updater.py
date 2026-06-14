@@ -197,14 +197,15 @@ CALIBRATION_PCT_FLOOR = 5
 # (locked too small early, or skewed by off-laptop usage) -- spend one API call
 # to re-anchor rather than trust the runaway local number. Gated by a cooldown
 # so a session stuck at the clamp can't fetch on every file event.
-FORCE_RECAL_GAP_PP        = 5
+# Cooldown between forced re-anchors so a session stuck at the 100% clamp can't
+# fetch on every file event. (FORCE_RECAL_GAP_PP was removed 2026-06-14 with the
+# big_gap arm — movement past the last reading no longer forces a call; that's
+# the 10pp liveness delta-trigger's job.)
 FORCE_RECAL_COOLDOWN_SECS = 300
-# When a freshly-fetched API pct disagrees with what we were displaying by more
-# than this, the budget is wrong (not just drifting) -- re-derive it from the
-# current session token count. BELOW this we adopt the API pct for display but
-# leave the budget alone, so a 1pp API wobble can't thrash it. Same number as
-# FORCE_RECAL_GAP_PP by design: one threshold for "the estimate and the API
-# disagree enough to act."
+# When a freshly-fetched endpoint pct disagrees with what we were displaying by
+# more than this, the budget is wrong (not just drifting) -- re-derive it from the
+# current session token count. BELOW this we adopt the endpoint pct for display but
+# leave the budget alone, so a 1pp wobble can't thrash it.
 RECAL_DISCREPANCY_PP      = 5
 # When we recalibrate we actively re-scan the transcript folder rather than
 # trust the running tally (which is built only from on_modified pings). A
@@ -2180,10 +2181,18 @@ class TranscriptHandler(FileSystemEventHandler):
         return True
 
     def _estimate_is_suspect(self, est: int, now: datetime) -> bool:
-        """True when the local estimate has gone somewhere that means the budget
-        is wrong and we should re-anchor against the API: it pegged at the 100%
-        clamp, or it sprinted FORCE_RECAL_GAP_PP past the last API-confirmed pct.
-        Cooldown-gated so a session stuck at the clamp can't fetch every event."""
+        """True when the local estimate has pegged at the 100% clamp — the one
+        signal that genuinely means the budget is too small and we should
+        re-anchor against the endpoint. Cooldown-gated so a session stuck at the
+        clamp can't fetch every event.
+
+        NB the old `big_gap` arm (est ran FORCE_RECAL_GAP_PP past the last reading)
+        was REMOVED 2026-06-14: it fired on estimate MOVEMENT, not error, so it
+        forced extra endpoint calls during normal fast burn (7 in one accurate
+        session). "Poll faster when moving fast" is already the 10pp liveness
+        delta-trigger's job; and a reading that reveals a real error re-derives
+        the budget at the reading via _adopt_api_pct's big_diff. compare_strategies.py
+        confirmed re-deriving on movement is worse on every bucket."""
         if (self.last_forced_recal is not None and
                 (now - self.last_forced_recal).total_seconds() < FORCE_RECAL_COOLDOWN_SECS):
             return False
@@ -2191,10 +2200,7 @@ class TranscriptHandler(FileSystemEventHandler):
         if not budget:
             return False
         io_total = _weighted_io(self.state)   # budget is in weighted units; raw io would be far smaller
-        clamp_hit = 100 * io_total / budget >= 100          # unclamped >= 100
-        big_gap   = (self.last_api_pct is not None and
-                     est - self.last_api_pct >= FORCE_RECAL_GAP_PP)
-        return clamp_hit or big_gap
+        return 100 * io_total / budget >= 100          # unclamped >= 100 (clamp hit)
 
     def _maybe_liveness(self) -> None:
         """Liveness poll: re-anchor the displayed pct against the API and detect

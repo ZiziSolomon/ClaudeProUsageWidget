@@ -514,9 +514,10 @@ class TestLocalEstimate:
 
 
 class TestEmergencyRecal:
-    """When the local estimate goes somewhere that proves the budget is wrong
-    (pegged at the 100% clamp, or sprinted FORCE_RECAL_GAP_PP past the last API
-    truth), on_modified spends one cooldown-gated API call to re-anchor."""
+    """The local estimate pegging at the 100% clamp is the one signal that the
+    budget is too small; on_modified then spends one cooldown-gated endpoint call
+    to re-anchor. (The old 'sprinted past the last reading' arm was removed
+    2026-06-14 — it fired on movement not error; see _estimate_is_suspect.)"""
 
     def test_clamp_hit_is_suspect(self, make_handler):
         h = make_handler()
@@ -527,23 +528,20 @@ class TestEmergencyRecal:
         h.last_api_pct = 40
         assert h._estimate_is_suspect(100, now) is True
 
-    def test_big_gap_is_suspect(self, make_handler):
+    def test_big_gap_no_longer_suspect(self, make_handler):
+        # Regression guard for the big_gap removal: a large estimate-vs-last-
+        # reading gap, with NO clamp hit, must NOT force an endpoint call. That
+        # movement is handled by the 10pp liveness delta-trigger instead.
         h = make_handler()
         now = datetime.now(timezone.utc)
-        h.state["implied_session_budget"] = 200000
-        h.state["input_tokens"] = 40000
-        h.state["output_tokens"] = 30000   # 35%, not clamped
-        h.last_api_pct = 5                 # 30pp ahead of truth >= 25
-        assert h._estimate_is_suspect(35, now) is True
-
-    def test_small_gap_not_suspect(self, make_handler):
-        h = make_handler()
-        now = datetime.now(timezone.utc)
-        h.state["implied_session_budget"] = 200000
-        h.state["input_tokens"] = 12000
-        h.state["output_tokens"] = 12000   # 12%
-        h.last_api_pct = 10                # 2pp gap < FORCE_RECAL_GAP_PP, not clamped
-        assert h._estimate_is_suspect(12, now) is False
+        # Budget far above weighted io so clamp_hit can't fire — isolating the
+        # (removed) big_gap path. weighted = 10k*1.5 + 10k*7.5 = 90k << 5_000_000.
+        h.state["implied_session_budget"] = 5_000_000
+        h.state["input_tokens"] = 10000
+        h.state["output_tokens"] = 10000
+        assert widget_updater._weighted_io(h.state) < 5_000_000   # guard: not clamped
+        h.last_api_pct = 5                 # estimate 35 is 30pp ahead of last reading
+        assert h._estimate_is_suspect(35, now) is False
 
     def test_cooldown_suppresses(self, make_handler):
         h = make_handler()
