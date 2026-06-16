@@ -1,4 +1,4 @@
-"""Plot local-estimate vs API-truth drift from calibration.jsonl.
+"""Plot local-estimate vs claude.ai-endpoint-truth drift from calibration.jsonl.
 
 For each pair of consecutive calibration points A → B in the same session,
 we ask: what would the widget have shown at B if it hadn't recalibrated since A?
@@ -88,7 +88,7 @@ def main():
 
     n = len(usable)
     fig, axes = plt.subplots(n, 2, figsize=(14, 4 * n), squeeze=False)
-    fig.suptitle("Widget local estimate vs API truth (drift analysis)", fontsize=13, y=1.01)
+    fig.suptitle("Widget local estimate vs claude.ai endpoint truth (drift analysis)", fontsize=13, y=1.01)
 
     for row, (session_start_str, sess_recs) in enumerate(
             sorted(usable.items(), key=lambda kv: kv[0])):
@@ -107,7 +107,7 @@ def main():
 
         # Left: pct over time
         ax_pct = axes[row][0]
-        ax_pct.plot(timestamps, api_vals,   "o-", color="#4C9BE8", label="API truth", lw=1.5)
+        ax_pct.plot(timestamps, api_vals,   "o-", color="#4C9BE8", label="claude.ai endpoint truth", lw=1.5)
         ax_pct.plot(timestamps, stale_vals, "s--", color="#E88A4C", label="Stale local est.", lw=1.5, alpha=0.8)
         ax_pct.fill_between(timestamps, api_vals, stale_vals, alpha=0.15, color="#E88A4C")
         ax_pct.set_title(f"Session {label}", fontsize=9)

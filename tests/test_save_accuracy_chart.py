@@ -12,8 +12,10 @@ import sys
 # matplotlib is imported at module level by save_accuracy_chart, but importing
 # it has no side effects (main() is guarded), so a plain import is safe.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from datetime import datetime, timedelta
+
 from save_accuracy_chart import (horizontal_grid_ticks, trigger_style,
-                                  DEFAULT_HGRID, DEFAULT_VGRID)
+                                  estimate_at, DEFAULT_HGRID, DEFAULT_VGRID)
 
 
 class TestHorizontalGridTicks:
@@ -79,3 +81,32 @@ class TestTriggerStyle:
     def test_returns_hex_colour(self):
         label, colour = trigger_style("liveness")
         assert colour.startswith("#") and len(colour) == 7
+
+
+class TestEstimateAt:
+    """estimate_at(): linearly interpolate the local-estimate value at a time,
+    backing the --jump-segments option (the segment jumps FROM this value)."""
+
+    def _series(self):
+        t0 = datetime(2026, 6, 16, 9, 0, 0)
+        # 10% at 9:00, 20% at 9:10 -> 1%/min.
+        return [{"ts": t0, "pct": 10.0},
+                {"ts": t0 + timedelta(minutes=10), "pct": 20.0}]
+
+    def test_interpolates_midpoint(self):
+        pts = self._series()
+        mid = pts[0]["ts"] + timedelta(minutes=5)
+        assert estimate_at(pts, mid) == 15.0
+
+    def test_exact_endpoints(self):
+        pts = self._series()
+        assert estimate_at(pts, pts[0]["ts"]) == 10.0
+        assert estimate_at(pts, pts[-1]["ts"]) == 20.0
+
+    def test_outside_series_returns_none(self):
+        pts = self._series()
+        assert estimate_at(pts, pts[0]["ts"] - timedelta(minutes=1)) is None
+        assert estimate_at(pts, pts[-1]["ts"] + timedelta(minutes=1)) is None
+
+    def test_empty_series_returns_none(self):
+        assert estimate_at([], datetime(2026, 6, 16, 9, 0, 0)) is None

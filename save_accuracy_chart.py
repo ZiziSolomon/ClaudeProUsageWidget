@@ -1,4 +1,5 @@
-"""Generate an accuracy chart: continuous local estimate line + API-truth dots.
+"""Generate an accuracy chart: continuous local estimate line + claude.ai
+endpoint-reading dots.
 
 Three ways to pick which session to plot:
 
@@ -81,6 +82,32 @@ def trigger_style(trigger: str | None) -> tuple[str, str]:
     """(legend label, hex colour) for a calibration trigger; fallback for
     unknown/missing triggers (old records may predate the field)."""
     return _TRIGGER_STYLE.get(trigger or "", _TRIGGER_FALLBACK)
+
+
+# A jump segment shorter than this many percentage points is treated as "no
+# jump" and drawn as a dot instead. Comfortably below endpoint quantisation
+# (readings land on whole/half percents) so genuine matches don't draw a stub.
+JUMP_EPSILON_PP = 0.05
+
+
+def estimate_at(local_pts: list[dict], ts: datetime) -> float | None:
+    """Linearly interpolate the local-estimate value at time `ts`.
+
+    `local_pts` is the parsed estimate series ({"ts","pct"}), assumed sorted by
+    ts (it is, being read in log order). Returns None if `ts` lies outside the
+    series (can't interpolate the estimate the reading is jumping *from*)."""
+    if not local_pts or ts < local_pts[0]["ts"] or ts > local_pts[-1]["ts"]:
+        return None
+    prev = local_pts[0]
+    for cur in local_pts:
+        if cur["ts"] >= ts:
+            span = (cur["ts"] - prev["ts"]).total_seconds()
+            if span <= 0:
+                return cur["pct"]
+            frac = (ts - prev["ts"]).total_seconds() / span
+            return prev["pct"] + frac * (cur["pct"] - prev["pct"])
+        prev = cur
+    return local_pts[-1]["pct"]
 
 
 def horizontal_grid_ticks(ymax: float, step_pct: float) -> list[float]:
@@ -268,6 +295,12 @@ def main() -> None:
     ap.add_argument("--endpoint-hlines", action="store_true",
                     help="Draw a horizontal marker line at each endpoint point's "
                          "%% level (off by default).")
+    ap.add_argument("--jump-segments", action="store_true",
+                    help="Draw each endpoint reading as a vertical segment from "
+                         "the local estimate's value at that moment to the new "
+                         "endpoint reading (the correction the estimate makes), "
+                         "instead of a dot. Readings that match the estimate "
+                         "(no jump) draw a dot the width of the estimate line.")
     ap.add_argument("--colour-by-reason", action="store_true",
                     help="Colour each claude.ai endpoint point (and its marker "
                          "lines) by why the call fired (interval / delta / fixed "
@@ -304,8 +337,28 @@ def main() -> None:
         groups = {("claude.ai endpoint", ENDPOINT_COLOUR): api_pts}
 
     for (label, colour), pts in groups.items():
-        ax.scatter([p["ts"] for p in pts], [p["pct"] for p in pts],
-                   color=colour, s=80, zorder=5, label=label)
+        if args.jump_segments:
+            # Draw each reading as the vertical correction the estimate makes:
+            # a segment from the local estimate's value at that instant up/down
+            # to the endpoint reading. Where the estimate already matched (no
+            # jump), or the reading sits outside the estimate series so there's
+            # nothing to jump from, fall back to a dot the width of the estimate
+            # line. label only attaches once so the legend lists each group once.
+            labelled = False
+            for p in pts:
+                est = estimate_at(local_pts, p["ts"])
+                lbl = label if not labelled else None
+                if est is not None and abs(p["pct"] - est) >= JUMP_EPSILON_PP:
+                    ax.plot([p["ts"], p["ts"]], [est, p["pct"]],
+                            color=colour, lw=1.8, solid_capstyle="round",
+                            zorder=5, label=lbl)
+                else:
+                    ax.plot(p["ts"], p["pct"], marker="o", color=colour,
+                            markersize=1.8, zorder=5, label=lbl)
+                labelled = True
+        else:
+            ax.scatter([p["ts"] for p in pts], [p["pct"] for p in pts],
+                       color=colour, s=80, zorder=5, label=label)
         # Optional marker lines dropped from each endpoint point: vertical (down
         # to the time axis) and/or horizontal (across to the % axis). Toggled
         # independently from the dashboard; coloured to match the point so a
