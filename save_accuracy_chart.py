@@ -110,6 +110,27 @@ def estimate_at(local_pts: list[dict], ts: datetime) -> float | None:
     return local_pts[-1]["pct"]
 
 
+def estimate_before(local_pts: list[dict], ts: datetime) -> float | None:
+    """The local-estimate value the reading at `ts` is jumping *from*.
+
+    This is the last estimate sample STRICTLY before `ts` — not an interpolation
+    through `ts`. An endpoint call logs the pre-correction estimate, fetches,
+    re-derives the budget, then logs the post-correction estimate; the pre/post
+    samples can share `ts`'s second. Interpolating *at* `ts` lands on the
+    post-correction value, collapsing the very jump we want to draw. Taking the
+    last strictly-prior sample gives the pre-correction value, so the segment
+    spans the real correction.
+
+    Returns None when no sample precedes `ts` (the reading sits at/before the
+    series start, so there's nothing to jump from)."""
+    prev = None
+    for cur in local_pts:
+        if cur["ts"] >= ts:
+            break
+        prev = cur
+    return None if prev is None else prev["pct"]
+
+
 def horizontal_grid_ticks(ymax: float, step_pct: float) -> list[float]:
     """Y-axis tick positions for a horizontal gridline every `step_pct` percent,
     from 0 up to (and including) ymax. So step_pct=25 -> [0,25,50,75,100] for a
@@ -339,14 +360,15 @@ def main() -> None:
     for (label, colour), pts in groups.items():
         if args.jump_segments:
             # Draw each reading as the vertical correction the estimate makes:
-            # a segment from the local estimate's value at that instant up/down
-            # to the endpoint reading. Where the estimate already matched (no
-            # jump), or the reading sits outside the estimate series so there's
-            # nothing to jump from, fall back to a dot the width of the estimate
-            # line. label only attaches once so the legend lists each group once.
+            # a segment from the PRE-correction estimate (the last sample before
+            # the reading; see estimate_before) up/down to the endpoint reading.
+            # Where the estimate already matched (no jump), or the reading sits
+            # at/before the series start so there's nothing to jump from, fall
+            # back to a dot. label only attaches once so the legend lists each
+            # group once.
             labelled = False
             for p in pts:
-                est = estimate_at(local_pts, p["ts"])
+                est = estimate_before(local_pts, p["ts"])
                 lbl = label if not labelled else None
                 if est is not None and abs(p["pct"] - est) >= JUMP_EPSILON_PP:
                     # Horizontal end-caps ("_" markers) at both ends so even a

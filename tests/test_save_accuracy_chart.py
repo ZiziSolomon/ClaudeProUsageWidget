@@ -15,7 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from datetime import datetime, timedelta
 
 from save_accuracy_chart import (horizontal_grid_ticks, trigger_style,
-                                  estimate_at, DEFAULT_HGRID, DEFAULT_VGRID)
+                                  estimate_at, estimate_before,
+                                  DEFAULT_HGRID, DEFAULT_VGRID)
 
 
 class TestHorizontalGridTicks:
@@ -110,3 +111,34 @@ class TestEstimateAt:
 
     def test_empty_series_returns_none(self):
         assert estimate_at([], datetime(2026, 6, 16, 9, 0, 0)) is None
+
+
+class TestEstimateBefore:
+    """estimate_before(): the PRE-correction estimate a reading jumps from -
+    the last sample STRICTLY before ts, never interpolated through it."""
+
+    def test_returns_last_strictly_prior_sample(self):
+        t0 = datetime(2026, 6, 17, 8, 0, 0)
+        pts = [{"ts": t0, "pct": 10.0},
+               {"ts": t0 + timedelta(seconds=10), "pct": 24.9}]
+        # Reading at +20s jumps from 24.9 (not interpolated past it).
+        assert estimate_before(pts, t0 + timedelta(seconds=20)) == 24.9
+
+    def test_ignores_post_correction_sample_at_same_second(self):
+        # The real-world case: pre-correction estimate, then the reading, then
+        # the post-correction estimate share the reading's second. Must return
+        # the PRE value (24.9), not the post (21.2) that would collapse the jump.
+        ts = datetime(2026, 6, 17, 8, 32, 8)
+        pts = [{"ts": ts - timedelta(seconds=1), "pct": 24.9},   # pre
+               {"ts": ts, "pct": 21.0},                          # adopted reading
+               {"ts": ts, "pct": 21.2}]                          # post-correction
+        assert estimate_before(pts, ts) == 24.9
+
+    def test_none_when_nothing_precedes(self):
+        t0 = datetime(2026, 6, 17, 8, 0, 0)
+        pts = [{"ts": t0, "pct": 10.0}]
+        assert estimate_before(pts, t0) is None                  # at the start
+        assert estimate_before(pts, t0 - timedelta(minutes=1)) is None
+
+    def test_empty_series_returns_none(self):
+        assert estimate_before([], datetime(2026, 6, 17, 8, 0, 0)) is None
