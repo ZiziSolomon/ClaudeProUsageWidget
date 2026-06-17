@@ -65,7 +65,10 @@ def load_ticks(session_start: str, lo: datetime, hi: datetime) -> list[dict]:
         m = TICK.match(line)
         if not m:
             continue
-        ts = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        # Log timestamps are LOCAL wall-clock (BST/GMT), calibration scraped_at is
+        # UTC. Treat the naive log time as system-local and convert to UTC so both
+        # series share one time base. .astimezone() on a naive dt assumes local.
+        ts = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S").astimezone(timezone.utc)
         if not (lo <= ts <= hi):
             continue
         ticks.append({"ts": ts, "raw": int(m.group(2)) + int(m.group(3))})
@@ -142,7 +145,10 @@ def main() -> None:
                  fontsize=10)
     ax.set_ylabel("Usage %")
     ax.set_ylim(0, max(max(ys), max(c["pct"] for c in calib)) + 5)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    # Both series are UTC-aware; label the axis in LOCAL wall-clock so the times
+    # match what you'd read off the clock (and the log).
+    local_tz = datetime.now().astimezone().tzinfo
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M", tz=local_tz))
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=8, loc="upper left")
     fig.tight_layout()
