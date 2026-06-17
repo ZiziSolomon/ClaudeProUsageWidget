@@ -892,6 +892,7 @@ class TestSessionRollover:
         h.session_start = end - timedelta(hours=widget_updater.SESSION_HOURS)
         h.session_end = end
         h.session_pct = 74
+        h.last_api_pct = 100
         h.last_calibrated = datetime.now(timezone.utc)
         h.state["implied_session_budget"] = 100000
         h.state["input_tokens"] = 60000
@@ -920,6 +921,8 @@ class TestSessionRollover:
         assert not h.state.get("implied_session_budget")
         # calibration anchor dropped so the next calibrate re-anchors at once
         assert h.last_calibrated is None
+        # confirmed-100 poll suppression must reset so the new window polls
+        assert h.last_api_pct is None
 
     def test_noticed_late_blanks_to_pending(self, make_handler):
         now = datetime.now(timezone.utc)
@@ -1169,6 +1172,27 @@ class TestLivenessTriggers:
         calls.clear()
         h._maybe_liveness()
         assert len(calls) == 0
+
+    def test_no_poll_when_api_confirmed_100(self, make_handler, monkeypatch):
+        # Once the API has confirmed 100%, the window is spent: no trigger
+        # (time, delta, or one-shot) should fire another poll.
+        h = self._make_seeded_handler(make_handler)
+        calls = self._stub_fetch(monkeypatch, h)
+        h.last_api_pct = 100
+        h.last_liveness = None                 # time trigger would otherwise fire
+        h._triggered_thresholds = set()
+        h.state["input_tokens"] = 192000       # est=96%, one-shots would fire
+        h._maybe_liveness()
+        assert len(calls) == 0
+
+    def test_poll_resumes_below_100(self, make_handler, monkeypatch):
+        # A confirmed reading just under 100 must NOT suppress polling.
+        h = self._make_seeded_handler(make_handler)
+        calls = self._stub_fetch(monkeypatch, h)
+        h.last_api_pct = 99
+        h.last_liveness = None                 # time trigger fires
+        h._maybe_liveness()
+        assert len(calls) == 1
 
     def test_anchor_updated_after_successful_poll(self, make_handler, monkeypatch):
         # _set_anchor is called inside _adopt_api_pct on a successful fetch;

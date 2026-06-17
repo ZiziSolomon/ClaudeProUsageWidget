@@ -2216,6 +2216,14 @@ class TranscriptHandler(FileSystemEventHandler):
 
         Does not consume the calibration budget."""
         now = datetime.now(timezone.utc)
+        # Once the API has confirmed the session is fully spent there's nothing
+        # left to learn this window: the reading is pinned at 100 until rollover,
+        # so stop polling. last_api_pct is cleared on rollover, re-enabling the
+        # next window. (Gate on the *confirmed* value, not the local estimate,
+        # which can read 100 while the truth is lower.)
+        if self.last_api_pct is not None and self.last_api_pct >= 100:
+            return
+
         age = ((now - self.last_liveness).total_seconds()
                if self.last_liveness else float("inf"))
         est = _estimate_session_pct(self.state)  # process_file already ran
@@ -2291,6 +2299,10 @@ class TranscriptHandler(FileSystemEventHandler):
         self.session_start = None
         self.session_end   = None
         self.session_pct   = 0 if caught_live else None
+        # Clear the last API-confirmed pct so the new window isn't seen as still
+        # exhausted (the 100%-reached poll suppression in _maybe_liveness keys
+        # off last_api_pct).
+        self.last_api_pct  = None
         # Drop the calibration anchor so the next _maybe_calibrate re-anchors the
         # new window immediately instead of waiting out CALIBRATION_MAX_AGE_SECS.
         self.last_calibrated = None

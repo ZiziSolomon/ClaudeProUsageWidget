@@ -349,12 +349,16 @@ def main() -> None:
                 est = estimate_at(local_pts, p["ts"])
                 lbl = label if not labelled else None
                 if est is not None and abs(p["pct"] - est) >= JUMP_EPSILON_PP:
+                    # Horizontal end-caps ("_" markers) at both ends so even a
+                    # sub-pp jump reads as a deliberate bracketed mark rather
+                    # than vanishing into the estimate line.
                     ax.plot([p["ts"], p["ts"]], [est, p["pct"]],
-                            color=colour, lw=1.8, solid_capstyle="round",
+                            color=colour, lw=2.6, solid_capstyle="butt",
+                            marker="_", markersize=9, markeredgewidth=2.6,
                             zorder=5, label=lbl)
                 else:
                     ax.plot(p["ts"], p["pct"], marker="o", color=colour,
-                            markersize=1.8, zorder=5, label=lbl)
+                            markersize=4, zorder=5, label=lbl)
                 labelled = True
         else:
             ax.scatter([p["ts"] for p in pts], [p["pct"] for p in pts],
