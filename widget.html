@@ -610,6 +610,9 @@
     <div class="setting-row">
       <label class="text-toggle"><input type="checkbox" id="endpoint-colour"/> Colour endpoint readings by why the call fired</label>
     </div>
+    <div class="setting-row">
+      <label class="text-toggle"><input type="checkbox" id="endpoint-jump"/> Draw endpoint readings as jump segments (estimate's correction)</label>
+    </div>
     <img id="chart-img" alt="Accuracy chart"/>
   </div>
 </div>
@@ -980,6 +983,9 @@
       if (p.chart_colour_by_reason != null) {
         document.getElementById('endpoint-colour').checked = !!p.chart_colour_by_reason;
       }
+      if (p.chart_jump_segments != null) {
+        document.getElementById('endpoint-jump').checked = !!p.chart_jump_segments;
+      }
 
       // Update the in-memory widget config so setGhost / updateArc use fresh colours.
       if (p.widgets && typeof p.widgets === 'object') {
@@ -1073,7 +1079,8 @@
     const vl = document.getElementById('endpoint-vlines').checked ? '1' : '0';
     const hl = document.getElementById('endpoint-hlines').checked ? '1' : '0';
     const cr = document.getElementById('endpoint-colour').checked ? '1' : '0';
-    await fetch('/set_chart_endpoint_lines?vlines=' + vl + '&hlines=' + hl + '&colour=' + cr,
+    const js = document.getElementById('endpoint-jump').checked ? '1' : '0';
+    await fetch('/set_chart_endpoint_lines?vlines=' + vl + '&hlines=' + hl + '&colour=' + cr + '&jump=' + js,
                 { method: 'POST' }).catch(() => {});
     const img = document.getElementById('chart-img');
     if (img && img.style.display === 'block') {
@@ -1083,6 +1090,7 @@
   document.getElementById('endpoint-vlines').addEventListener('change', saveEndpointLines);
   document.getElementById('endpoint-hlines').addEventListener('change', saveEndpointLines);
   document.getElementById('endpoint-colour').addEventListener('change', saveEndpointLines);
+  document.getElementById('endpoint-jump').addEventListener('change', saveEndpointLines);
 
   // ---- Appearance section save buttons ----
   // Each row saves three fields (base_color, color_stops, fill_mode) for one

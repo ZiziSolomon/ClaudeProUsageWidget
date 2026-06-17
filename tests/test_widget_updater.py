@@ -1062,6 +1062,15 @@ class TestChartEndpointLines:
                             lambda: {"chart_colour_by_reason": True})
         assert widget_updater._chart_colour_by_reason() is True
 
+    def test_jump_segments_default_off(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config", lambda: {})
+        assert widget_updater._chart_jump_segments() is False
+
+    def test_jump_segments_config(self, monkeypatch):
+        monkeypatch.setattr(widget_updater, "_read_config",
+                            lambda: {"chart_jump_segments": True})
+        assert widget_updater._chart_jump_segments() is True
+
 
 # ---------------------------------------------------------------------------
 # Incremental process_file - the watcher stalled on a 2.5MB transcript

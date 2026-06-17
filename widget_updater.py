@@ -2490,6 +2490,9 @@ CHART_ENDPOINT_VLINES_DEFAULT = True
 CHART_ENDPOINT_HLINES_DEFAULT = False
 # Colour endpoint points by the reason the call fired (interval/delta/etc).
 CHART_COLOUR_BY_REASON_DEFAULT = False
+# Draw each endpoint reading as a line segment spanning the jump the estimate
+# made to correct itself, instead of a plain dot.
+CHART_JUMP_SEGMENTS_DEFAULT = False
 
 
 def _cfg_bool(cfg: dict, key: str, default: bool) -> bool:
@@ -2508,6 +2511,12 @@ def _chart_colour_by_reason() -> bool:
     """Whether to colour endpoint points by their trigger reason."""
     return _cfg_bool(_read_config(), "chart_colour_by_reason",
                      CHART_COLOUR_BY_REASON_DEFAULT)
+
+
+def _chart_jump_segments() -> bool:
+    """Whether to draw endpoint readings as jump segments instead of dots."""
+    return _cfg_bool(_read_config(), "chart_jump_segments",
+                     CHART_JUMP_SEGMENTS_DEFAULT)
 
 
 def _run_accuracy_chart(at: str | None) -> bool:
@@ -2539,6 +2548,8 @@ def _run_accuracy_chart(at: str | None) -> bool:
         cmd += ["--endpoint-hlines"]
     if _chart_colour_by_reason():
         cmd += ["--colour-by-reason"]
+    if _chart_jump_segments():
+        cmd += ["--jump-segments"]
     if at:
         cmd += ["--at", at]
     flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
@@ -2691,7 +2702,8 @@ class _WidgetHandler(BaseHTTPRequestHandler):
             vl = _parse_bool("vlines")
             hl = _parse_bool("hlines")
             cr = _parse_bool("colour")
-            if vl is None and hl is None and cr is None:
+            js = _parse_bool("jump")
+            if vl is None and hl is None and cr is None and js is None:
                 self._respond(b'{"ok":false}', "application/json")
                 return
             if vl is not None:
@@ -2700,9 +2712,12 @@ class _WidgetHandler(BaseHTTPRequestHandler):
                 _write_config_value("chart_endpoint_hlines", hl)
             if cr is not None:
                 _write_config_value("chart_colour_by_reason", cr)
+            if js is not None:
+                _write_config_value("chart_jump_segments", js)
             cv, ch = _chart_endpoint_lines()
             self._respond(json.dumps({"ok": True, "vlines": cv, "hlines": ch,
-                                      "colour": _chart_colour_by_reason()}).encode(),
+                                      "colour": _chart_colour_by_reason(),
+                                      "jump": _chart_jump_segments()}).encode(),
                           "application/json")
         elif parsed.path == "/set_widget_color":
             # Dashboard Appearance section: set base_color for one widget.
