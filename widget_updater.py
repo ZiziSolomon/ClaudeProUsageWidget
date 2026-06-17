@@ -1960,8 +1960,15 @@ class TranscriptHandler(FileSystemEventHandler):
             for prev_pct, prev_io in anchors:
                 d_pct = pct - prev_pct
                 d_io  = io_now - prev_io
-                # Skip negative Δpct (session reset) and non-positive Δio.
-                if d_pct >= 0 and d_io > 0:
+                # Need a POSITIVE Δpct to bound the budget. A pair where the API
+                # reported the same integer pct (d_pct == 0) carries no usable
+                # information: real tokens burned but the % we can measure didn't
+                # move, so 100*d_io/(d_pct+1) would divide ~all the burn by 1 and
+                # fabricate an enormous lower bound (observed 2026-06-17: two reads
+                # both at 37% -> lb 13.97M, ~4x the true budget, which then ratchets
+                # via max() and can't recover). Skip d_pct < 1; the +1 below still
+                # accounts for floor-rounding within a genuine 1+pp step.
+                if d_pct >= 1 and d_io > 0:
                     lb = int(100 * d_io / (d_pct + 1.0))
                     if lb > best_lb:
                         best_lb = lb

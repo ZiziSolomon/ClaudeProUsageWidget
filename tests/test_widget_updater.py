@@ -1521,16 +1521,40 @@ class TestBudgetLowerBound:
         assert h.state["session_budget_lb"] == int(100 * 20000 * W / 3)
         assert h.state["session_budget_lb"] < int(100 * 20000 * W / 2)  # not naive /2
 
-    def test_zero_delta_pct_gives_lb(self, make_handler):
-        # Δpct=0, Δio>0: pct didn't tick so true Δpct < 1 pp → denom=1.
-        # lb = 100 * Δio / 1 = budget ≥ 100 × tokens_used.
+    def test_zero_delta_pct_contributes_no_lb(self, make_handler):
+        # Δpct=0, Δio>0: the API reported the same integer pct twice, so there's
+        # no measurable Δpct to bound the budget against. Such a pair must be
+        # SKIPPED, not divided by the +1 guard — doing the latter fabricated an
+        # enormous lower bound (100*Δio/1) that ratcheted via max() and wrecked
+        # the estimate (regression: 2026-06-17, two reads both at 37% -> 13.97M
+        # budget, ~4x true). With only a zero-Δpct pair available, lb stays 0.
         h = make_handler()
         h.state["session_anchors"] = []
         self._seed_anchor(h, 5.0, 1000)
-        h.state["input_tokens"] = 6000            # +5k, pct still 5
-        h._set_anchor(5.0)                        # Δpct=0 → denom=1
-        W = widget_updater.DEFAULT_WEIGHTS["input"]   # lb is on WEIGHTED io
-        assert h.state["session_budget_lb"] == int(100 * 5000 * W / 1)
+        h.state["input_tokens"] = 6000            # +5k weighted burn, pct still 5
+        h._set_anchor(5.0)                        # Δpct=0 → no usable bound
+        assert h.state.get("session_budget_lb", 0) == 0
+
+    def test_zero_delta_pct_pair_does_not_blow_up_lb(self, make_handler):
+        # The exact session shape that regressed: a clean step, then a second
+        # read at the SAME pct with extra burn. The same-pct pair (Δpct=0) must
+        # not fabricate a 100*Δio/1 bound. lb may still grow via a *legitimate*
+        # pair (here 0%→2% spanning the new io), but it must equal that real
+        # bound — never the catastrophic /1 value.
+        h = make_handler()
+        h.state["session_anchors"] = []
+        self._seed_anchor(h, 0.0, 0)
+        W = widget_updater.DEFAULT_WEIGHTS["input"]
+        h.state["input_tokens"] = 20000
+        h._set_anchor(2.0)                        # clean: lb = 100*20000*W/3
+        assert h.state["session_budget_lb"] == int(100 * 20000 * W / 3)
+        h.state["input_tokens"] = 22000           # +2k burn, pct stays 2
+        h._set_anchor(2.0)                        # adds anchor (2.0, 22000)
+        # Legit pair (0%, 0) -> (2%, 22000): lb = 100*22000*W/3 (denom Δpct+1=3).
+        # The Δpct=0 pair against the prior 2% anchor is skipped entirely; were it
+        # not, it would contribute 100*2000*W/1 = 300k from a 0pp move — the /1
+        # path we removed. The result is the clean 0->2 bound, nothing fabricated.
+        assert h.state["session_budget_lb"] == int(100 * 22000 * W / 3)
 
     def test_lb_is_running_maximum(self, make_handler):
         # lb grows when a new pair is tighter, stays put when it's looser.
