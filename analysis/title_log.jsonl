@@ -1,0 +1,1634 @@
+{"ts": "2026-06-25T09:28:59", "hwnd": "0x70310", "pre": "", "full": "Windows PowerShell"}
+{"ts": "2026-06-25T09:28:59", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:29:06", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:02", "hwnd": "0x70310", "pre": "", "full": "Windows PowerShell"}
+{"ts": "2026-06-25T09:30:06", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:14", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:15", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:16", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:17", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:18", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:19", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:20", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:21", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:22", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:23", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:24", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:25", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:26", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:28", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:30", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:31", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:33", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:34", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:35", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:36", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:37", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:38", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:30:39", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:09", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:10", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:11", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:12", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:13", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:14", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:15", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:16", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:17", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:18", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:19", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:20", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:21", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:22", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:28", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:29", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:30", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:31", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:32", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:33", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:34", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:36", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:37", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:50", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:51", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:52", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:53", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:54", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:56", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:57", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:31:58", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SM-Om - first site AJ_1986 -"}
+{"ts": "2026-06-25T09:32:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:28", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:29", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:30", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:31", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:32", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:33", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:34", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:36", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:37", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:39", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:48", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:49", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:50", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:51", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:52", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:32:53", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:19", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:20", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:21", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:22", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:24", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:25", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:26", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:27", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:33:51", "hwnd": "0x70310", "pre": "", "full": "Windows PowerShell"}
+{"ts": "2026-06-25T09:33:53", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SM-Om - first site AJ_1986 -"}
+{"ts": "2026-06-25T09:33:59", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:34:54", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - first site AJ_1986 -"}
+{"ts": "2026-06-25T09:34:55", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - first site AJ_1986 -"}
+{"ts": "2026-06-25T09:34:56", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:35:06", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:07", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:08", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:13", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:14", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:16", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:17", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:18", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:19", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:35:32", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:33", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:34", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:36", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:37", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:35:50", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:36:45", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:36:46", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SM-Om - what's rest book segal"}
+{"ts": "2026-06-25T09:36:47", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:36:48", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:36:49", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:36:50", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:37:00", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:37:01", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:37:02", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:38:14", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:38:15", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:38:16", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:39:00", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:42:39", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:42:40", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - reading order matter -"}
+{"ts": "2026-06-25T09:42:41", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:42", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:43", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:44", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:45", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:46", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:47", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:48", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:49", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:50", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:52", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:53", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:54", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:55", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:42:56", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:16", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:17", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:18", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:19", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:20", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:21", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:22", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:23", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:24", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:25", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:26", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:28", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:29", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:30", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:31", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:32", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:33", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:34", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:36", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:37", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:43:43", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:00", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:44:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:48", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:49", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:50", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:51", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:52", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:53", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:54", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:55", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:56", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:57", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:58", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:44:59", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:00", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:01", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:02", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:03", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:04", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:05", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:45:06", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:49:00", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:52:02", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:08", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:09", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:10", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:11", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:12", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:13", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:14", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:15", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:16", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:17", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:18", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:23", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:24", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:25", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:26", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:28", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:29", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:31", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:32", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T09:53:33", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:01", "hwnd": "0x606ba", "pre": "", "full": "C:\\Users\\Ezekiel\\Documents\\Claude\\segal_method - File Explorer"}
+{"ts": "2026-06-25T09:54:05", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:06", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:08", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:10", "hwnd": "0x70310", "pre": "", "full": "Windows PowerShell"}
+{"ts": "2026-06-25T09:54:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:36", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:37", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:38", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:39", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:40", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:41", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:42", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:43", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:44", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:45", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:46", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:47", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:48", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:49", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:50", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:51", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:52", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:54", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:54:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:00", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:03", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:05", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:06", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T09:55:23", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:00:24", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:05:24", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:10:25", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:15:25", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:16:55", "hwnd": "0x70310", "pre": "", "full": "Windows PowerShell"}
+{"ts": "2026-06-25T10:17:18", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:36", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:37", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:38", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:39", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:40", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:41", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:17:42", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:18:34", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - plan reading book"}
+{"ts": "2026-06-25T10:18:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - plan reading book"}
+{"ts": "2026-06-25T10:18:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - plan reading book"}
+{"ts": "2026-06-25T10:18:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:18:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:18:50", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:18:51", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:18:52", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:18:53", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:54", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:55", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:56", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:57", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:58", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:19:59", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:00", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:01", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:02", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:03", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:04", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:05", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:06", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:07", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:08", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:09", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:10", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:12", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:13", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:14", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:15", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:16", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:17", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:18", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:19", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:20", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:21", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:22", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:23", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:24", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:25", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:26", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:27", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:28", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:29", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:30", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:31", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:32", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:33", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:34", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:37", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:38", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:39", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:40", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:50", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:51", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:52", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:53", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:54", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:55", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:56", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:57", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:58", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:20:59", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:00", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:01", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:02", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:03", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:04", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:05", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:06", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:07", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:08", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:09", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:11", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:12", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:13", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:14", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:15", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:16", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:17", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:18", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:19", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:20", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:21", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:22", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:23", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:24", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:25", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:26", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:27", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:28", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:29", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:30", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:31", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:32", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:33", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:34", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:35", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:36", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:50", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:51", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:52", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:53", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:54", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:55", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:56", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:57", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:58", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:21:59", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:00", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:01", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:02", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:03", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:04", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:05", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:06", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:08", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:09", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:10", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:11", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:12", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:13", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:14", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:15", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:16", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:17", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:18", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:19", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:20", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:21", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:22", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:23", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:24", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:25", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:26", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:27", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:28", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:29", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:30", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:31", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:32", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:33", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:35", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:36", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:37", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:38", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:39", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:40", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:41", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:42", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:43", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:44", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:45", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:46", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:47", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:48", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:49", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:50", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:51", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:52", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:53", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:56", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:22:57", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:23:00", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:24:40", "hwnd": "0x70310", "pre": "✳ ", "full": "✳ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:37", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:38", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:39", "hwnd": "0x70310", "pre": "⠂ ", "full": "⠂ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:40", "hwnd": "0x70310", "pre": "⠐ ", "full": "⠐ SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:41", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:42", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:43", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T10:25:44", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:26:35", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:31:35", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:36:36", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:41:36", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:46:36", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:51:37", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T10:56:37", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T11:01:38", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T11:12:55", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T11:17:55", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:22:56", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:15", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:26:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:03", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:05", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:06", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:08", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:27:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:32:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:36:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:51", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:52", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:38:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:00", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:03", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:05", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:39:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:08", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:48", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:40:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:41:38", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:42:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:47", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:43:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:44:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:00", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:45:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:46:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:47:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:48:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:49:00", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:54:00", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T11:59:01", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:04:01", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:09:01", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:14:02", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:17:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:17:15", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:17:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:17:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:18:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:19:51", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:24:52", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SO-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:48", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:49", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:50", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:51", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:52", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:54", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:55", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:56", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:57", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:25:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:26:26", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:26:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:00", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:03", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:05", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:06", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:08", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:27:13", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:29:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:29:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:00", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:01", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:02", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T12:30:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:58", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:30:59", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:23", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:44", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:31:56", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:36:57", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:02", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:03", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:04", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:05", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:06", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:07", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:08", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:38:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:40:12", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:45:12", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:36", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:37", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:38", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:39", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:40", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:41", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:42", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:43", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:44", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:45", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:46", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:47", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:48", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:49", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:49:50", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:54:50", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T12:59:50", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:04:51", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:05:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:05:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:05:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:05:40", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:09", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:10", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:11", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:12", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:13", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:14", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:15", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:16", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:17", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:18", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:19", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:20", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:21", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:22", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:23", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:24", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:25", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:36", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:37", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:08:38", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:12:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:12:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:12:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:12:16", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:17:17", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:17", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:54", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:55", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:56", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:57", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:22:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:27:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:45", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:46", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:47", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:48", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:49", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:50", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:51", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:52", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:28:54", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !CUW-Om - turn-state title poll."}
+{"ts": "2026-06-25T13:29:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:29", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:30", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:31", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:32", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:33", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:34", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:35", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:36", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:37", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:38", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:39", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:40", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:41", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:42", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:43", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:44", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:45", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:46", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:29:54", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:25", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:26", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:27", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:28", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:53", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:54", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:55", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:56", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:57", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:31:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:52", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:54", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:55", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:56", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:57", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:32:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:16", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:17", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:22", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:23", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:24", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:26", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:27", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:28", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:29", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:30", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:31", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:32", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:33", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:34", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:35", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:36", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:37", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:38", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:39", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:40", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:41", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:42", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:43", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:44", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:45", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:46", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:47", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:49", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:50", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:51", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:53", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:54", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:55", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:56", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:57", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:58", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:33:59", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:00", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:01", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:02", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:03", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:04", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:05", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:06", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:07", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:08", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:09", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:10", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:11", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:12", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:13", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:14", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:15", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:18", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:19", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:20", "hwnd": "0x70310", "pre": "⠐ !", "full": "⠐ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T13:34:21", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T14:24:48", "hwnd": "0x70310", "pre": "⠂ !", "full": "⠂ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T14:24:49", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T14:35:03", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T15:45:21", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T15:50:21", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T15:55:22", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T16:26:35", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
+{"ts": "2026-06-25T23:14:47", "hwnd": "0x70310", "pre": "✳ !", "full": "✳ !SM-Om - Self-Build Book �+' p."}
